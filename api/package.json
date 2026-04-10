@@ -7,7 +7,9 @@
     "dev": "nodemon src/app/server.js",
     "start": "node src/app/server.js",
     "lint": "echo \"api lint placeholder\"",
-    "test": "echo \"api test placeholder\""
+    "test": "jest --runInBand",
+    "test:auth": "jest src/tests --runInBand",
+    "test:smtp": "node scripts/test-smtp-auth.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -23,6 +25,8 @@
     "nodemailer": "^8.0.4"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.1.1"
   }
 }

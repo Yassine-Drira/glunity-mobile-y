@@ -1,3 +1,6 @@
 module.exports = {
-  testEnvironment: 'node'
+  testEnvironment: 'node',
+  setupFiles: ['<rootDir>/jest.setup.cjs'],
+  testMatch: ['<rootDir>/src/tests/**/*.test.js'],
+  clearMocks: true,
 };
