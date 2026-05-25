@@ -9,12 +9,13 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
-  Alert,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../../navigation/types';
+import { useFocusEffect } from '@react-navigation/native';
+import type { AuthStackParamList } from '../../../../navigation/types';
 import { AuthInput } from '../../../../shared/components/AuthInput';
 import { AuthButton } from '../../../../shared/components/AuthButton';
+import { WaveBackground } from '../../../../shared/components/WaveBackground';
 import { Colors, Font, Spacing, Radius } from '../../../../shared/utils/theme';
 import { useAuth } from '../../state/auth.context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -24,6 +25,12 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 export default function LoginScreen({ navigation }: Props) {
   const { login, isLoading, error, clearError } = useAuth();
 
+  useFocusEffect(
+    React.useCallback(() => {
+      clearError();
+      return undefined;
+    }, [clearError]),
+  );
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass]  = useState(false);
@@ -100,7 +107,11 @@ export default function LoginScreen({ navigation }: Props) {
 
           {/* Forgot password */}
           <TouchableOpacity
-            onPress={() => navigation.navigate('ForgotPassword')}
+            onPress={() =>
+              navigation.navigate('ForgotPassword', {
+                email: email.trim().toLowerCase() || undefined,
+              })
+            }
             style={styles.forgotWrap}
           >
             <Text style={styles.forgot}>Forgot Password?</Text>
@@ -116,18 +127,22 @@ export default function LoginScreen({ navigation }: Props) {
             />
           </View>
 
-          {/* Switch to register */}
-          <View style={styles.switchRow}>
-            <Text style={styles.switchText}>No Account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.switchLink}>Register</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Wave bottom */}
-      <View style={styles.wave} />
+      <View style={styles.switchRow}>
+        <Text style={styles.switchText}>No Account? </Text>
+        <TouchableOpacity
+          onPress={() => {
+            clearError();
+            navigation.navigate('Register');
+          }}
+        >
+          <Text style={styles.switchLink}>Register</Text>
+        </TouchableOpacity>
+      </View>
+
+      <WaveBackground />
     </SafeAreaView>
   );
 }
@@ -186,30 +201,26 @@ const styles = StyleSheet.create({
 
   // Switch
   switchRow: {
+    position: 'absolute',
+    bottom: 18,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 5,
   },
   switchText: {
-    fontSize: 14,
-    fontWeight: Font.light,
-    color: Colors.muted,
+    fontSize: 16,
+    fontWeight: Font.medium,
+    color: Colors.white,
   },
   switchLink: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: Font.bold,
-    color: Colors.green,
+    color: Colors.dark,
   },
 
   eyeIcon: { fontSize: 18 },
 
-  // Wave
-  wave: {
-    position: 'absolute',
-    bottom: 0, left: -4, right: -4,
-    height: 110,
-    backgroundColor: Colors.green,
-    borderTopLeftRadius: 9999,
-    borderTopRightRadius: 9999,
-  },
 });

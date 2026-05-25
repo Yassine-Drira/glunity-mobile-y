@@ -6,9 +6,9 @@ import { AppNavigator } from './AppNavigator';
 import { Colors } from '../shared/utils/theme';
 
 export function RootNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isInitialized } = useAuth();
 
-  if (isLoading) {
+  if (!isInitialized) {
     return (
       <View style={styles.splash}>
         <ActivityIndicator size="large" color={Colors.green} />

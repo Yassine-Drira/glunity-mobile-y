@@ -9,12 +9,12 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
-  Alert,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
 import { AuthInput } from '@/shared/components/AuthInput';
 import { AuthButton } from '@/shared/components/AuthButton';
+import { WaveBackground } from '@/shared/components/WaveBackground';
 import { Colors, Font, Spacing, Radius } from '@/shared/utils/theme';
 import authApi from '../../api/auth.api';
 import { Feather } from '@expo/vector-icons';
@@ -23,13 +23,15 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
 // ── Screen 1 – Email Entry ────────────────────────────────────────────────────
 function EmailStep({
+  initialEmail,
   onSent,
   onBack,
 }: {
+  initialEmail?: string;
   onSent: (email: string) => void;
   onBack: () => void;
 }) {
-  const [email, setEmail]     = useState('');
+  const [email, setEmail]     = useState(initialEmail ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
@@ -83,6 +85,7 @@ function EmailStep({
           label="Email"
           placeholder="Enter your email"
           keyboardType="email-address"
+          autoComplete="off"
           value={email}
           onChangeText={setEmail}
         />
@@ -137,7 +140,8 @@ function SentStep({
 }
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
-export default function ForgotPasswordScreen({ navigation }: Props) {
+export default function ForgotPasswordScreen({ navigation, route }: Props) {
+  const initialEmail = route.params?.email ?? '';
   const [step, setStep]           = useState<'email' | 'sent'>('email');
   const [sentEmail, setSentEmail] = useState('');
 
@@ -152,6 +156,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
       {step === 'email' ? (
         <EmailStep
+          initialEmail={initialEmail}
           onSent={handleSent}
           onBack={() => navigation.navigate('Login')}
         />
@@ -162,8 +167,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         />
       )}
 
-      {/* Wave decoration */}
-      <View style={styles.wave} />
+      <WaveBackground />
     </SafeAreaView>
   );
 }
@@ -258,12 +262,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  wave: {
-    position: 'absolute',
-    bottom: 0, left: -4, right: -4,
-    height: 110,
-    backgroundColor: Colors.green,
-    borderTopLeftRadius: 9999,
-    borderTopRightRadius: 9999,
-  },
 });

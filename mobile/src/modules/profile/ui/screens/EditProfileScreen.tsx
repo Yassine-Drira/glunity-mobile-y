@@ -254,7 +254,17 @@ export default function EditProfileScreen({ navigation }: Props) {
           <Text style={s.navLabel}>Reels</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.navBtn} onPress={() => navigation.navigate('Profile')} id="edit-nav-profile">
+        <TouchableOpacity
+          style={s.navBtn}
+          onPress={() => {
+            if (user?.profileType === 'pro_commerce') {
+              navigation.navigate('SellerProfile');
+            } else {
+              navigation.navigate('Profile');
+            }
+          }}
+          id="edit-nav-profile"
+        >
           <MaterialCommunityIcons name="account" size={24} color={C.green} />
           <Text style={[s.navLabel, { color: C.green }]}>Profile</Text>
         </TouchableOpacity>

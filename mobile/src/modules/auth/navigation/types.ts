@@ -5,15 +5,20 @@ export type AuthStackParamList = {
   Welcome:        undefined;
   Login:          undefined;
   Register:       undefined;
-  ForgotPassword: undefined;
+  ForgotPassword: { email?: string } | undefined;
   ResetPassword:  { token: string };   // ← arrives via deep link ?token=xxx
   EmailVerified:  { success: boolean }; // ← arrives via deep link ?verified=1
 };
 
 // ── App (authenticated) stack ─────────────────────────────────────────────────
 export type AppStackParamList = {
-  Home:        undefined;
-  Profile:     undefined;
-  Settings:    undefined;
-  EditProfile: undefined;
+  Home:          undefined;
+  Recipes:       undefined;
+  RecipeDetail:  { recipeId?: string; initialRecipe?: any };
+  Profile:       undefined;
+  Settings:      undefined;
+  EditProfile:   undefined;
+  SellerProfile: undefined;
+  AddProduct:    { product?: any } | undefined;
+  SellerStats:   undefined;
 };

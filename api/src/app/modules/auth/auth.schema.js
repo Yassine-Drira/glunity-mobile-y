@@ -3,6 +3,13 @@
 const { body, param } = require('express-validator');
 const { PROFILE_TYPES, LANGUAGES } = require('../../config/constants');
 
+const REGISTER_PROFILE_TYPES = [
+  PROFILE_TYPES.CELIAC,
+  PROFILE_TYPES.PROCHE,
+  PROFILE_TYPES.PRO_COMMERCE,
+  PROFILE_TYPES.PRO_HEALTH,
+];
+
 // ─── Register ─────────────────────────────────────────────────────────────────
 const registerSchema = [
   body('fullName')
@@ -27,9 +34,9 @@ const registerSchema = [
     .matches(/^\+?[\d\s\-().]{7,20}$/).withMessage('Invalid phone number'),
 
   body('profileType')
-    .optional()
-    .isIn(Object.values(PROFILE_TYPES))
-    .withMessage(`profileType must be one of: ${Object.values(PROFILE_TYPES).join(', ')}`),
+    .notEmpty().withMessage('profileType is required')
+    .isIn(REGISTER_PROFILE_TYPES)
+    .withMessage(`profileType must be one of: ${REGISTER_PROFILE_TYPES.join(', ')}`),
 
   body('language')
     .optional()

@@ -51,6 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch {
         await TokenStore.clearTokens();
         dispatch({ type: 'SET_LOADING', payload: false });
+      } finally {
+        dispatch({ type: 'SET_INITIALIZED', payload: true });
       }
     })();
   }, []);
@@ -59,8 +61,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const res = await authApi.login(dto);
+
+      if (!res.data.user.emailVerified) {
+        await TokenStore.clearTokens();
+        dispatch({ type: 'CLEAR_USER' });
+        dispatch({ type: 'SET_ERROR', payload: 'Please verify your email before logging in.' });
+        throw new Error('EMAIL_NOT_VERIFIED');
+      }
+
       dispatch({ type: 'SET_USER', payload: res.data.user });
     } catch (err: any) {
+      if (err?.message === 'EMAIL_NOT_VERIFIED') {
+        throw err;
+      }
       const message = getAuthErrorMessage(err, 'Login failed. Please try again.');
       dispatch({ type: 'SET_ERROR', payload: message });
       throw err;
@@ -71,8 +84,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const res = await authApi.register(dto);
+
+      if (!res.data.user.emailVerified) {
+        await TokenStore.clearTokens();
+        dispatch({ type: 'CLEAR_USER' });
+        dispatch({
+          type: 'SET_ERROR',
+          payload: 'Account created. Please verify your email before logging in.',
+        });
+        throw new Error('EMAIL_NOT_VERIFIED');
+      }
+
       dispatch({ type: 'SET_USER', payload: res.data.user });
     } catch (err: any) {
+      if (err?.message === 'EMAIL_NOT_VERIFIED') {
+        throw err;
+      }
       const message = getAuthErrorMessage(err, 'Registration failed. Please try again.');
       dispatch({ type: 'SET_ERROR', payload: message });
       throw err;

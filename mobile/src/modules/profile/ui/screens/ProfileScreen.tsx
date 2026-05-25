@@ -71,7 +71,7 @@ export default function ProfileScreen({ navigation }: Props) {
         <View style={s.headerSection}>
           <View style={s.avatarWrap}>
             <Image
-              source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
+              source={{ uri: user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
               style={s.avatar}
             />
             <View style={s.checkBadge}>
