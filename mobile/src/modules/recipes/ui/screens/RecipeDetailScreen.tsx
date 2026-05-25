@@ -7,12 +7,15 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import type { AppStackParamList } from '@/navigation/types';
+import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { Colors, Font } from '@/shared/utils/theme';
+import { useAuth } from '@/modules/auth/state/auth.context';
+import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import recipesApi, { Recipe } from '../../api/recipes.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'RecipeDetail'>;
@@ -32,20 +35,34 @@ const FALLBACK_RECIPE: Recipe = {
     'Olive oil',
   ],
   steps: [
-    'Mix flour, yeast, and water to form the dough.',
-    'Let the dough rise for 30 minutes.',
-    'Spread tomato sauce and add mozzarella.',
-    'Bake until crust is golden and cheese melts.',
+    'Mix flour, yeast, and water to form the dough.Let the dough rise for 30 minutes.',
   ],
   nutritionInfo: { calories: 370, carbs: 35, protein: 6.8 },
-  photos: [],
+  photos: ['https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400'],
   videos: [],
   authorId: 'fallback-author',
   isFavorite: false,
   favoriteCount: 0,
 };
 
+function getRecipeImage(recipe: Recipe): string {
+  if (recipe.photos && recipe.photos.length > 0 && recipe.photos[0]) {
+    return recipe.photos[0];
+  }
+  if (recipe.title.toLowerCase().includes('pizza')) {
+    return 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400';
+  }
+  if (recipe.title.toLowerCase().includes('brik')) {
+    return 'https://images.unsplash.com/photo-1541532713592-79a0317b6b77?w=400';
+  }
+  if (recipe.title.toLowerCase().includes('salad') || recipe.title.toLowerCase().includes('quinoa')) {
+    return 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400';
+  }
+  return 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400';
+}
+
 export default function RecipeDetailScreen({ navigation, route }: Props) {
+  const { user } = useAuth();
   const [recipe, setRecipe] = React.useState<Recipe>(route.params?.initialRecipe || FALLBACK_RECIPE);
 
   React.useEffect(() => {
@@ -63,201 +80,295 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
   }, [route.params?.recipeId]);
 
   const nutritionRows = [
-    { value: recipe.nutritionInfo.calories ?? 0, label: 'Calories' },
-    { value: recipe.nutritionInfo.carbs ?? 0, label: 'Carbo' },
-    { value: recipe.nutritionInfo.protein ?? 0, label: 'Protein' },
+    { value: recipe.nutritionInfo.calories ?? 370, label: 'Calories' },
+    { value: recipe.nutritionInfo.carbs ?? 35, label: 'Carbo' },
+    { value: recipe.nutritionInfo.protein ?? 6.8, label: 'Protein' },
   ];
 
   return (
     <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
+      <StatusBar barStyle="dark-content" backgroundColor="#F6F5F3" />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        <View style={s.topbar}>
-          <View style={s.userRow}>
-            <View style={s.avatar}><Text style={s.avatarText}>Y</Text></View>
-            <Text style={s.greeting}>Yassmine</Text>
-          </View>
-          <View style={s.topIcons}>
-            <TouchableOpacity style={s.iconBtn}><Feather name="search" size={18} color={Colors.dark} /></TouchableOpacity>
-            <TouchableOpacity style={s.iconBtn}><Feather name="bell" size={18} color={Colors.dark} /></TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={s.backRow}>
-          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-            <Feather name="chevron-left" size={22} color={Colors.dark} />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={s.title}>{recipe.title}</Text>
-
-        <View style={s.nutritionHeader}>
-          <Text style={s.sectionTitle}>Nutritions</Text>
-        </View>
-        <View style={s.nutritionHeroRow}>
-          <View style={s.nutritionList}>
-            {nutritionRows.map((n) => (
-              <View key={n.label} style={s.nutritionRow}>
-                <View style={s.nutriCircle}><Text style={s.nutriValue}>{n.value}</Text></View>
-                <View style={s.nutriBar}>
-                  <Text style={s.nutriLabel}>{n.label}</Text>
+      <View style={s.mainContainer}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+          {/* Top Bar */}
+          <View style={s.topbar}>
+            <View style={s.userInfo}>
+              <View style={s.avatarWrap}>
+                <Image
+                  source={{ uri: user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop' }}
+                  style={s.avatar as any}
+                />
+                <View style={s.checkBadge}>
+                  <Feather name="check" size={8} color="#FFFFFF" />
                 </View>
               </View>
+              <Text style={s.userName}>{user?.fullName?.split(' ')[0] || 'Yassmine'}</Text>
+            </View>
+            <View style={s.topIcons}>
+              <TouchableOpacity activeOpacity={0.8} style={s.iconBtn}>
+                <Feather name="search" size={20} color="#2E2E2E" />
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={s.iconBtn}>
+                <Feather name="bell" size={20} color="#2E2E2E" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Back Action Row + Recipe Title */}
+          <View style={s.backRow}>
+            <TouchableOpacity style={s.backBtn} activeOpacity={0.8} onPress={() => navigation.goBack()}>
+              <Feather name="arrow-left" size={24} color="#2E2E2E" />
+            </TouchableOpacity>
+            <Text style={s.title}>{recipe.title}</Text>
+          </View>
+
+          {/* Nutritions Section Heading */}
+          <Text style={s.sectionTitle}>Nutritions</Text>
+
+          {/* Hero Row: Stacked circles on Left, Circular food plate on Right */}
+          <View style={s.nutritionHeroRow}>
+            <View style={s.nutritionList}>
+              {nutritionRows.map((n) => (
+                <View key={n.label} style={s.nutritionRow}>
+                  <View style={s.nutriCircle}>
+                    <Text style={s.nutriValue}>{n.value}</Text>
+                  </View>
+                  <View style={s.nutriPill}>
+                    <Text style={s.nutriLabel}>{n.label}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            <View style={s.heroFoodContainer}>
+              <Image source={{ uri: getRecipeImage(recipe) }} style={s.heroFoodImage as any} />
+            </View>
+          </View>
+
+          {/* Ingredients Section */}
+          <Text style={[s.sectionTitle, { marginTop: 24, marginBottom: 8 }]}>Ingredients</Text>
+          <View style={s.ingredientsWrap}>
+            {recipe.ingredients.map((ing, idx) => (
+              <Text key={`${idx}-${ing}`} style={s.ingredientsText}>
+                • {ing}
+              </Text>
             ))}
           </View>
-          <View style={s.heroFood}>
-            <MaterialCommunityIcons name="food" size={120} color="#6AA332" />
+
+          {/* Recipe Preparation Section */}
+          <Text style={[s.sectionTitle, { marginTop: 24, marginBottom: 8 }]}>Receipe Preparation</Text>
+          <View style={s.stepsWrap}>
+            {recipe.steps.map((step, idx) => (
+              <Text key={`${idx}-${step}`} style={s.stepText}>
+                {step}
+              </Text>
+            ))}
           </View>
-        </View>
+        </ScrollView>
 
-        <View style={s.sectionHeaderRow}>
-          <MaterialCommunityIcons name="silverware-fork-knife" size={22} color={Colors.green} />
-          <Text style={s.sectionTitle}>Ingredients</Text>
-        </View>
-        <View style={s.ingredientsWrap}>
-          {recipe.ingredients.map((ing, idx) => (
-            <Text key={`${idx}-${ing}`} style={s.ingredientsText}>• {ing}</Text>
-          ))}
-        </View>
-
-        <View style={s.sectionHeaderRow}>
-          <MaterialCommunityIcons name="chef-hat" size={22} color={Colors.green} />
-          <Text style={s.sectionTitle}>Recipe Preparation</Text>
-        </View>
-        <View style={s.stepsWrap}>
-          {recipe.steps.map((step, idx) => (
-            <Text key={`${idx}-${step}`} style={s.stepText}>{idx + 1}. {step}</Text>
-          ))}
-        </View>
-      </ScrollView>
+        <BottomNavBar
+          activeTab="events"
+          idPrefix="recipes-detail-nav"
+          onPressHome={() => navigation.navigate('Home')}
+          onPressEvents={() => {}}
+          onPressCenter={() => {}}
+          onPressReels={() => {}}
+          onPressProfile={() => {
+            if (user?.profileType === 'pro_commerce') {
+              navigation.navigate('SellerProfile');
+            } else {
+              navigation.navigate('Profile');
+            }
+          }}
+        />
+      </View>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F6F5F3' },
-  content: { paddingBottom: 34 },
-
-  topbar: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 22,
-    paddingTop: 12,
+  safe: {
+    flex: 1,
+    backgroundColor: '#F6F5F3',
   },
-  userRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  mainContainer: {
+    flex: 1,
+    position: 'relative',
+    paddingBottom: 96,
+  },
+  content: {
+    paddingBottom: 40,
+  },
+  topbar: {
+    paddingHorizontal: 22,
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  avatarWrap: {
+    position: 'relative',
+    width: 42,
+    height: 42,
+  },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.green,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E5E7EB',
+  },
+  checkBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+    backgroundColor: '#8BC34A',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: Colors.white, fontWeight: Font.bold },
-  greeting: { fontSize: 18, fontWeight: Font.medium, color: '#343831' },
-  topIcons: { flexDirection: 'row', gap: 12 },
+  userName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2E2E2E',
+    fontFamily: Font.bold,
+  },
+  topIcons: {
+    flexDirection: 'row',
+    gap: 16,
+  },
   iconBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F6F5F3',
-    borderWidth: 1,
-    borderColor: '#E8E6E0',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  backRow: { paddingHorizontal: 22, paddingTop: 12 },
-  backBtn: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' },
-
-  title: {
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 22,
-    paddingTop: 8,
-    fontSize: 25,
-    fontWeight: Font.bold,
-    color: '#2E2E2E',
+    paddingTop: 16,
+    gap: 12,
+    marginBottom: 18,
   },
-  nutritionHeader: {
+  backBtn: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 27,
+    fontWeight: '700',
+    color: '#2E2E2E',
+    fontFamily: Font.bold,
+  },
+  sectionTitle: {
     paddingHorizontal: 22,
-    paddingTop: 10,
-    paddingBottom: 6,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2E2E2E',
+    fontFamily: Font.bold,
+    marginBottom: 16,
   },
   nutritionHeroRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: 22,
+    gap: 16,
   },
-  heroFood: {
-    width: 128,
-    height: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
+  nutritionList: {
+    flex: 1,
+    gap: 12,
   },
-
-  sectionHeaderRow: {
+  nutritionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'nowrap',
-    gap: 8,
-    paddingHorizontal: 22,
-    paddingTop: 10,
-    paddingBottom: 6,
   },
-  sectionTitle: {
-    flexShrink: 1,
-    fontSize: 25,
-    lineHeight: 30,
-    color: '#2E2E2E',
-    fontWeight: Font.bold,
-  },
-
-  nutritionList: { flex: 1, gap: 8 },
-  nutritionRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   nutriCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: Colors.green,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#8BC34A',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
+    zIndex: 2,
+    shadowColor: '#000000',
+    shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  nutriValue: { color: Colors.white, fontWeight: Font.bold, fontSize: 18 },
-  nutriBar: {
-    flex: 1,
-    maxWidth: 140,
-    height: 24,
-    borderRadius: 70,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.16,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
+    shadowRadius: 6,
     elevation: 3,
   },
-  nutriLabel: { color: '#2E2E2E', fontSize: 14, fontWeight: Font.bold },
-
-  ingredientsWrap: { paddingHorizontal: 20, paddingTop: 4, gap: 2 },
-  ingredientsText: {
-    fontSize: 17,
-    color: 'rgba(46,46,46,0.7)',
-    lineHeight: 26,
+  nutriValue: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 15,
+    fontFamily: Font.bold,
   },
-
-  stepsWrap: { paddingHorizontal: 20, paddingTop: 6, gap: 8 },
-  stepText: {
-    fontSize: 17,
-    lineHeight: 26,
+  nutriPill: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingLeft: 22,
+    paddingRight: 16,
+    height: 36,
+    justifyContent: 'center',
+    marginLeft: -14,
+    zIndex: 1,
+    shadowColor: 'rgba(0,0,0,0.04)',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  nutriLabel: {
     color: '#2E2E2E',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: Font.bold,
+  },
+  heroFoodContainer: {
+    width: 176,
+    height: 176,
+    borderRadius: 88,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  heroFoodImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  ingredientsWrap: {
+    paddingHorizontal: 22,
+    gap: 6,
+  },
+  ingredientsText: {
+    fontSize: 15,
+    color: 'rgba(46, 46, 46, 0.6)',
+    lineHeight: 22,
+    fontFamily: Font.regular,
+  },
+  stepsWrap: {
+    paddingHorizontal: 22,
+  },
+  stepText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: 'rgba(46, 46, 46, 0.6)',
+    fontFamily: Font.regular,
   },
 });
