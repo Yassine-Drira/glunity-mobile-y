@@ -15,6 +15,7 @@ import { Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/navigation/types';
 import { useAuth } from '../../../auth/state/auth.context';
+import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import productsApi, { Product } from '../../api/products.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerProfile'>;
@@ -341,33 +342,21 @@ export default function SellerProfileScreen({ navigation }: Props) {
       </ScrollView>
 
       {/* ── Bottom Navigation Bar ─────────────────────────────────────────── */}
-      <View style={s.bottomNav}>
-        <TouchableOpacity style={s.navBtn} activeOpacity={0.7} onPress={() => navigation.navigate('Home')} id="nav-home">
-          <Feather name="home" size={22} color={Colors.dark} />
-          <Text style={s.navLabel}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.navBtn} activeOpacity={0.7} id="nav-events">
-          <Feather name="calendar" size={22} color={Colors.dark} />
-          <Text style={s.navLabel}>Events</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.fab} activeOpacity={0.8} id="nav-fab">
-          <View style={s.scannerGrid}>
-            <View style={s.scannerBracket} />
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.navBtn} activeOpacity={0.7} id="nav-reels">
-          <MaterialCommunityIcons name="movie-play-outline" size={24} color={Colors.dark} />
-          <Text style={s.navLabel}>Reels</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.navBtn} activeOpacity={0.7} id="nav-profile">
-          <Feather name="user" size={22} color={Colors.dark} />
-          <Text style={s.navLabel}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomNavBar
+        activeTab="home"
+        idPrefix="home-nav"
+        onPressHome={() => navigation.navigate('Home')}
+        onPressEvents={() => {}}
+        onPressCenter={() => {}}
+        onPressReels={() => {}}
+        onPressProfile={() => {
+          if (user?.profileType === 'pro_commerce') {
+            navigation.navigate('SellerProfile');
+          } else {
+            navigation.navigate('Profile');
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }

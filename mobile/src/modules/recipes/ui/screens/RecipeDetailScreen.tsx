@@ -167,8 +167,8 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
         </ScrollView>
 
         <BottomNavBar
-          activeTab="events"
-          idPrefix="recipes-detail-nav"
+          activeTab="home"
+          idPrefix="home-nav"
           onPressHome={() => navigation.navigate('Home')}
           onPressEvents={() => {}}
           onPressCenter={() => {}}
