@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
+  Platform,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
@@ -23,7 +24,7 @@ export default function WelcomeScreen({ navigation }: Props) {
       <View style={styles.container}>
         {/* Mascot */}
         <View style={styles.mascotWrap}>
-          <MaterialCommunityIcons name={"wheat" as any} size={80} color={Colors.green} />
+          <MaterialCommunityIcons name={"barley" as any} size={80} color={Colors.green} />
         </View>
 
         {/* Heading */}
@@ -74,11 +75,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xl,
     // subtle shadow
-    shadowColor: Colors.green,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 20,
-    elevation: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.green,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.18,
+        shadowRadius: 20,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: `0px 8px 20px rgba(139, 195, 74, 0.18)`,
+      },
+    }),
   },
   mascot: {
     fontSize: 80,

@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -76,13 +77,13 @@ export function HomeScreen({
           toValue: 1,
           duration: 1800,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(qrFloat, {
           toValue: 0,
           duration: 1800,
           easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ]),
     ).start();
@@ -245,7 +246,7 @@ export function HomeScreen({
           <View style={styles.sectionRowLeft}>
             <Text style={styles.sectionTitleSecondary}>{homeScreenText.checkRecipesTitle}</Text>
             <View style={styles.gfPill}>
-              <MaterialCommunityIcons name="sparkles" size={10} color="#FFFFFF" />
+              <Ionicons name="sparkles" size={10} color="#FFFFFF" />
               <Text style={styles.gfPillText}>GF</Text>
             </View>
           </View>
@@ -262,7 +263,7 @@ export function HomeScreen({
           showsHorizontalScrollIndicator={false}
           renderItem={({ item }) => (
             <TouchableOpacity activeOpacity={0.85} onPress={item.onPress} style={styles.recipeCard}>
-              <Image source={{ uri: item.imageUrl }} style={styles.recipeImage} />
+              <Image source={{ uri: item.imageUrl }} resizeMode="cover" style={styles.recipeImage} />
               <Text style={styles.recipeName} numberOfLines={2}>
                 {item.title}
               </Text>
@@ -550,7 +551,6 @@ const styles = StyleSheet.create({
   recipeImage: {
     width: "100%",
     height: 140,
-    resizeMode: "cover",
   },
   recipeName: {
     marginTop: 8,
