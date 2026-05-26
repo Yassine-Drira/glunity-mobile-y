@@ -13,6 +13,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { useAuth } from '../../../auth/state/auth.context';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Settings'>;
 
@@ -106,10 +107,10 @@ function SettingItem({
 
 // ── SettingsScreen ─────────────────────────────────────────────────────────────
 export default function SettingsScreen({ navigation }: Props) {
+  const { user } = useAuth();
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
-
   return (
     <SafeAreaView style={s.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
@@ -212,13 +213,19 @@ export default function SettingsScreen({ navigation }: Props) {
       </ScrollView>
 
       <BottomNavBar
-        activeTab="events"
+        activeTab="profile"
         idPrefix="settings-nav"
         onPressHome={() => navigation.navigate('Home')}
         onPressEvents={() => {}}
         onPressCenter={() => {}}
         onPressReels={() => {}}
-        onPressProfile={() => navigation.navigate('Profile')}
+        onPressProfile={() => {
+          if (user?.profileType === 'pro_commerce') {
+            navigation.navigate('SellerProfile');
+          } else {
+            navigation.navigate('Profile');
+          }
+        }}
       />
     </SafeAreaView>
   );

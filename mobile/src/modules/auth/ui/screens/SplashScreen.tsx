@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,20 @@ import {
   StatusBar,
   Animated,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../../navigation/types';
+import type { AuthStackParamList } from '@/navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Splash'>;
 
 export default function SplashScreen({ navigation }: Props) {
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(30);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  const goNext = () => {
+    navigation.replace('Intro');
+  };
 
   useEffect(() => {
     // Animate in
@@ -31,12 +36,12 @@ export default function SplashScreen({ navigation }: Props) {
       }),
     ]).start();
 
-    // Auto-navigate to intro after 2.5s
+    // Auto-navigate to intro quickly.
     const timer = setTimeout(() => {
-      navigation.replace('Intro');
-    }, 2500);
+      goNext();
+    }, 1000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fadeAnim, slideAnim]);
 
   return (
     <View style={styles.container}>
@@ -69,6 +74,10 @@ export default function SplashScreen({ navigation }: Props) {
       <View style={[styles.heart, styles.heart2]}>
         <HeartIcon size={18} color="#C8102E" rotation={-39} />
       </View>
+
+      <TouchableOpacity style={styles.continueBtn} onPress={goNext} activeOpacity={0.85}>
+        <Text style={styles.continueText}>Continue</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -168,5 +177,21 @@ const styles = StyleSheet.create({
   heart2: {
     left: '10.69%',
     bottom: '11.03%',
+  },
+  continueBtn: {
+    position: 'absolute',
+    right: 20,
+    bottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.45)',
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  continueText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

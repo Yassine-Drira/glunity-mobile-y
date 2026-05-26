@@ -4,17 +4,16 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   FlatList,
   StatusBar,
+  useWindowDimensions,
+  Animated,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../../navigation/types';
+import type { AuthStackParamList } from '@/navigation/types';
 import { Feather } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Intro'>;
-
-const { width: SCREEN_W } = Dimensions.get('window');
 
 // ── Illustrations ─────────────────────────────────────────────────────────────
 
@@ -174,13 +173,39 @@ const SLIDES = [
 ];
 
 // ── Dots Indicator ────────────────────────────────────────────────────────────
-function DotsIndicator({ count, active }: { count: number; active: number }) {
+function DotsIndicator({ count, scrollX, screenWidth }: { count: number; scrollX: Animated.Value; screenWidth: number }) {
   return (
     <View style={dot.row}>
       {Array.from({ length: count }).map((_, i) => (
-        <View
+        <Animated.View
           key={i}
-          style={[dot.base, i === active ? dot.active : dot.inactive]}
+          style={[
+            dot.base,
+            {
+              width: scrollX.interpolate({
+                inputRange: [(i - 1) * screenWidth, i * screenWidth, (i + 1) * screenWidth],
+                outputRange: [7, 13, 7],
+                extrapolate: 'clamp',
+              }),
+              height: scrollX.interpolate({
+                inputRange: [(i - 1) * screenWidth, i * screenWidth, (i + 1) * screenWidth],
+                outputRange: [7, 13, 7],
+                extrapolate: 'clamp',
+              }),
+              borderWidth: scrollX.interpolate({
+                inputRange: [(i - 1) * screenWidth, i * screenWidth, (i + 1) * screenWidth],
+                outputRange: [0, 1.5, 0],
+                extrapolate: 'clamp',
+              }),
+              borderColor: '#C8102E',
+              backgroundColor: '#C8102E',
+              opacity: scrollX.interpolate({
+                inputRange: [(i - 1) * screenWidth, i * screenWidth, (i + 1) * screenWidth],
+                outputRange: [0.6, 1, 0.6],
+                extrapolate: 'clamp',
+              }),
+            },
+          ]}
         />
       ))}
     </View>
@@ -188,13 +213,8 @@ function DotsIndicator({ count, active }: { count: number; active: number }) {
 }
 
 const dot = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  base: { borderRadius: 99 },
-  active: {
-    width: 13, height: 13, backgroundColor: 'transparent',
-    borderWidth: 1.5, borderColor: '#C8102E',
-  },
-  inactive: { width: 7, height: 7, backgroundColor: '#C8102E' },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  base: { borderRadius: 99, marginHorizontal: 4 },
 });
 
 // ── Single Slide ──────────────────────────────────────────────────────────────
@@ -243,14 +263,21 @@ const slideStyles = StyleSheet.create({
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function IntroductionScreen({ navigation }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
   const [activeIndex, setActiveIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<(typeof SLIDES)[number]>>(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
+
+  const scrollToIndex = (index: number) => {
+    const safeIndex = Math.max(0, Math.min(index, SLIDES.length - 1));
+    const offset = safeIndex * screenWidth;
+    flatListRef.current?.scrollToOffset({ offset, animated: true });
+    setActiveIndex(safeIndex);
+  };
 
   const goNext = () => {
     if (activeIndex < SLIDES.length - 1) {
-      const next = activeIndex + 1;
-      flatListRef.current?.scrollToIndex({ index: next, animated: true });
-      setActiveIndex(next);
+      scrollToIndex(activeIndex + 1);
     } else {
       navigation.replace('Welcome');
     }
@@ -258,14 +285,12 @@ export default function IntroductionScreen({ navigation }: Props) {
 
   const goBack = () => {
     if (activeIndex > 0) {
-      const prev = activeIndex - 1;
-      flatListRef.current?.scrollToIndex({ index: prev, animated: true });
-      setActiveIndex(prev);
+      scrollToIndex(activeIndex - 1);
     }
   };
 
   const onMomentumScrollEnd = (e: any) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    const idx = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
     setActiveIndex(idx);
   };
 
@@ -273,15 +298,26 @@ export default function IntroductionScreen({ navigation }: Props) {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F6F5F3" />
 
-      <FlatList
+      <Animated.FlatList
         ref={flatListRef}
         data={SLIDES}
         keyExtractor={(item) => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+          { useNativeDriver: false },
+        )}
+        scrollEventThrottle={16}
         onMomentumScrollEnd={onMomentumScrollEnd}
-        renderItem={({ item }) => <SlideView slide={item} screenWidth={SCREEN_W} />}
+        getItemLayout={(_, index) => ({
+          length: screenWidth,
+          offset: screenWidth * index,
+          index,
+        })}
+        onScrollToIndexFailed={({ index }) => scrollToIndex(index)}
+        renderItem={({ item }) => <SlideView slide={item} screenWidth={screenWidth} />}
       />
 
       {/* Bottom navigation bar */}
@@ -290,7 +326,7 @@ export default function IntroductionScreen({ navigation }: Props) {
           <Feather name="arrow-left" size={24} color="#2E2E2E" />
         </TouchableOpacity>
 
-        <DotsIndicator count={SLIDES.length} active={activeIndex} />
+        <DotsIndicator count={SLIDES.length} scrollX={scrollX} screenWidth={screenWidth} />
 
         <TouchableOpacity style={styles.nextBtn} onPress={goNext} activeOpacity={0.8}>
           {activeIndex === SLIDES.length - 1 ? (
@@ -310,6 +346,7 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 40, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', paddingHorizontal: 9,
+    zIndex: 5,
   },
   backBtn: {
     width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFFFFF',

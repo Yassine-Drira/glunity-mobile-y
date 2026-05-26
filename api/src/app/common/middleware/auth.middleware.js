@@ -23,6 +23,10 @@ async function authMiddleware(req, _res, next) {
       return next(AppError.unauthorized('Account not found or deactivated'));
     }
 
+    if (!user.emailVerified) {
+      return next(AppError.unauthorized('Please verify your email before continuing.', 'EMAIL_NOT_VERIFIED'));
+    }
+
     req.user = user;
     return next();
   } catch (err) {

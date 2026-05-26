@@ -307,7 +307,7 @@ export function HomeScreen({
       </ScrollView>
 
       <BottomNavBar
-        activeTab="events"
+        activeTab="home"
         idPrefix="home-nav"
         onPressHome={onPressNavHome}
         onPressEvents={onPressNavEvents}

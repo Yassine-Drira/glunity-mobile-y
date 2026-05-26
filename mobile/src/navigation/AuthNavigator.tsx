@@ -25,9 +25,9 @@ export function AuthNavigator() {
 
       {/* ── Auth ───────────────────────────────────────────────────────── */}
       <Stack.Screen name="Welcome"        component={WelcomeScreen}       options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="Login"          component={LoginScreen}         options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="Register"       component={RegisterScreen}      options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Login"          component={LoginScreen}         options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+      <Stack.Screen name="Register"       component={RegisterScreen}      options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right', gestureEnabled: false }} />
 
       {/* ── Deep-link targets (from email links) ───────────────────────── */}
       <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen}  options={{ animation: 'fade' }} />

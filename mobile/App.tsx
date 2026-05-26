@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AuthProvider } from './src/modules/auth/state/auth.context';
 import { RootNavigator } from './src/navigation/RootNavigator';
+// @ts-ignore
 import {
   useFonts,
   Poppins_400Regular,
@@ -71,10 +72,12 @@ export default function App() {
   }
 
   if (!hasPatchedDefaultFonts) {
-    if (!Text.defaultProps) Text.defaultProps = {};
-    if (!TextInput.defaultProps) TextInput.defaultProps = {};
-    Text.defaultProps.style = [Text.defaultProps.style, { fontFamily: 'Poppins_400Regular' }];
-    TextInput.defaultProps.style = [TextInput.defaultProps.style, { fontFamily: 'Poppins_400Regular' }];
+    const textAny = Text as any;
+    const textInputAny = TextInput as any;
+    if (!textAny.defaultProps) textAny.defaultProps = {};
+    if (!textInputAny.defaultProps) textInputAny.defaultProps = {};
+    textAny.defaultProps.style = [textAny.defaultProps.style, { fontFamily: 'Poppins_400Regular' }];
+    textInputAny.defaultProps.style = [textInputAny.defaultProps.style, { fontFamily: 'Poppins_400Regular' }];
     hasPatchedDefaultFonts = true;
   }
 

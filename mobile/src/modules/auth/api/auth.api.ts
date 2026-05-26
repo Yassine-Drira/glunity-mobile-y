@@ -6,11 +6,13 @@ export interface LoginDto {
   password: string;
 }
 
+export type RegisterProfileType = 'celiac' | 'proche' | 'pro_commerce' | 'pro_health';
+
 export interface RegisterDto {
   fullName: string;
   email: string;
   password: string;
-  profileType?: string;
+  profileType: RegisterProfileType;
   language?: string;
 }
 
@@ -53,7 +55,6 @@ const authApi = {
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
     const { data } = await http.post<AuthResponse>('/auth/register', dto);
-    await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
     return data;
   },
 

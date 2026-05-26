@@ -62,6 +62,10 @@ class AuthService {
       throw AppError.unauthorized('Invalid email or password');
     }
 
+    if (!user.emailVerified) {
+      throw AppError.unauthorized('Please verify your email before logging in.', 'EMAIL_NOT_VERIFIED');
+    }
+
     const tokens = this._issueTokens(user);
     return { user: user.toPublic(), tokens };
   }
@@ -84,6 +88,10 @@ class AuthService {
       throw AppError.unauthorized('Account not found or deactivated');
     }
 
+    if (!user.emailVerified) {
+      throw AppError.unauthorized('Please verify your email before continuing.', 'EMAIL_NOT_VERIFIED');
+    }
+
     const tokens = this._issueTokens(user);
     return { user: user.toPublic(), tokens };
   }
@@ -92,6 +100,9 @@ class AuthService {
   async getMe(userId) {
     const user = await authRepository.findById(userId);
     if (!user) throw AppError.notFound('User');
+    if (!user.emailVerified) {
+      throw AppError.unauthorized('Please verify your email before continuing.', 'EMAIL_NOT_VERIFIED');
+    }
     return user.toPublic();
   }
 
