@@ -108,25 +108,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useTheme(): ThemeContextValue {
-  const context = useContext(ThemeContext);
-  let isAuthenticated = false;
-
-  try {
-    const auth = useAuth();
-    isAuthenticated = auth.isAuthenticated;
-  } catch (e) {
-    // Fallback if useTheme is called outside AuthProvider
-  }
-
-  if (!isAuthenticated) {
-    return {
-      theme: LIGHT,
-      isDark: false,
-      setDark: context.setDark,
-    };
-  }
-
-  return context;
+  return useContext(ThemeContext);
 }
 
 /**

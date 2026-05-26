@@ -126,7 +126,8 @@ function slugifyTitle(title) {
 
 recipeSchema.pre('validate', function preValidate(next) {
 	if (!this.slug && this.title) {
-		this.slug = slugifyTitle(this.title);
+		const randomSuffix = Math.random().toString(36).slice(2, 7);
+		this.slug = `${slugifyTitle(this.title)}-${randomSuffix}`;
 	}
 	next();
 });

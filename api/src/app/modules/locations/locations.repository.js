@@ -22,7 +22,20 @@ const locationsRepository = {
     if (category) query.category = category;
     if (typeof glutenFree === 'boolean') query.glutenFree = glutenFree;
     if (typeof certified === 'boolean') query.certified = certified;
-    if (search && search.trim()) query.$text = { $search: search.trim() };
+
+    if (search && search.trim()) {
+      if (query.location) {
+        // MongoDB cannot combine $near and $text. Fallback to case-insensitive regex.
+        const regex = new RegExp(search.trim(), 'i');
+        query.$or = [
+          { name: regex },
+          { description: regex },
+          { address: regex },
+        ];
+      } else {
+        query.$text = { $search: search.trim() };
+      }
+    }
 
     return Location.find(query).limit(limit).skip(skip).lean();
   },

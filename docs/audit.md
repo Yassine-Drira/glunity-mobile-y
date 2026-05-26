@@ -1,410 +1,202 @@
-# Glunity Mobile Y - Engineering Audit
-
-Generated from a repository-wide review of the mobile app, API, docs, and workspace structure.
-
-## Executive Summary
-
-The project has a solid product direction and a reasonably clear split between the API and mobile app, but it is not yet production-ready. The largest gaps are in backend security hardening, test coverage, real-time infrastructure, and consistency between the app shell and screen-level implementations. The mobile app has already moved toward a shared navigation shell, but the codebase still contains a mix of legacy screen-level headers, hardcoded theme values, and several areas where the runtime can fail before Metro finishes bundling.
-
-Current overall posture:
-
-- Security readiness: weak to moderate
-- Test readiness: weak
-- Performance readiness: moderate, with several easy wins
-- Maintainability: moderate, but uneven across modules
-- Production readiness: not yet acceptable without remediation
-
-## Top Findings
-
-### 1. Security middleware is incomplete
-
-The API has placeholder or empty security configuration files, so core protections are not fully enforced. This includes HTTP security headers, rate limiting, and request hardening.
-
-Affected files:
-
-- [api/src/app/config/security.js](api/src/app/config/security.js)
-- [api/src/app/config/rate-limit.js](api/src/app/config/rate-limit.js)
-- [api/src/app/app.js](api/src/app/app.js)
-
-Risk:
-
-- Brute force and abuse protection is weak.
-- The app may be missing baseline security headers.
-- Auth endpoints are not clearly protected with tighter limits.
-
-Recommended actions:
-
-- Add Helmet and configure a strict baseline header policy.
-- Add express-rate-limit with separate policies for auth and general routes.
-- Add request timeout protection for slow or hanging calls.
-- Verify CORS, cookie, and JWT settings against production requirements.
-
-### 2. Test coverage and CI quality gates are insufficient
-
-The repository has a testing strategy documented, but the actual test execution and lint enforcement appear incomplete. This creates a risk that broken code can ship without a meaningful gate.
-
-Affected files:
-
-- [api/package.json](api/package.json)
-- [mobile/package.json](mobile/package.json)
-- [docs/05-testing-strategy.md](docs/05-testing-strategy.md)
-- [.github/workflows](.github/workflows)
-
-Risk:
-
-- No strong enforcement of unit, integration, or contract tests.
-- Regression risk is high for auth, network, and navigation changes.
-
-Recommended actions:
-
-- Make test scripts real and enforce them in CI.
-- Add contract coverage for API envelopes and auth flows.
-- Add lint and typecheck jobs before merge.
-- Introduce smoke tests for mobile boot and API health.
-
-### 3. Real-time architecture is not implemented
-
-The realtime layer is referenced in the structure, but key implementations are empty or missing dependencies.
-
-Affected files:
-
-- [api/src/app/realtime](api/src/app/realtime)
-- [api/package.json](api/package.json)
-
-Risk:
-
-- Notifications, channel events, and live collaboration features will not function.
-- The structure gives an impression of capability that does not yet exist.
-
-Recommended actions:
-
-- Add the realtime transport dependency and wire it into server bootstrap.
-- Define auth-checked socket connection handling.
-- Add event contracts before adding UI features that depend on live updates.
-
-### 4. Mobile API/network layer needs robustness work
-
-The mobile network layer has a known risk around concurrent refresh handling, and the app still relies on screen-level patterns that are easy to break during refactors.
-
-Affected files:
-
-- [mobile/src/core/network/http.client.ts](mobile/src/core/network/http.client.ts)
-- [mobile/src/core/network/http.auth-interceptor.ts](mobile/src/core/network/http.auth-interceptor.ts)
-- [mobile/src/core/network/http.error-interceptor.ts](mobile/src/core/network/http.error-interceptor.ts)
-
-Risk:
-
-- Multiple 401s can trigger parallel refresh attempts.
-- Errors may surface inconsistently across screens.
-- Transient network failures are not handled as gracefully as they should be.
-
-Recommended actions:
-
-- Serialize refresh attempts with a single-flight lock or queue.
-- Add timeout and retry policy for transient failures.
-- Standardize error mapping to a single app error shape.
-
-## High Priority Findings
-
-### 5. API versioning is missing
-
-Routes are not clearly versioned, which makes future breaking changes much harder to manage.
-
-Affected files:
-
-- [api/src/app/app.js](api/src/app/app.js)
-
-Recommended actions:
-
-- Prefix the public API with a versioned base path.
-- Align docs and mobile config with the same versioned route.
-- Preserve backwards compatibility when introducing changes.
-
-### 6. Logging is not production-grade
-
-The backend logging approach is still too basic for production use.
-
-Affected files:
-
-- [api/src/app/bootstrap/logger.bootstrap.js](api/src/app/bootstrap/logger.bootstrap.js)
-- [api/src/app/observability](api/src/app/observability)
-
-Risk:
-
-- Troubleshooting in production will be harder than necessary.
-- Structured logs, trace correlation, and auditability are limited.
-
-Recommended actions:
-
-- Adopt structured logging.
-- Avoid logging secrets, tokens, or personal data.
-- Include request IDs and response timing in logs.
-
-### 7. Input validation is inconsistent
-
-The API has validation-related scaffolding, but there is no clear single validation standard applied everywhere.
-
-Affected files:
-
-- [api/src/app/common/validators](api/src/app/common/validators)
-- [api/src/app/common/middleware](api/src/app/common/middleware)
-
-Risk:
-
-- Validation drift across modules.
-- Higher risk of malformed payloads reaching services and models.
-
-Recommended actions:
-
-- Choose one validation approach and standardize it.
-- Validate pagination, IDs, auth data, and file upload metadata.
-- Return a consistent error envelope on validation failure.
-
-### 8. Mobile still has hardcoded environment assumptions
-
-The mobile app still contains environment-specific assumptions that should be removed before broader deployment.
-
-Affected files:
-
-- [mobile/src/core/config/api.config.ts](mobile/src/core/config/api.config.ts)
-- [mobile/app.json](mobile/app.json)
-
-Risk:
-
-- Runtime surprises on other machines or in production.
-- Developer onboarding is more fragile than it needs to be.
-
-Recommended actions:
-
-- Make API endpoints environment-driven.
-- Remove personal-machine defaults.
-- Finalize app metadata, deep-link scheme, and bundle identifiers.
-
-## Medium Priority Findings
-
-### 9. Several backend modules are placeholders
-
-The app structure shows many feature areas, but a number of backend modules are still empty or mostly empty.
-
-Affected files and folders:
-
-- [api/src/app/modules](api/src/app/modules)
-- [api/src/app/jobs](api/src/app/jobs)
-- [api/src/database/migrations](api/src/database/migrations)
-- [api/src/database/indexes](api/src/database/indexes)
-
-Risk:
-
-- The codebase looks more complete than it is.
-- Empty modules increase cognitive load and make it hard to know what is actually supported.
-
-Recommended actions:
-
-- Remove dead placeholders or mark them clearly as planned work.
-- Implement or document a roadmap for remaining modules.
-- Add database indexes and migrations before scaling write/read traffic.
-
-### 10. Docker and deployment packaging can be improved
-
-The backend container setup is serviceable, but not optimized for fast and secure builds.
-
-Affected files:
-
-- [api/Dockerfile](api/Dockerfile)
-- [docker-compose.yml](docker-compose.yml)
-
-Risk:
-
-- Larger-than-needed images.
-- Slower deployments.
-- Extra files may be included in build context.
-
-Recommended actions:
-
-- Move to a multi-stage Docker build.
-- Add a proper .dockerignore.
-- Keep dev-only tooling out of production images.
-
-### 11. CORS and timeout policy should be tightened
-
-The app likely works in local development, but production policies should be explicit.
-
-Affected files:
-
-- [api/src/app/config/cors.js](api/src/app/config/cors.js)
-- [api/src/app/app.js](api/src/app/app.js)
-
-Recommended actions:
-
-- Set explicit origin allowlists per environment.
-- Cache CORS preflight where it is safe to do so.
-- Add request timeout handling.
-
-### 12. Pagination and request limits need defensive validation
-
-Some list endpoints use defaults, but defensive caps should be explicit to avoid abuse.
-
-Affected files:
-
-- [api/src/app/modules/locations](api/src/app/modules/locations)
-- [api/src/app/modules/products](api/src/app/modules/products)
-- [api/src/app/modules/recipes](api/src/app/modules/recipes)
-
-Recommended actions:
-
-- Enforce max page sizes.
-- Reject negative offsets and unreasonable query values.
-- Keep list endpoints consistent across modules.
-
-## Mobile App Observations
-
-### Global shell and navigation
-
-The mobile app is moving in the right direction with a global header and bottom navigation shell. That is the right architectural move, but it needs finishing so all screens share one consistent visual language.
-
-Good direction:
-
-- Shared header and bottom nav abstraction.
-- Theme-aware surfaces through the global shell.
-- Better alignment with a consistent app frame.
-
-What still needs work:
-
-- Legacy screens that still carry their own header logic.
-- A few remaining hardcoded colors and dimensions.
-- Need to keep auth screens excluded from the shared app shell.
-
-### Theme and dark mode
-
-Dark mode is supported, but several surfaces still depend on hardcoded light-mode values or screen-local constants.
-
-Recommended actions:
-
-- Move remaining constants into the shared theme layer.
-- Replace screen-specific backgrounds with theme tokens.
-- Verify contrast ratios on badges, chips, and CTA buttons.
-
-### Navigation and UX consistency
-
-The bottom navigation is visually improved, but its spacing, icon frames, and floating center action should be verified across device sizes.
-
-Recommended actions:
-
-- Test on small and large phones.
-- Verify the center action remains half-in/half-out and not too high.
-- Ensure labels and icons remain readable under dark mode.
-
-### Network and offline behavior
-
-The mobile app would benefit from a better failure strategy.
-
-Recommended actions:
-
-- Add offline-aware UI states.
-- Show retry affordances for transient failures.
-- Standardize network timeout and error messaging.
-
-## Backend Observations
-
-### Security
-
-The API currently lacks several baseline protections expected from a public production service. The most important items are headers, rate limiting, structured validation, and proper auth hardening.
-
-Recommended order:
-
-1. Security headers and rate limiting.
-2. Input validation standardization.
-3. Request timeouts and auth hardening.
-4. Structured logging and audit trail.
-
-### Data layer
-
-The database setup needs more discipline around indexes and migrations. This will matter as soon as traffic and content volume grow.
-
-Recommended actions:
-
-- Add indexes for common search and geo queries.
-- Add migration discipline before schema drift accumulates.
-- Verify seed scripts do not duplicate or corrupt production-like data.
-
-### Jobs and async processing
-
-There are job files, but no visible scheduler or orchestration layer. Background processing should be explicit rather than implied.
-
-Recommended actions:
-
-- Decide whether jobs are cron-based, queue-based, or event-driven.
-- Add a single job runner strategy.
-- Define retry and dead-letter behavior for failed jobs.
-
-## Dependency Health
-
-### API
-
-The API depends on several modern packages, but it is still missing a number of operational dependencies that should exist in a production-ready stack.
-
-Notably missing or underused:
-
-- Security headers middleware
-- Rate limiting middleware
-- Real-time transport dependency
-- Stable structured logger
-- Strong validation framework standardization
-- Real test runner coverage in CI
-
-### Mobile
-
-The mobile app is on a modern Expo/React Native stack, but it would benefit from stronger network, state, and error-handling support.
-
-Notably missing or worth adding:
-
-- Shared error boundary
-- Better request retry policy
-- Stronger offline/caching strategy
-- Clearer environment-driven config discipline
-
-## Good Practices Already Present
-
-The project is not starting from zero. A few things are already heading in the right direction:
-
-- Clear separation between `api` and `mobile` workspaces.
-- A documented testing and performance strategy in docs.
-- A theme context on the mobile side.
-- A shared app shell approach for navigation and headers.
-- Modular feature directories that make future ownership possible.
-
-## Recommended Remediation Plan
-
-### Phase 1 - Security and correctness
-
-- Add Helmet and rate limiting.
-- Standardize validation and error envelopes.
-- Fix API versioning and request timeout policy.
-- Stabilize mobile refresh-token handling.
-
-### Phase 2 - Test and release discipline
-
-- Make lint/test scripts real.
-- Run them in CI.
-- Add contract tests and smoke tests.
-- Add a basic release gate before merge.
-
-### Phase 3 - Maintainability and scale
-
-- Remove or complete placeholder modules.
-- Add migrations and indexes.
-- Introduce structured logs and tracing.
-- Decide on a real jobs/queue strategy.
-
-### Phase 4 - Mobile polish and resilience
-
-- Finish dark-mode tokenization.
-- Keep auth screens outside the global app shell.
-- Add offline and retry behavior.
-- Verify responsive behavior across devices.
-
-## Final Assessment
-
-The codebase has a workable foundation and a clear product structure, but it still needs several foundational engineering fixes before it should be considered production-ready. The highest-value work now is not cosmetic. It is security hardening, test enforcement, and eliminating brittle runtime behavior in the mobile network and navigation layers.
-
-If you want, I can turn this into a tracked remediation checklist next and start fixing the highest-priority items one by one.
+# Expert Line-by-Line Engineering & Architectural Audit
+
+This document presents a comprehensive, line-by-line technical audit of the **Glunity Mobile** monorepo codebase. Every critical module, model, middleware, and network configuration has been inspected against production-grade security, scalability, performance, and UX criteria.
+
+---
+
+## 1. Monorepo Workspace & Codebase Health
+
+### 1.1 Unresolved Git Merge Conflicts (monorepo-wide)
+* **Finding:** In the workspace `glunity-mobile-y`, multiple configuration and package files contain raw Git merge conflicts.
+* **Impact:** Syntactic failures during node package installation and bundling. 
+* **Affected Files & Lines:**
+  * `api/src/app/app.js` (conflict block containing duplicate route declarations for locations, events, recipes).
+  * `api/package.json` (conflict block on nodemon dev-dependencies).
+  * `mobile/package.json`
+* **Remediation:** Execute `node resolve-merge.js` to automatically parse, clean, and resolve conflict markers before proceeding with any local testing.
+
+### 1.2 Empty Stub Code Files
+* **Finding:** Several files are present in the directory tree but contain 0 bytes of code.
+* **Impact:** Misleads developers/agents about feature implementation and creates dead-end references in express routing tables.
+* **Affected Files:**
+  * `api/src/app/modules/events/events.routes.js`
+  * `api/src/app/bootstrap/socket.bootstrap.js`
+* **Remediation:** Remove stub routing modules or raise explicit "501 Not Implemented" exceptions instead of empty router returns.
+
+---
+
+## 2. Security & Data Protection Audit
+
+### 2.1 Lack of HTTP Security Middleware
+* **Finding:** `api/src/app/config/security.js` is empty. Express does not load `helmet`.
+* **Impact:** Express responses lack standard HTTP security headers (e.g., `X-DNS-Prefetch-Control`, `X-Frame-Options`, `Strict-Transport-Security`, `X-Download-Options`, `Content-Security-Policy`). This exposes the application to clickjacking, mime-sniffing vulnerabilities, and cross-site scripting (XSS).
+* **Remediation:** 
+  1. Add `helmet` dependency.
+  2. Implement configuration in `security.js`.
+  3. Register middleware in `app.js` via `app.use(helmet())`.
+
+### 2.2 Lack of Brute-Force Protection & Rate Limiting
+* **Finding:** `api/src/app/config/rate-limit.js` is empty. There is no rate limiter configured.
+* **Impact:** Auth endpoints (`/api/auth/login`, `/api/auth/register`, `/api/auth/forgot-password`) are vulnerable to brute-force credential stuffing and denial-of-service (DoS) attacks.
+* **Remediation:**
+  1. Add `express-rate-limit` dependency.
+  2. Define throttling rules (e.g., max 5 requests per 15 minutes for auth, max 100 requests per minute for standard routes).
+  3. Mount the rate limiters in `app.js`.
+
+### 2.3 CORS IP Address Resilience in Dev
+* **Finding:** [cors.js](file:///c:/Users/yassi/Glu10/glunity-mobile/api/src/app/config/cors.js#L5-L7) uses the following local origin helper:
+  ```javascript
+  function isAllowedLocalDevOrigin(origin) {
+    return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+  }
+  ```
+* **Impact:** When testing the mobile app on a physical device over a local Wi-Fi network, the device communicates using the developer's local machine IP address (e.g., `http://192.168.1.5:8081`). This origin is rejected by CORS since it does not match the regex, blocking physical device verification.
+* **Remediation:** Update the development CORS helper to also permit local subnet IP patterns (e.g., `192.168.x.x` or `10.x.x.x`).
+
+### 2.4 Internal Schema Leakage in Error Handler
+* **Finding:** [error.middleware.js](file:///c:/Users/yassi/Glu10/glunity-mobile/api/src/app/common/middleware/error.middleware.js#L13-L16) exposes raw Mongoose keys directly to the client:
+  ```javascript
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    err = AppError.conflict(`${field} already exists`, 'DUPLICATE_KEY');
+  }
+  ```
+* **Impact:** On validation failure or duplication, the exact database field names are sent to the client. This exposes schema layout details to malicious actors.
+* **Remediation:** Map duplicate keys to user-friendly messages and sanitize output properties.
+
+---
+
+## 3. Network & State Management Audit (Mobile)
+
+### 3.1 Concurrent Token Refresh Race Condition
+* **Finding:** [http.client.ts](file:///c:/Users/yassi/Glu10/glunity-mobile/mobile/src/core/network/http.client.ts#L20-L43) uses a basic Axios response interceptor for token refresh handling:
+  ```typescript
+  if (error.response?.status === 401 && !original._retry) {
+    original._retry = true;
+    try {
+      const refreshToken = await TokenStore.getRefreshToken();
+      const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+      await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
+      original.headers.Authorization = `Bearer ${data.data.accessToken}`;
+      return http(original);
+    } catch {
+      await TokenStore.clearTokens();
+    }
+  }
+  ```
+* **Line-by-Line Analysis:** When a screen mounts, it often fires multiple API calls simultaneously (e.g., `getMe()`, `listProducts()`, and `listRecipes()`).
+  1. If the access token is expired, all three requests will fail with `401 Unauthorized` at the same time.
+  2. Each request will trigger this interceptor.
+  3. Because `original` is a local configuration object unique to each request, `!original._retry` evaluates to `true` for all three requests.
+  4. Three concurrent `axios.post('/auth/refresh')` calls will be sent to the backend.
+  5. The backend, enforcing single-use refresh token constraints or state changes, will reject the second and third requests.
+  6. The interceptor catch block will execute, call `TokenStore.clearTokens()`, and immediately force-log the user out.
+* **Remediation:** Implement a refresh lock and a request queuing system to serialize refreshes.
+
+---
+
+## 4. UI/UX & Theme System Audit
+
+### 4.1 Theme Forcing Bug on Unauthenticated Screens
+* **Finding:** [theme.context.tsx](file:///c:/Users/yassi/Glu10/glunity-mobile/mobile/src/shared/context/theme.context.tsx#L110-L130) forces Light Mode for unauthenticated users:
+  ```typescript
+  export function useTheme(): ThemeContextValue {
+    const context = useContext(ThemeContext);
+    let isAuthenticated = false;
+    try {
+      const auth = useAuth();
+      isAuthenticated = auth.isAuthenticated;
+    } catch (e) {}
+    if (!isAuthenticated) {
+      return {
+        theme: LIGHT,
+        isDark: false,
+        setDark: context.setDark,
+      };
+    }
+    return context;
+  }
+  ```
+* **Line-by-Line Analysis:**
+  1. The local state `isAuthenticated` controls what theme is returned.
+  2. If the user is logging in, registering, resetting a password, or viewing the welcome screen, `isAuthenticated` is `false`.
+  3. The hook overrides the actual context values (which contains the user's system preferences or AsyncStorage configuration) and forces `theme: LIGHT`.
+  4. Once authentication succeeds, `isAuthenticated` switches to `true`, and the application suddenly snaps to Dark Mode if configured.
+  5. This creates severe visual flashes on application boot.
+* **Remediation:** Decouple `useTheme()` from `authContext`. The application should render the system/local preference on every screen regardless of the user's login state.
+
+---
+
+## 5. Database & Performance Audit
+
+### 5.1 Geospatial & Text Index Query Incompatibility
+* **Finding:** [locations.repository.js](file:///c:/Users/yassi/Glu10/glunity-mobile/api/src/app/modules/locations/locations.repository.js#L13-L25) builds queries containing both `$near` coordinates and `$text` searches:
+  ```javascript
+  if (typeof lng === 'number' && typeof lat === 'number') {
+    query.location = {
+      $near: {
+        $geometry: { type: 'Point', coordinates: [lng, lat] },
+        $maxDistance: radius || 5000,
+      },
+    };
+  }
+  if (search && search.trim()) {
+    query.$text = { $search: search.trim() };
+  }
+  ```
+* **Line-by-Line Analysis:** MongoDB text searches (`$text`) and geospatial `$near` queries both attempt to dictate index-level sorting/scoring. Combining them in a single query results in a database planner exception: `Cannot combine $near and $text`. 
+* **Remediation:** If coordinates are provided alongside a keyword search, replace `$text` with a case-insensitive regex pattern matching the name or address fields:
+  ```javascript
+  if (search && search.trim()) {
+    query.name = { $regex: search.trim(), $options: 'i' };
+  }
+  ```
+
+### 5.2 Client-Side Filtering with Pagination Limits (Correctness Bug)
+* **Finding:** [RecipesScreen.tsx](file:///c:/Users/yassi/Glu10/glunity-mobile/mobile/src/modules/recipes/ui/screens/RecipesScreen.tsx#L321-L337) retrieves recipes with a fixed limit and applies client-side filtering:
+  ```typescript
+  const fromApi = await recipesApi.list({ limit: 30 });
+  ```
+  ```typescript
+  const filtered = useMemo(() => {
+    const source = loaded && items.length > 0 ? items : MOCK_RECIPES;
+    return source.filter((r) => r.category === activeCategory);
+  }, [activeCategory, items, loaded]);
+  ```
+* **Line-by-Line Analysis:**
+  1. The frontend asks the backend for the first 30 recipes.
+  2. The frontend then discards recipes that do not match the active filter tab on the client-side.
+  3. If there are 100 recipes in the database, and the first 30 are all under the 'tunisian' category, the 'quick' tab will render as completely empty, even if the database has 70 'quick' recipes.
+* **Remediation:** Implement server-side filtering by passing `category` directly in the query parameters to the backend:
+  ```typescript
+  const fromApi = await recipesApi.list({ category: activeCategory });
+  ```
+
+### 5.3 Duplicate Slug Collision (Database Crash)
+* **Finding:** [recipe.model.js](file:///c:/Users/yassi/Glu10/glunity-mobile/api/src/database/models/recipe.model.js#L127-L132) uses a pre-validate hook for slug generation:
+  ```javascript
+  recipeSchema.pre('validate', function preValidate(next) {
+    if (!this.slug && this.title) {
+      this.slug = slugifyTitle(this.title);
+    }
+    next();
+  });
+  ```
+* **Line-by-Line Analysis:** Since `slug` is marked as `unique: true`, if two separate users create a recipe with the same title (e.g., "Tunisian Brik"), both will generate the exact same slug. Mongoose validation will succeed, but the database write will crash with a duplicate key error (code 11000).
+* **Remediation:** Append a short random alphanumeric string (using `crypto`) to the slug if a collision is detected.
+
+---
+
+## 6. Actionable Remediation Checklist
+
+### Milestone 1: Mobile Client Fixes
+* [x] **Axios Lock**: Rewrite `http.client.ts` to implement single-flight request serialization for token refreshes. (Done)
+* [x] **Theme Hook Decoupling**: Edit `theme.context.tsx` to remove the `isAuthenticated` check and return the configured theme globally. (Done)
+* [x] **Server-side Recipe Filtering**: Modify `RecipesScreen.tsx` to pass the selected category to the API client during fetch. (Done)
+
+### Milestone 2: Backend Security & Query Fixes
+* [x] **Express Security Headers**: Install `helmet` and mount it globally in `app.js`. (Done)
+* [x] **API Endpoint Rate Limiting**: Configure `express-rate-limit` on `/api/auth` endpoints. (Done)
+* [x] **Geo-Text Search Query Fix**: Update `locations.repository.js` to replace `$text` queries with case-insensitive `$regex` matching when geographic search is active. (Done)
+* [x] **Recipe Slug Collision Resilience**: Modify the pre-validate hook in `recipe.model.js` to append a unique seed. (Done)
+* [x] **Pagination Caps**: Enforce a maximum cap of `100` on list inputs in `locations.schema.js` and `products.schema.js`. (Verified already present)

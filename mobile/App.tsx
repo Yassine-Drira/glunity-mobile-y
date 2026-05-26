@@ -31,12 +31,12 @@ const linking = {
   ],
   config: {
     screens: {
-      ResetPassword:  { path: 'reset-password', parse: { token: (t: string) => t } },
-      EmailVerified:  { path: 'email-verified', parse: { success: (v: string) => v !== '0' && v !== 'false' } },
-      Login:          'login',
-      Register:       'register',
+      ResetPassword: { path: 'reset-password', parse: { token: (t: string) => t } },
+      EmailVerified: { path: 'email-verified', parse: { success: (v: string) => v !== '0' && v !== 'false' } },
+      Login: 'login',
+      Register: 'register',
       ForgotPassword: 'forgot-password',
-      Welcome:        'welcome',
+      Welcome: 'welcome',
     },
   },
 };

@@ -4,6 +4,8 @@ const express         = require('express');
 const cors            = require('cors');
 const cookieParser    = require('cookie-parser');
 const corsOptions     = require('./config/cors');
+const security        = require('./config/security');
+const { authLimiter, globalLimiter } = require('./config/rate-limit');
 const errorMiddleware = require('./common/middleware/error.middleware');
 const requestId       = require('./common/middleware/request-id.middleware');
 const logger          = require('./bootstrap/logger.bootstrap');
@@ -19,6 +21,8 @@ const app = express();
 
 // ── Global middleware ──────────────────────────────────────────────────────────
 app.use(requestId);
+app.use(security);
+app.use(globalLimiter);
 app.use(cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '5mb' }));
@@ -30,7 +34,7 @@ app.get('/health', (_req, res) =>
 );
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-app.use('/api/auth',      authRoutes);
+app.use('/api/auth',      authLimiter, authRoutes);
 app.use('/api/users',     usersRoutes);
 app.use('/api/recipes',   recipesRoutes);
 app.use('/api/products',  productsRoutes);
