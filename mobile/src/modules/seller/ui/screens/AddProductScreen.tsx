@@ -227,14 +227,14 @@ export default function AddProductScreen({ navigation, route }: Props) {
           <View style={s.userRow}>
             <View style={s.avatarContainer}>
               <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150' }}
+                source={{ uri: user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150' }}
                 style={s.avatarImage}
               />
               <View style={s.verifiedBadge}>
                 <Feather name="check" size={8} color={Colors.white} />
               </View>
             </View>
-            <Text style={s.greeting}>Yassmine</Text>
+            <Text style={s.greeting}>{user?.fullName?.split(' ')[0] || 'Yassmine'}</Text>
           </View>
           <View style={s.headerActions}>
             <TouchableOpacity style={s.iconBtn} activeOpacity={0.7}>

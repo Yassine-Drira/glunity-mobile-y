@@ -17,6 +17,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
+import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import type { UpdateProfileDto } from '@/modules/auth/api/auth.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'EditProfile'>;
@@ -146,7 +147,7 @@ export default function EditProfileScreen({ navigation }: Props) {
           <View style={s.photoSection}>
             <View style={s.photoWrap}>
               <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
+                source={{ uri: user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
                 style={s.photo}
               />
               <TouchableOpacity style={s.cameraBtn} id="edit-camera-btn">
@@ -234,41 +235,21 @@ export default function EditProfileScreen({ navigation }: Props) {
       </KeyboardAvoidingView>
 
       {/* Bottom Nav */}
-      <View style={s.bottomNav}>
-        <TouchableOpacity style={s.navBtn} onPress={() => navigation.navigate('Home')} id="edit-nav-home">
-          <MaterialCommunityIcons name="home-outline" size={24} color={C.dark} />
-          <Text style={s.navLabel}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.navBtn} id="edit-nav-events">
-          <MaterialCommunityIcons name="calendar-outline" size={24} color={C.dark} />
-          <Text style={s.navLabel}>Events</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.fab} id="edit-nav-fab">
-          <MaterialCommunityIcons name="plus" size={28} color={C.white} />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={s.navBtn} id="edit-nav-reels">
-          <MaterialCommunityIcons name="play-circle-outline" size={24} color={C.dark} />
-          <Text style={s.navLabel}>Reels</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={s.navBtn}
-          onPress={() => {
-            if (user?.profileType === 'pro_commerce') {
-              navigation.navigate('SellerProfile');
-            } else {
-              navigation.navigate('Profile');
-            }
-          }}
-          id="edit-nav-profile"
-        >
-          <MaterialCommunityIcons name="account" size={24} color={C.green} />
-          <Text style={[s.navLabel, { color: C.green }]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomNavBar
+        activeTab="home"
+        idPrefix="home-nav"
+        onPressHome={() => navigation.navigate('Home')}
+        onPressEvents={() => {}}
+        onPressCenter={() => {}}
+        onPressReels={() => {}}
+        onPressProfile={() => {
+          if (user?.profileType === 'pro_commerce') {
+            navigation.navigate('SellerProfile');
+          } else {
+            navigation.navigate('Profile');
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
