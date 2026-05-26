@@ -1,8 +1,8 @@
 'use strict';
 
 const { verifyAccessToken } = require('../utils/token');
-const AppError              = require('../errors/app-error');
-const User                  = require('../../../database/models/user.model');
+const AppError = require('../errors/app-error');
+const User = require('../../../database/models/user.model');
 
 /**
  * Extracts and verifies the Bearer JWT from Authorization header.
@@ -15,7 +15,7 @@ async function authMiddleware(req, _res, next) {
       return next(AppError.unauthorized('No access token provided'));
     }
 
-    const token   = header.split(' ')[1];
+    const token = header.split(' ')[1];
     const decoded = verifyAccessToken(token);
 
     const user = await User.findActiveById(decoded.id);

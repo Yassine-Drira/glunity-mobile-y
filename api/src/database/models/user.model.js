@@ -1,6 +1,6 @@
 'use strict';
 
-const mongoose          = require('mongoose');
+const mongoose = require('mongoose');
 const { PROFILE_TYPES, LANGUAGES } = require('../../app/config/constants');
 
 const { Schema, model, Types } = mongoose;
@@ -8,7 +8,7 @@ const { Schema, model, Types } = mongoose;
 // ─── Sub-schema: Cloudinary image ────────────────────────────────────────────
 const imageSchema = new Schema(
   {
-    url:      { type: String, default: null },
+    url: { type: String, default: null },
     publicId: { type: String, default: null },
   },
   { _id: false },
@@ -19,40 +19,40 @@ const userSchema = new Schema(
   {
     // ── Identity ────────────────────────────────────────────────────────────
     fullName: {
-      type:     String,
+      type: String,
       required: [true, 'Full name is required'],
-      trim:     true,
-      minlength: [2,  'Full name must be at least 2 characters'],
+      trim: true,
+      minlength: [2, 'Full name must be at least 2 characters'],
       maxlength: [80, 'Full name must be at most 80 characters'],
     },
 
     email: {
-      type:      String,
-      required:  [true, 'Email is required'],
-      unique:    true,
+      type: String,
+      required: [true, 'Email is required'],
+      unique: true,
       lowercase: true,
-      trim:      true,
-      match:     [/^\S+@\S+\.\S+$/, 'Invalid email format'],
+      trim: true,
+      match: [/^\S+@\S+\.\S+$/, 'Invalid email format'],
     },
 
     phone: {
-      type:  String,
-      trim:  true,
+      type: String,
+      trim: true,
       match: [/^\+?[\d\s\-().]{7,20}$/, 'Invalid phone number'],
     },
 
     // ── Security ─────────────────────────────────────────────────────────────
     passwordHash: {
-      type:     String,
+      type: String,
       required: [true, 'Password hash is required'],
-      select:   false, // never returned in queries by default
+      select: false, // never returned in queries by default
     },
 
     // ── Profile ──────────────────────────────────────────────────────────────
     profileType: {
-      type:     String,
-      enum:     {
-        values:  Object.values(PROFILE_TYPES),
+      type: String,
+      enum: {
+        values: Object.values(PROFILE_TYPES),
         message: `profileType must be one of: ${Object.values(PROFILE_TYPES).join(', ')}`,
       },
       default: PROFILE_TYPES.CELIAC,
@@ -62,30 +62,30 @@ const userSchema = new Schema(
 
     // ── Gamification ─────────────────────────────────────────────────────────
     streakDays: {
-      type:    Number,
+      type: Number,
       default: 0,
-      min:     [0, 'streakDays cannot be negative'],
+      min: [0, 'streakDays cannot be negative'],
     },
 
     badges: [
       {
         type: Types.ObjectId,
-        ref:  'Badge',
+        ref: 'Badge',
       },
     ],
 
     // ── Preferences ───────────────────────────────────────────────────────────
     language: {
-      type:    String,
-      enum:    {
-        values:  Object.values(LANGUAGES),
+      type: String,
+      enum: {
+        values: Object.values(LANGUAGES),
         message: `language must be one of: ${Object.values(LANGUAGES).join(', ')}`,
       },
       default: LANGUAGES.FR,
     },
 
     darkMode: {
-      type:    Boolean,
+      type: Boolean,
       default: false,
     },
 
@@ -96,27 +96,27 @@ const userSchema = new Schema(
 
     // ── Auth Status ───────────────────────────────────────────────────────────
     emailVerified: {
-      type:    Boolean,
+      type: Boolean,
       default: false,
     },
 
-    emailVerificationToken:   { type: String, select: false },
-    emailVerificationExpires: { type: Date,   select: false },
+    emailVerificationToken: { type: String, select: false },
+    emailVerificationExpires: { type: Date, select: false },
 
-    passwordResetToken:   { type: String, select: false },
-    passwordResetExpires: { type: Date,   select: false },
+    passwordResetToken: { type: String, select: false },
+    passwordResetExpires: { type: Date, select: false },
 
     // ── Soft delete ───────────────────────────────────────────────────────────
     isActive: {
-      type:    Boolean,
+      type: Boolean,
       default: true,
-      index:   true,
+      index: true,
     },
   },
   {
     timestamps: true,            // createdAt / updatedAt
     versionKey: false,
-    toJSON:   { virtuals: true, versionKey: false },
+    toJSON: { virtuals: true, versionKey: false },
     toObject: { virtuals: true, versionKey: false },
   },
 );
@@ -146,20 +146,20 @@ userSchema.statics.findActiveById = function (id) {
  */
 userSchema.methods.toPublic = function () {
   return {
-    _id:           this._id,
-    fullName:      this.fullName,
-    email:         this.email,
-    phone:         this.phone,
-    profileType:   this.profileType,
-    avatarUrl:     this.avatarUrl,
-    streakDays:    this.streakDays,
-    badges:        this.badges,
-    language:      this.language,
-    darkMode:      this.darkMode,
+    _id: this._id,
+    fullName: this.fullName,
+    email: this.email,
+    phone: this.phone,
+    profileType: this.profileType,
+    avatarUrl: this.avatarUrl,
+    streakDays: this.streakDays,
+    badges: this.badges,
+    language: this.language,
+    darkMode: this.darkMode,
     emailVerified: this.emailVerified,
-    isActive:      this.isActive,
-    createdAt:     this.createdAt,
-    updatedAt:     this.updatedAt,
+    isActive: this.isActive,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt,
   };
 };
 

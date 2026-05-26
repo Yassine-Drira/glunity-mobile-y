@@ -13,6 +13,8 @@ import EditProfileScreen from '../modules/profile/ui/screens/EditProfileScreen';
 import SellerProfileScreen from '../modules/seller/ui/screens/SellerProfileScreen';
 import AddProductScreen   from '../modules/seller/ui/screens/AddProductScreen';
 import SellerStatsScreen  from '../modules/seller/ui/screens/SellerStatsScreen';
+import ProductsMarketScreen from '../modules/products/ui/screens/ProductsMarketScreen';
+import ProductDetailScreen  from '../modules/products/ui/screens/ProductDetailScreen';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -34,7 +36,7 @@ export function AppNavigator() {
               return {
                 ...item,
                 onPress: () => {
-                  navigation.navigate('SellerProfile');
+                  navigation.navigate('ProductsMarket');
                 }
               };
             }
@@ -70,14 +72,17 @@ export function AppNavigator() {
           );
         }}
       </Stack.Screen>
-      <Stack.Screen name="Recipes"     component={RecipesScreen} />
-      <Stack.Screen name="RecipeDetail" component={RecipeDetailScreen} options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="Profile"     component={ProfileScreen}     options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="Settings"    component={SettingsScreen} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-      <Stack.Screen name="SellerProfile" component={SellerProfileScreen} />
-      <Stack.Screen name="AddProduct"    component={AddProductScreen} />
-      <Stack.Screen name="SellerStats"   component={SellerStatsScreen} />
+      <Stack.Screen name="Recipes"         component={RecipesScreen} />
+      <Stack.Screen name="RecipeDetail"    component={RecipeDetailScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Profile"         component={ProfileScreen}     options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="Settings"        component={SettingsScreen} />
+      <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
+      <Stack.Screen name="SellerProfile"   component={SellerProfileScreen} />
+      <Stack.Screen name="AddProduct"      component={AddProductScreen} />
+      <Stack.Screen name="SellerStats"     component={SellerStatsScreen} />
+      <Stack.Screen name="ProductsMarket"  component={ProductsMarketScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="ProductDetail"   component={ProductDetailScreen}  options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }
+

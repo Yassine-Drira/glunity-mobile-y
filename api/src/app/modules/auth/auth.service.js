@@ -2,13 +2,13 @@
 
 const crypto = require('crypto');
 
-const authRepository  = require('./auth.repository');
+const authRepository = require('./auth.repository');
 const { hashPassword, verifyPassword } = require('../../common/utils/password');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../../common/utils/token');
-const AppError        = require('../../common/errors/app-error');
-const { AUTH }        = require('../../config/constants');
-const env             = require('../../config/env');
-const emailService    = require('../../common/services/email.service');
+const AppError = require('../../common/errors/app-error');
+const { AUTH } = require('../../config/constants');
+const env = require('../../config/env');
+const emailService = require('../../common/services/email.service');
 
 class AuthService {
   // ─── Register ──────────────────────────────────────────────────────────────
@@ -23,8 +23,8 @@ class AuthService {
     const passwordHash = await hashPassword(password);
 
     // Generate email verification token
-    const rawToken              = crypto.randomBytes(32).toString('hex');
-    const emailVerificationToken   = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
     const user = await authRepository.create({
@@ -136,8 +136,8 @@ class AuthService {
       throw AppError.badRequest('Email is already verified');
     }
 
-    const rawToken              = crypto.randomBytes(32).toString('hex');
-    const emailVerificationToken   = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const emailVerificationToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     await authRepository.setVerificationToken(user._id, emailVerificationToken, emailVerificationExpires);
@@ -160,8 +160,8 @@ class AuthService {
     }
 
     // Generate reset token
-    const rawToken          = crypto.randomBytes(32).toString('hex');
-    const passwordResetToken   = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const passwordResetToken = crypto.createHash('sha256').update(rawToken).digest('hex');
     const passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
     await authRepository.setPasswordResetToken(user._id, passwordResetToken, passwordResetExpires);
@@ -197,9 +197,9 @@ class AuthService {
   _issueTokens(user) {
     const payload = { id: user._id.toString(), profileType: user.profileType };
     return {
-      accessToken:  signAccessToken(payload),
+      accessToken: signAccessToken(payload),
       refreshToken: signRefreshToken({ id: user._id.toString() }),
-      expiresIn:    AUTH.COOKIE_OPTIONS.maxAge / 1000,
+      expiresIn: AUTH.COOKIE_OPTIONS.maxAge / 1000,
     };
   }
 }
