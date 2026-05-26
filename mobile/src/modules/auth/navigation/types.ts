@@ -15,6 +15,7 @@ export type AppStackParamList = {
   Home:          undefined;
   Recipes:       undefined;
   RecipeDetail:  { recipeId?: string; initialRecipe?: any };
+  Map:           undefined;
   Profile:       undefined;
   Settings:      undefined;
   EditProfile:   undefined;
