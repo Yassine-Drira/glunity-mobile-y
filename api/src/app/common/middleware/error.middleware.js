@@ -11,8 +11,15 @@ const env      = require('../../config/env');
 function errorMiddleware(err, req, res, next) {
   // Mongoose duplicate key
   if (err.code === 11000) {
-    const field = Object.keys(err.keyValue || {})[0] || 'field';
-    err = AppError.conflict(`${field} already exists`, 'DUPLICATE_KEY');
+    const rawField = Object.keys(err.keyValue || {})[0] || 'field';
+    let field = rawField;
+    if (rawField === 'email') field = 'Email address';
+    else if (rawField === 'username') field = 'Username';
+    else if (rawField === 'slug') field = 'Title';
+    else {
+      field = rawField.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase());
+    }
+    err = AppError.conflict(`${field} is already taken`, 'DUPLICATE_KEY');
   }
 
   // Mongoose validation error

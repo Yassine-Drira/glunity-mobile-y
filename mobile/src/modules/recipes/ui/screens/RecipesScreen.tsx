@@ -320,8 +320,9 @@ export default function RecipesScreen({ navigation }: Props) {
 
   React.useEffect(() => {
     (async () => {
+      setLoaded(false);
       try {
-        const fromApi = await recipesApi.list({ limit: 30 });
+        const fromApi = await recipesApi.list({ category: activeCategory, limit: 30 });
         setItems(fromApi);
       } catch {
         setItems(MOCK_RECIPES);
@@ -329,7 +330,7 @@ export default function RecipesScreen({ navigation }: Props) {
         setLoaded(true);
       }
     })();
-  }, []);
+  }, [activeCategory]);
 
   const filtered = useMemo(() => {
     const source = loaded && items.length > 0 ? items : MOCK_RECIPES;

@@ -17,6 +17,21 @@ http.interceptors.request.use(async (config) => {
   return config;
 });
 
+// ── Queue and Refreshing state for token serialization ──────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // ── Response: handle 401 → refresh token ─────────────────────────────────────
 http.interceptors.response.use(
   (res) => res,
@@ -24,18 +39,53 @@ http.interceptors.response.use(
     const original = error.config;
 
     if (error.response?.status === 401 && !original._retry) {
-      original._retry = true;
-      try {
-        const refreshToken = await TokenStore.getRefreshToken();
-        const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-          refreshToken,
-        });
-        await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
-        original.headers.Authorization = `Bearer ${data.data.accessToken}`;
-        return http(original);
-      } catch {
-        await TokenStore.clearTokens();
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            original.headers.Authorization = `Bearer ${token}`;
+            return http(original);
+          })
+          .catch((err) => Promise.reject(err));
       }
+
+      original._retry = true;
+      isRefreshing = true;
+
+      return new Promise((resolve, reject) => {
+        TokenStore.getRefreshToken()
+          .then((refreshToken) => {
+            axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken })
+              .then(({ data }) => {
+                const accessToken = data.data.accessToken;
+                const newRefreshToken = data.data.refreshToken;
+                TokenStore.setTokens(accessToken, newRefreshToken)
+                  .then(() => {
+                    http.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+                    original.headers.Authorization = `Bearer ${accessToken}`;
+                    processQueue(null, accessToken);
+                    resolve(http(original));
+                  })
+                  .catch((err) => {
+                    processQueue(err, null);
+                    reject(err);
+                  });
+              })
+              .catch((err) => {
+                processQueue(err, null);
+                TokenStore.clearTokens()
+                  .then(() => reject(err))
+                  .catch(() => reject(err));
+              });
+          })
+          .catch((err) => {
+            reject(err);
+          })
+          .finally(() => {
+            isRefreshing = false;
+          });
+      });
     }
 
     return Promise.reject(error);
