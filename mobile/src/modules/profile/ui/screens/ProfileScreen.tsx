@@ -79,7 +79,7 @@ export default function ProfileScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <Text style={s.name}>Yassmine Cherif</Text>
+          <Text style={s.name}>{user?.fullName || 'Yassmine Cherif'}</Text>
           <View style={s.roleBadgePill}>
             <Text style={s.roleBadgeText}>Gluten-Free Warrior</Text>
           </View>

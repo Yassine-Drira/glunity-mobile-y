@@ -22,14 +22,21 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, route }: Props) {
   const { login, isLoading, error, clearError } = useAuth();
+  const [success, setSuccess] = useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
       clearError();
+      if (route.params?.successMessage) {
+        setSuccess(route.params.successMessage);
+        navigation.setParams({ successMessage: undefined });
+      } else {
+        setSuccess(null);
+      }
       return undefined;
-    }, [clearError]),
+    }, [clearError, route.params?.successMessage]),
   );
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -78,9 +85,18 @@ export default function LoginScreen({ navigation }: Props) {
           {/* Title */}
           <Text style={styles.title}>Login</Text>
 
+          {/* Success banner */}
+          {!!success && (
+            <View style={styles.successBanner}>
+              <Feather name="check-circle" size={18} color="#388E3C" style={{ marginRight: 8 }} />
+              <Text style={styles.successBannerText}>{success}</Text>
+            </View>
+          )}
+
           {/* API error banner */}
           {!!error && (
             <View style={styles.errorBanner}>
+              <Feather name="alert-circle" size={18} color={Colors.error} style={{ marginRight: 8 }} />
               <Text style={styles.errorBannerText}>{error}</Text>
             </View>
           )}
@@ -176,6 +192,8 @@ const styles = StyleSheet.create({
 
   // Error banner
   errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.errorLight,
     borderWidth: 1,
     borderColor: Colors.error,
@@ -185,6 +203,23 @@ const styles = StyleSheet.create({
   },
   errorBannerText: {
     color: Colors.error,
+    fontSize: 13,
+    fontWeight: Font.medium,
+  },
+
+  // Success banner
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#8BC34A',
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  successBannerText: {
+    color: '#388E3C',
     fontSize: 13,
     fontWeight: Font.medium,
   },

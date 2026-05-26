@@ -108,8 +108,13 @@ export default function RegisterScreen({ navigation }: Props) {
         password: form.password,
         profileType: form.profileType as RegisterProfileType,
       });
-    } catch {
-      // error already in context
+    } catch (err: any) {
+      if (err?.message === 'EMAIL_NOT_VERIFIED') {
+        clearError();
+        navigation.navigate('Login', {
+          successMessage: 'Account created. Please verify your email before logging in.',
+        });
+      }
     }
   }
 
@@ -135,6 +140,7 @@ export default function RegisterScreen({ navigation }: Props) {
           {/* API error banner */}
           {!!error && (
             <View style={styles.errorBanner}>
+              <Feather name="alert-circle" size={18} color={Colors.error} style={{ marginRight: 8 }} />
               <Text style={styles.errorBannerText}>{error}</Text>
             </View>
           )}
@@ -274,6 +280,8 @@ const styles = StyleSheet.create({
 
   // Error banner
   errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.errorLight,
     borderWidth: 1,
     borderColor: Colors.error,
