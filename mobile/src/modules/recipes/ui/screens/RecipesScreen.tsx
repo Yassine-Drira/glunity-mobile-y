@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,18 @@ import {
   ScrollView,
   FlatList,
   Image,
+  TextInput,
+  Animated,
+  Easing,
 } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import recipesApi, { Recipe, RecipeCategory } from '../../api/recipes.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Recipes'>;
@@ -92,6 +96,40 @@ function getRecipeImage(recipe: Recipe): string {
 export default function RecipesScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
+  const { isRTL } = useLanguage();
+
+  // Search State
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchAnim = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef<any>(null);
+
+  const toggleSearch = useCallback(() => {
+    const next = !searchOpen;
+    setSearchOpen(next);
+    if (next) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    } else {
+      inputRef.current?.blur();
+      setSearchQuery('');
+    }
+    Animated.timing(searchAnim, {
+      toValue: next ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [searchOpen, searchAnim]);
+
+  const searchHeight = searchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 48],
+  });
+
+  const searchOpacity = searchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
 
   const s = React.useMemo(() => StyleSheet.create({
     safe: {
@@ -109,13 +147,13 @@ export default function RecipesScreen({ navigation }: Props) {
     topbar: {
       paddingHorizontal: 22,
       paddingTop: 16,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 12,
     },
     userInfo: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 10,
     },
@@ -148,9 +186,10 @@ export default function RecipesScreen({ navigation }: Props) {
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
     topIcons: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 16,
     },
     iconBtn: {
@@ -166,6 +205,7 @@ export default function RecipesScreen({ navigation }: Props) {
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       marginTop: 10,
+      textAlign: isRTL ? 'right' : 'left',
     },
     heroSub: {
       paddingHorizontal: 22,
@@ -175,9 +215,39 @@ export default function RecipesScreen({ navigation }: Props) {
       fontWeight: '600',
       fontFamily: 'Poppins_600SemiBold',
       textTransform: 'capitalize',
+      textAlign: isRTL ? 'right' : 'left',
     },
+
+    // Search Input Styles
+    searchWrap: {
+      overflow: 'hidden',
+      borderRadius: 14,
+      marginHorizontal: 22,
+      marginTop: 10,
+    },
+    searchInner: {
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: T.surface,
+      borderWidth: 1,
+      borderColor: T.border,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      gap: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 13,
+      color: T.text,
+      paddingVertical: 0,
+      backgroundColor: 'transparent',
+      includeFontPadding: false,
+      textAlign: isRTL ? 'right' : 'left',
+    },
+
     filters: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       paddingHorizontal: 22,
       marginTop: 20,
@@ -187,7 +257,7 @@ export default function RecipesScreen({ navigation }: Props) {
       height: 44,
       borderRadius: 22,
       paddingHorizontal: 20,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: 'rgba(0,0,0,0.06)',
@@ -218,6 +288,7 @@ export default function RecipesScreen({ navigation }: Props) {
       paddingHorizontal: 22,
       paddingTop: 24,
       paddingBottom: 16,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
     },
     recipeCard: {
       width: 172,
@@ -229,6 +300,7 @@ export default function RecipesScreen({ navigation }: Props) {
       shadowOpacity: 0.1,
       shadowRadius: 10,
       elevation: 4,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     recipeImageContainer: {
       width: 148,
@@ -250,6 +322,8 @@ export default function RecipesScreen({ navigation }: Props) {
     },
     recipeBody: {
       paddingHorizontal: 4,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
+      width: '100%',
     },
     recipeName: {
       color: T.red,
@@ -257,23 +331,29 @@ export default function RecipesScreen({ navigation }: Props) {
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
+      width: '100%',
     },
     recipeDesc: {
       color: T.textSub,
       fontSize: 11,
       lineHeight: 16,
       fontFamily: 'Poppins_400Regular',
+      textAlign: isRTL ? 'right' : 'left',
+      width: '100%',
     },
     popularHeaderRow: {
       paddingHorizontal: 22,
       paddingTop: 10,
       paddingBottom: 14,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     popularTitle: {
       fontSize: 20,
       fontWeight: '700',
       color: T.text,
       fontFamily: 'Poppins_700Bold',
+      textAlign: isRTL ? 'right' : 'left',
     },
     popCard: {
       marginHorizontal: 22,
@@ -285,7 +365,7 @@ export default function RecipesScreen({ navigation }: Props) {
       shadowOpacity: 0.1,
       shadowRadius: 10,
       elevation: 4,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 16,
     },
@@ -297,7 +377,9 @@ export default function RecipesScreen({ navigation }: Props) {
     },
     popInfo: {
       flex: 1,
-      paddingRight: 4,
+      paddingRight: isRTL ? 0 : 4,
+      paddingLeft: isRTL ? 4 : 0,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     popName: {
       color: T.red,
@@ -305,14 +387,18 @@ export default function RecipesScreen({ navigation }: Props) {
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
+      width: '100%',
     },
     popDesc: {
       color: T.textSub,
       fontSize: 11.5,
       lineHeight: 16,
       fontFamily: 'Poppins_400Regular',
+      textAlign: isRTL ? 'right' : 'left',
+      width: '100%',
     },
-  }), [T]);
+  }), [T, isRTL]);
 
   const [activeCategory, setActiveCategory] = useState<RecipeCategory>('tunisian');
   const [items, setItems] = useState<Recipe[]>([]);
@@ -334,8 +420,17 @@ export default function RecipesScreen({ navigation }: Props) {
 
   const filtered = useMemo(() => {
     const source = loaded && items.length > 0 ? items : MOCK_RECIPES;
-    return source.filter((r) => r.category === activeCategory);
-  }, [activeCategory, items, loaded]);
+    let list = source.filter((r) => r.category === activeCategory);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(r => 
+        (r.title && r.title.toLowerCase().includes(q)) || 
+        (r.description && r.description.toLowerCase().includes(q)) || 
+        (r.ingredients && r.ingredients.some(ing => ing.toLowerCase().includes(q)))
+      );
+    }
+    return list;
+  }, [activeCategory, items, loaded, searchQuery]);
 
   const popular = useMemo(() => {
     const source = loaded && items.length > 0 ? items : MOCK_RECIPES;
@@ -345,10 +440,18 @@ export default function RecipesScreen({ navigation }: Props) {
 
   const headerActions = (
     <View style={s.topIcons}>
-      <TouchableOpacity activeOpacity={0.8} style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]}> 
-        <Feather name="search" size={20} color={T.text} />
+      <TouchableOpacity 
+        activeOpacity={0.8} 
+        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]}
+        onPress={toggleSearch}
+      > 
+        <Feather name={searchOpen ? "x" : "search"} size={20} color={T.text} />
       </TouchableOpacity>
-      <TouchableOpacity activeOpacity={0.8} style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]}> 
+      <TouchableOpacity 
+        activeOpacity={0.8} 
+        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]}
+        onPress={() => navigation.navigate('Notifications')}
+      > 
         <Feather name="bell" size={20} color={T.text} />
       </TouchableOpacity>
     </View>
@@ -358,6 +461,7 @@ export default function RecipesScreen({ navigation }: Props) {
     <AppScaffold
       title="Recipes"
       activeTab="home"
+      rightElement={headerActions}
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[s.mainContainer, { backgroundColor: T.bg }]}>
@@ -365,6 +469,27 @@ export default function RecipesScreen({ navigation }: Props) {
           {/* Heading */}
           <Text style={[s.heroTitle, { color: T.text }]}>Gluten-Free Recipes</Text>
           <Text style={[s.heroSub, { color: T.red }]}>Healthy and nutritious food recipes</Text>
+
+          {/* Search Bar */}
+          <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
+            <View style={s.searchInner}>
+              <Feather name="search" size={16} color={T.textMuted} />
+              <TextInput
+                ref={inputRef}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search recipes..."
+                placeholderTextColor={T.textMuted}
+                underlineColorAndroid="transparent"
+                style={s.searchInput}
+              />
+              {!!searchQuery && (
+                <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={16} color={T.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
 
           {/* Filter Tabs */}
           <View style={s.filters}>
@@ -382,7 +507,7 @@ export default function RecipesScreen({ navigation }: Props) {
                       name="bowl-mix-outline"
                       size={18}
                       color="#FFFFFF"
-                      style={{ marginRight: 6 }}
+                      style={isRTL ? { marginLeft: 6 } : { marginRight: 6 }}
                     />
                   )}
                   <Text style={[s.filterText, active ? s.filterTextActive : [s.filterTextIdle, { color: T.text }]]}>

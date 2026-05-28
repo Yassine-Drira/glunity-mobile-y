@@ -14,6 +14,7 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
+import { useLanguage } from '@/shared/context/language.context';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
@@ -30,6 +31,7 @@ const ACTIVE_INDEX = 2;
 export default function ProfileScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
   const { theme: T } = useTheme();
+  const { isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
 
   const bottomInset = Math.max(insets.bottom, 8) + 110;
@@ -47,7 +49,7 @@ export default function ProfileScreen({ navigation }: Props) {
     },
 
     topHeader: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
@@ -105,7 +107,8 @@ export default function ProfileScreen({ navigation }: Props) {
     },
     checkBadge: {
       position: 'absolute',
-      right: 2,
+      right: isRTL ? undefined : 2,
+      left: isRTL ? 2 : undefined,
       bottom: 0,
       width: 28,
       height: 28,
@@ -128,12 +131,14 @@ export default function ProfileScreen({ navigation }: Props) {
       marginTop: 8,
       marginBottom: 8,
       fontFamily: F.bold,
+      textAlign: 'center',
     },
     subTitle: {
       fontSize: 13,
       color: T.textMuted,
       marginTop: 8,
       fontFamily: F.regular,
+      textAlign: 'center',
     },
     roleBadgePill: {
       backgroundColor: T.greenLight,
@@ -152,6 +157,7 @@ export default function ProfileScreen({ navigation }: Props) {
     },
 
     sectionWrap: {
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     sectionLabel: {
       fontSize: 12,
@@ -159,11 +165,13 @@ export default function ProfileScreen({ navigation }: Props) {
       fontWeight: '600',
       marginBottom: 8,
       fontFamily: F.semibold,
+      textAlign: isRTL ? 'right' : 'left',
+      width: '100%',
     },
     card: {
       backgroundColor: 'transparent',
       paddingVertical: 8,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
     },
 
@@ -174,7 +182,8 @@ export default function ProfileScreen({ navigation }: Props) {
       backgroundColor: T.greenLight,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 14,
+      marginRight: isRTL ? 0 : 14,
+      marginLeft: isRTL ? 14 : 0,
     },
 
     roleTextWrap: {
@@ -187,6 +196,7 @@ export default function ProfileScreen({ navigation }: Props) {
       lineHeight: 20,
       color: T.text,
       fontFamily: F.bold,
+      textAlign: isRTL ? 'right' : 'left',
     },
     roleSubtitle: {
       marginTop: 4,
@@ -194,12 +204,14 @@ export default function ProfileScreen({ navigation }: Props) {
       color: T.textSub,
       lineHeight: 18,
       fontFamily: F.regular,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     journeyCard: {
       position: 'relative',
       backgroundColor: 'transparent',
       paddingVertical: 12,
+      width: '100%',
     },
     journeyTrack: {
       position: 'absolute',
@@ -211,13 +223,16 @@ export default function ProfileScreen({ navigation }: Props) {
       borderRadius: 2.5,
     },
     journeyTrackDone: {
+      position: 'absolute',
+      left: isRTL ? undefined : 0,
+      right: isRTL ? 0 : undefined,
       height: 5,
       backgroundColor: T.green,
       borderRadius: 2.5,
     },
     journeyRow: {
       width: '100%',
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 0,
@@ -287,8 +302,9 @@ export default function ProfileScreen({ navigation }: Props) {
       borderRadius: 14,
       paddingHorizontal: 16,
       paddingVertical: 16,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
+      width: '100%',
     },
     bannerMascotImage: {
       width: 56,
@@ -296,12 +312,14 @@ export default function ProfileScreen({ navigation }: Props) {
     },
     bannerText: {
       flex: 1,
-      marginLeft: 14,
+      marginLeft: isRTL ? 0 : 14,
+      marginRight: isRTL ? 14 : 0,
       fontSize: 13,
       lineHeight: 20,
       fontWeight: '500',
       color: T.text,
       fontFamily: F.medium,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     menuStack: {
@@ -313,22 +331,24 @@ export default function ProfileScreen({ navigation }: Props) {
       shadowOpacity: 0.06,
       shadowRadius: 4,
       elevation: 1,
+      width: '100%',
     },
     menuRowCard: {
       backgroundColor: T.surface,
       paddingVertical: 15,
       paddingHorizontal: 16,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
     },
     menuDivider: {
       height: 1,
       backgroundColor: T.border,
-      marginLeft: 64,
+      marginLeft: isRTL ? 0 : 64,
+      marginRight: isRTL ? 64 : 0,
     },
     menuLeft: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
     },
     menuIconCircle: {
@@ -340,17 +360,18 @@ export default function ProfileScreen({ navigation }: Props) {
       backgroundColor: T.redLight,
     },
     menuLabel: {
-      marginLeft: 12,
+      marginLeft: isRTL ? 0 : 12,
+      marginRight: isRTL ? 12 : 0,
       fontSize: 14,
       fontWeight: '500',
       color: T.text,
       fontFamily: F.medium,
     },
-  }), [T]);
+  }), [T, isRTL]);
 
   return (
     <AppScaffold
-      title="Profile"
+      title={t('Profile')}
       activeTab="profile"
       rightIcon="bell-outline"
       onPressHome={() => navigation.navigate('Home')}
@@ -386,28 +407,28 @@ export default function ProfileScreen({ navigation }: Props) {
 
           <Text style={s.name}>{user?.fullName || 'Yassmine Cherif'}</Text>
           <View style={s.roleBadgePill}>
-            <Text style={s.roleBadgeText}>Gluten-Free Warrior</Text>
+            <Text style={s.roleBadgeText}>{t('Gluten-Free Warrior')}</Text>
           </View>
-          <Text style={s.subTitle}>Living gluten-free for 12 years 🌿</Text>
+          <Text style={s.subTitle}>{t('Living gluten-free for 12 years 🌿')}</Text>
         </View>
 
         <View style={s.sectionWrap}>
-          <Text style={s.sectionLabel}>Your Role</Text>
+          <Text style={s.sectionLabel}>{t('Your Role')}</Text>
           <View style={s.card}>
             <View style={s.roleIconBlock}>
               <Feather name="shield" size={22} color={T.green} />
             </View>
             <View style={s.roleTextWrap}>
-              <Text style={s.roleTitle}>Gluten-Free Warrior</Text>
+              <Text style={s.roleTitle}>{t('Gluten-Free Warrior')}</Text>
               <Text style={s.roleSubtitle}>
-                You actively manage your gluten-free lifestyle and inspire others.
+                {t('You actively manage your gluten-free lifestyle and inspire others.')}
               </Text>
             </View>
           </View>
         </View>
 
         <View style={s.sectionWrap}>
-          <Text style={s.sectionLabel}>Your Journey</Text>
+          <Text style={s.sectionLabel}>{t('Your Journey')}</Text>
           <View style={s.journeyCard}>
             <View style={s.journeyTrack}>
               <View
@@ -445,7 +466,7 @@ export default function ProfileScreen({ navigation }: Props) {
                         !isCompleted && !isActive && s.stepLabelInactive,
                       ]}
                     >
-                      {label}
+                      {t(label)}
                     </Text>
                   </View>
                 );
@@ -456,7 +477,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <View style={s.bannerCard}>
           <Image source={mascotImage} style={s.bannerMascotImage} resizeMode="contain" />
-          <Text style={s.bannerText}>Every action makes the ecosystem stronger.</Text>
+          <Text style={s.bannerText}>{t('Every action makes the ecosystem stronger.')}</Text>
         </View>
 
         <View style={s.menuStack}>
@@ -469,9 +490,9 @@ export default function ProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="settings" size={18} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Settings</Text>
+              <Text style={s.menuLabel}>{t('Settings')}</Text>
             </View>
-            <Feather name="chevron-right" size={18} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
           </TouchableOpacity>
 
           <View style={s.menuDivider} />
@@ -481,9 +502,9 @@ export default function ProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="shield" size={18} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Privacy & Security</Text>
+              <Text style={s.menuLabel}>{t('Privacy & Security')}</Text>
             </View>
-            <Feather name="chevron-right" size={18} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
           </TouchableOpacity>
 
           <View style={s.menuDivider} />
@@ -493,9 +514,9 @@ export default function ProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="log-out" size={18} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Log out</Text>
+              <Text style={s.menuLabel}>{t('Log out')}</Text>
             </View>
-            <Feather name="chevron-right" size={18} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
           </TouchableOpacity>
         </View>
       </ScrollView>

@@ -13,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
 import { Feather } from '@expo/vector-icons';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Intro'>;
 
@@ -223,6 +224,7 @@ const dot = StyleSheet.create({
 function SlideView({ slide, screenWidth }: { slide: (typeof SLIDES)[0]; screenWidth: number }) {
   const { IllustrationComponent } = slide;
   const { theme: T } = useTheme();
+  const { t } = useLanguage();
 
   const styles = React.useMemo(() => StyleSheet.create({
     slide: {
@@ -259,10 +261,10 @@ function SlideView({ slide, screenWidth }: { slide: (typeof SLIDES)[0]; screenWi
         <IllustrationComponent />
       </View>
       <Text style={styles.title}>
-        {slide.title}{' '}
-        <Text style={styles.titleAccent}>{slide.titleAccent}</Text>
+        {t(slide.title)}{' '}
+        <Text style={styles.titleAccent}>{t(slide.titleAccent)}</Text>
       </Text>
-      <Text style={styles.description}>{slide.description}</Text>
+      <Text style={styles.description}>{t(slide.description)}</Text>
     </View>
   );
 }
@@ -274,6 +276,7 @@ export default function IntroductionScreen({ navigation }: Props) {
   const flatListRef = useRef<FlatList<(typeof SLIDES)[number]>>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const { theme: T, isDark } = useTheme();
+  const { isRTL } = useLanguage();
 
   const scrollToIndex = (index: number) => {
     const safeIndex = Math.max(0, Math.min(index, SLIDES.length - 1));
@@ -305,7 +308,7 @@ export default function IntroductionScreen({ navigation }: Props) {
     container: { flex: 1, backgroundColor: T.bg },
     navBar: {
       position: 'absolute', bottom: 40, left: 0, right: 0,
-      flexDirection: 'row', alignItems: 'center',
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center',
       justifyContent: 'space-between', paddingHorizontal: 24,
       zIndex: 5,
     },
@@ -321,7 +324,7 @@ export default function IntroductionScreen({ navigation }: Props) {
       shadowColor: T.green, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12,
       elevation: 8,
     },
-  }), [T]);
+  }), [T, isRTL]);
 
   return (
     <View style={styles.container}>
@@ -352,7 +355,7 @@ export default function IntroductionScreen({ navigation }: Props) {
       {/* Bottom navigation bar */}
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.8}>
-          <Feather name="arrow-left" size={24} color={T.text} />
+          <Feather name={isRTL ? "arrow-right" : "arrow-left"} size={24} color={T.text} />
         </TouchableOpacity>
 
         <DotsIndicator count={SLIDES.length} scrollX={scrollX} screenWidth={screenWidth} />
@@ -361,7 +364,7 @@ export default function IntroductionScreen({ navigation }: Props) {
           {activeIndex === SLIDES.length - 1 ? (
             <Feather name="check" size={32} color="#FFFFFF" />
           ) : (
-            <Feather name="arrow-right" size={32} color="#FFFFFF" />
+            <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={32} color="#FFFFFF" />
           )}
         </TouchableOpacity>
       </View>

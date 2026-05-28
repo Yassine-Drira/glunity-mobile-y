@@ -19,6 +19,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import patientResourcesApi, {
   PatientArticle,
@@ -128,6 +129,7 @@ function ArticleIcon({
 
 export default function PatientResourcesScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
+  const { isRTL, t } = useLanguage();
 
   const [featured, setFeatured] = useState<PatientArticle | null>(null);
   const [articles, setArticles] = useState<PatientArticle[]>([]);
@@ -174,7 +176,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
 
         // ── Section label ──
         sectionRow: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           marginHorizontal: 20,
@@ -187,8 +189,9 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           color: T.textMuted,
           textTransform: 'lowercase',
           letterSpacing: 0.2,
+          textAlign: isRTL ? 'right' : 'left',
         },
-        seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+        seeAllBtn: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 },
         seeAllText: {
           fontSize: 13,
           fontFamily: F.semibold,
@@ -198,7 +201,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
 
         // ── Categories strip ──
         categoriesRow: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           paddingHorizontal: 20,
           gap: 10,
           marginBottom: 4,
@@ -241,6 +244,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
         },
         categoryLabelActive: { color: T.red, fontFamily: F.bold, fontWeight: '700' },
 
+
         // ── Featured card ──
         featuredCard: {
           marginHorizontal: 20,
@@ -272,6 +276,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           color: T.text,
           marginBottom: 8,
           letterSpacing: -0.3,
+          textAlign: isRTL ? 'right' : 'left',
         },
         featuredExcerpt: {
           fontSize: 13.5,
@@ -279,14 +284,15 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           color: T.textSub,
           lineHeight: 20,
           marginBottom: 16,
+          textAlign: isRTL ? 'right' : 'left',
         },
         featuredFooter: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
         },
         readTime: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           gap: 6,
         },
@@ -295,7 +301,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           fontFamily: F.regular,
           color: T.textMuted,
         },
-        readMoreBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+        readMoreBtn: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 },
         readMoreText: {
           fontSize: 13,
           fontFamily: F.semibold,
@@ -310,7 +316,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           backgroundColor: T.surface,
           borderRadius: 16,
           padding: 16,
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'flex-start',
           gap: 14,
           borderWidth: 1,
@@ -321,7 +327,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           shadowRadius: 4,
           elevation: 1,
         },
-        articleContent: { flex: 1 },
+        articleContent: { flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' },
         articleTitle: {
           fontSize: 14.5,
           fontFamily: F.bold,
@@ -329,6 +335,8 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           color: T.text,
           marginBottom: 4,
           lineHeight: 20,
+          textAlign: isRTL ? 'right' : 'left',
+          width: '100%',
         },
         articleExcerpt: {
           fontSize: 12.5,
@@ -336,9 +344,11 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           color: T.textSub,
           lineHeight: 18,
           marginBottom: 8,
+          textAlign: isRTL ? 'right' : 'left',
+          width: '100%',
         },
-        articleMeta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-        articleTime: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+        articleMeta: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 },
+        articleTime: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 4 },
         articleTimeText: { fontSize: 11, fontFamily: F.regular, color: T.textMuted },
         articleReadMore: {
           fontSize: 12,
@@ -349,7 +359,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
 
         // ── Videos section ──
         videosRow: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           paddingHorizontal: 20,
           gap: 12,
         },
@@ -370,7 +380,8 @@ export default function PatientResourcesScreen({ navigation }: Props) {
         videoDurationBadge: {
           position: 'absolute',
           bottom: 8,
-          right: 8,
+          right: isRTL ? undefined : 8,
+          left: isRTL ? 8 : undefined,
           backgroundColor: 'rgba(0,0,0,0.62)',
           borderRadius: 5,
           paddingHorizontal: 6,
@@ -381,18 +392,22 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           fontFamily: F.medium,
           color: '#FFFFFF',
         },
-        videoInfo: { padding: 10 },
+        videoInfo: { padding: 10, alignItems: isRTL ? 'flex-end' : 'flex-start' },
         videoTitle: {
           fontSize: 13,
           fontFamily: F.bold,
           fontWeight: '700',
           color: T.text,
           marginBottom: 3,
+          textAlign: isRTL ? 'right' : 'left',
+          width: '100%',
         },
         videoPresenter: {
           fontSize: 11.5,
           fontFamily: F.regular,
           color: T.textMuted,
+          textAlign: isRTL ? 'right' : 'left',
+          width: '100%',
         },
 
         // ── Disclaimer ──
@@ -403,7 +418,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           borderRadius: 12,
           borderWidth: 1,
           borderColor: 'rgba(200,16,46,0.2)',
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'flex-start',
           gap: 10,
           padding: 14,
@@ -414,13 +429,14 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           fontFamily: F.regular,
           color: T.textSub,
           lineHeight: 18,
+          textAlign: isRTL ? 'right' : 'left',
         },
 
         // ── States ──
         centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
         emptyText: { fontSize: 15, fontFamily: F.regular, color: T.textMuted, marginTop: 12 },
       }),
-    [T]
+    [T, isRTL]
   );
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -434,7 +450,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
 
   return (
     <AppScaffold
-      title="Patient Resources"
+      title={t('Patient Resources')}
       activeTab="home"
     >
       <View style={s.page}>
@@ -448,7 +464,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
         >
           {/* ── Categories ─────────────────────────────────────── */}
           <View style={s.sectionRow}>
-            <Text style={s.sectionLabel}>Categories</Text>
+            <Text style={s.sectionLabel}>{t('Categories')}</Text>
           </View>
 
           <View style={s.categoriesRow}>
@@ -474,7 +490,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                     )}
                   </View>
                   <Text style={[s.categoryLabel, isActive && { color: cat.color, fontFamily: F.bold, fontWeight: '700' }]}>
-                    {cat.label}
+                    {t(cat.label)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -485,14 +501,14 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           {featured && !activeCategory && (
             <>
               <View style={s.sectionRow}>
-                <Text style={s.sectionLabel}>Featured</Text>
+                <Text style={s.sectionLabel}>{t('Featured')}</Text>
               </View>
 
               <TouchableOpacity
                 style={s.featuredCard}
                 activeOpacity={0.82}
                 onPress={() =>
-                  Alert.alert('Article', featured.body)
+                  Alert.alert(t('Article'), t(featured.body))
                 }
               >
                 {/* Circle icon */}
@@ -504,19 +520,19 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                   />
                 </View>
 
-                <Text style={s.featuredTitle}>{featured.title}</Text>
+                <Text style={s.featuredTitle}>{t(featured.title)}</Text>
                 <Text style={s.featuredExcerpt} numberOfLines={3}>
-                  {featured.excerpt}
+                  {t(featured.excerpt)}
                 </Text>
 
                 <View style={s.featuredFooter}>
                   <View style={s.readTime}>
                     <Feather name="clock" size={13} color={T.textMuted} />
-                    <Text style={s.readTimeText}>{featured.readMinutes} min read</Text>
+                    <Text style={s.readTimeText}>{featured.readMinutes} {t('min read')}</Text>
                   </View>
                   <TouchableOpacity style={s.readMoreBtn} activeOpacity={0.7}>
-                    <Text style={s.readMoreText}>Read more</Text>
-                    <Feather name="chevron-right" size={14} color={T.green} />
+                    <Text style={s.readMoreText}>{t('Read more')}</Text>
+                    <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={14} color={T.green} />
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -525,13 +541,13 @@ export default function PatientResourcesScreen({ navigation }: Props) {
 
           {/* ── All Resources ──────────────────────────────────── */}
           <View style={s.sectionRow}>
-            <Text style={s.sectionLabel}>All ressources</Text>
+            <Text style={s.sectionLabel}>{t('All ressources')}</Text>
           </View>
 
           {displayedArticles.length === 0 ? (
             <View style={s.centered}>
               <Feather name="file-text" size={40} color={T.textMuted} />
-              <Text style={s.emptyText}>No resources found</Text>
+              <Text style={s.emptyText}>{t('No resources found')}</Text>
             </View>
           ) : (
             displayedArticles.map((article) => {
@@ -541,7 +557,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                 key={article.id}
                 style={s.articleCard}
                 activeOpacity={0.8}
-                onPress={() => Alert.alert(article.title, article.body)}
+                onPress={() => Alert.alert(t(article.title), t(article.body))}
               >
                 <ArticleIcon
                   iconName={article.icon}
@@ -550,17 +566,17 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                   bg={iconCfg.bg}
                 />
                 <View style={s.articleContent}>
-                  <Text style={s.articleTitle}>{article.title}</Text>
+                  <Text style={s.articleTitle}>{t(article.title)}</Text>
                   <Text style={s.articleExcerpt} numberOfLines={2}>
-                    {article.excerpt}
+                    {t(article.excerpt)}
                   </Text>
                   <View style={s.articleMeta}>
                     <View style={s.articleTime}>
                       <Feather name="clock" size={11} color={T.textMuted} />
-                      <Text style={s.articleTimeText}>{article.readMinutes} min</Text>
+                      <Text style={s.articleTimeText}>{article.readMinutes} {t('min')}</Text>
                     </View>
                     <TouchableOpacity activeOpacity={0.7}>
-                      <Text style={s.articleReadMore}>Read more →</Text>
+                      <Text style={s.articleReadMore}>{t('Read more →')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -573,10 +589,10 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           {videos.length > 0 && (
             <>
               <View style={s.sectionRow}>
-                <Text style={s.sectionLabel}>Videos & Sessions</Text>
+                <Text style={s.sectionLabel}>{t('Videos & Sessions')}</Text>
                 <TouchableOpacity style={s.seeAllBtn} activeOpacity={0.7}>
-                  <Text style={s.seeAllText}>See All</Text>
-                  <Feather name="arrow-right" size={14} color={T.red} />
+                  <Text style={s.seeAllText}>{t('See All')}</Text>
+                  <Feather name={isRTL ? "arrow-left" : "arrow-right"} size={14} color={T.red} />
                 </TouchableOpacity>
               </View>
 
@@ -587,7 +603,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                     style={s.videoCard}
                     activeOpacity={0.82}
                     onPress={() =>
-                      Alert.alert('Video', `${video.title}\nby ${video.presenter}`)
+                      Alert.alert(t('Video'), `${t(video.title)}\n${t('by')} ${t(video.presenter)}`)
                     }
                   >
                     <View>
@@ -597,14 +613,14 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                         resizeMode="cover"
                       />
                       <View style={s.videoDurationBadge}>
-                        <Text style={s.videoDurationText}>{video.durationMinutes} min</Text>
+                        <Text style={s.videoDurationText}>{video.durationMinutes} {t('min')}</Text>
                       </View>
                     </View>
                     <View style={s.videoInfo}>
                       <Text style={s.videoTitle} numberOfLines={2}>
-                        {video.title}
+                        {t(video.title)}
                       </Text>
-                      <Text style={s.videoPresenter}>{video.presenter}</Text>
+                      <Text style={s.videoPresenter}>{t(video.presenter)}</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
@@ -615,10 +631,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           {/* ── Medical Disclaimer ─────────────────────────────── */}
           <View style={s.disclaimer}>
             <Feather name="alert-triangle" size={18} color={T.red} style={{ marginTop: 1 }} />
-            <Text style={s.disclaimerText}>
-              This content is for informational purposes only and does not replace professional
-              medical advice. Always consult a healthcare provider.
-            </Text>
+            <Text style={s.disclaimerText}>{t('This content is for informational purposes only and does not replace professional medical advice. Always consult a healthcare provider.')}</Text>
           </View>
         </ScrollView>
       </View>

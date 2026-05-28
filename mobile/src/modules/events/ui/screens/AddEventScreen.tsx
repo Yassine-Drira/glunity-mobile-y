@@ -19,6 +19,7 @@ import type { AppStackParamList } from '@/navigation/types';
 import { eventsApi } from '../../../home/api/events.api';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'AddEvent'>;
@@ -34,6 +35,7 @@ const EVENT_TYPES = [
 export default function AddEventScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
   const insets = useSafeAreaInsets();
+  const { isRTL } = useLanguage();
   const { width: windowWidth } = useWindowDimensions();
   const screenWidth = Math.min(windowWidth, 600);
   const bottomInset = Math.max(insets.bottom, 8) + 110;
@@ -64,7 +66,7 @@ export default function AddEventScreen({ navigation }: Props) {
 
     // Back Row
     navRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 24,
@@ -89,7 +91,8 @@ export default function AddEventScreen({ navigation }: Props) {
       fontFamily: 'Poppins_700Bold',
       flex: 1,
       textAlign: 'center',
-      marginRight: 40,
+      marginRight: isRTL ? 0 : 40,
+      marginLeft: isRTL ? 40 : 0,
     },
 
     // Image Upload
@@ -135,9 +138,12 @@ export default function AddEventScreen({ navigation }: Props) {
       fontFamily: 'Poppins_700Bold',
       color: T.text,
       marginBottom: 8,
+      textAlign: isRTL ? 'right' : 'left',
+      width: '100%',
     },
     inputGroup: {
       marginBottom: 20,
+      width: '100%',
     },
     input: {
       width: '100%',
@@ -149,6 +155,7 @@ export default function AddEventScreen({ navigation }: Props) {
       paddingHorizontal: 16,
       fontSize: 15,
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
     inputError: {
       borderColor: T.red || '#EF4444',
@@ -158,6 +165,7 @@ export default function AddEventScreen({ navigation }: Props) {
       fontSize: 11,
       color: T.red || '#EF4444',
       marginTop: 4,
+      textAlign: isRTL ? 'right' : 'left',
     },
     textArea: {
       height: 100,
@@ -174,13 +182,14 @@ export default function AddEventScreen({ navigation }: Props) {
       borderWidth: 1,
       borderColor: T.border,
       paddingHorizontal: 16,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
     },
     selectText: {
       fontSize: 15,
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
     dropdownList: {
       backgroundColor: T.surface,
@@ -196,10 +205,12 @@ export default function AddEventScreen({ navigation }: Props) {
       paddingHorizontal: 16,
       borderBottomWidth: 0.5,
       borderBottomColor: T.border,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     dropdownItemText: {
       fontSize: 14,
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // Location Fields Group
@@ -212,7 +223,7 @@ export default function AddEventScreen({ navigation }: Props) {
       borderColor: T.border,
     },
     locationHeader: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 6,
       marginBottom: 14,
@@ -226,8 +237,9 @@ export default function AddEventScreen({ navigation }: Props) {
 
     // Inline row
     row: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 12,
+      width: '100%',
     },
     col: {
       flex: 1,
@@ -303,7 +315,7 @@ export default function AddEventScreen({ navigation }: Props) {
       color: '#FFFFFF',
       fontWeight: '700',
     },
-  }), [T, screenWidth]);
+  }), [T, screenWidth, isRTL]);
 
   // Set default Unsplash image if none picked
   const getPresetImage = (eventCategory: string) => {

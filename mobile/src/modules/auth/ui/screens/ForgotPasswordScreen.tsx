@@ -17,6 +17,7 @@ import { AuthInput } from '@/shared/components/AuthInput';
 import { AuthButton } from '@/shared/components/AuthButton';
 import { Radius } from '@/shared/utils/theme';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import authApi from '../../api/auth.api';
 // no icons or footer on this simplified screen
 
@@ -34,6 +35,7 @@ function EmailStep({
   onBack: () => void;
 }) {
   const { theme: T } = useTheme();
+  const { t, isRTL } = useLanguage();
   const [email, setEmail]     = useState(initialEmail ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -89,7 +91,7 @@ function EmailStep({
     setError('');
     const trimmed = email.trim();
     if (!trimmed || !/\S+@\S+\.\S+/.test(trimmed)) {
-      setError('Please enter a valid email address');
+      setError(t('Please enter a valid email address'));
       return;
     }
     setLoading(true);
@@ -114,18 +116,18 @@ function EmailStep({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>Forgot Password</Text>
+        <Text style={styles.title}>{t('Forgot Password')}</Text>
 
         {/* Error */}
         {!!error && (
           <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{t(error)}</Text>
           </View>
         )}
 
         <AuthInput
-          label="Email"
-          placeholder="Enter your email"
+          label={t('Email')}
+          placeholder={t('Enter your email')}
           keyboardType="email-address"
           autoComplete="off"
           value={email}
@@ -133,7 +135,7 @@ function EmailStep({
         />
 
         <AuthButton
-          label="Submit"
+          label={t('Submit')}
           variant="filled"
           loading={loading}
           onPress={handleSubmit}
@@ -141,7 +143,7 @@ function EmailStep({
         />
 
         <TouchableOpacity onPress={onBack} style={styles.backWrap} activeOpacity={0.7}>
-          <Text style={styles.backText}>← Back to Login</Text>
+          <Text style={styles.backText}>{t('← Back to Login')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -157,6 +159,7 @@ function SentStep({
   onBackToLogin: () => void;
 }) {
   const { theme: T } = useTheme();
+  const { t } = useLanguage();
 
   const styles = React.useMemo(() => StyleSheet.create({
     scroll: {
@@ -203,10 +206,10 @@ function SentStep({
         style={{ width: 180, height: 160, resizeMode: 'contain', marginBottom: 18 }}
       />
 
-      <Text style={styles.sentBody}>Email sent to change your password</Text>
+      <Text style={styles.sentBody}>{t('Email sent to change your password')}</Text>
 
       <AuthButton
-        label="Back to Login"
+        label={t('Back to Login')}
         variant="filled"
         onPress={onBackToLogin}
         containerStyle={{ marginTop: 24, width: '100%' }}

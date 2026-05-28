@@ -2,6 +2,7 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MapLocation } from '../../domain/location.types';
+import { useLanguage } from '@/shared/context/language.context';
 
 interface PlaceCardProps {
   location: MapLocation;
@@ -36,9 +37,12 @@ export function PlaceCard({
   onPress,
   onContact,
 }: PlaceCardProps) {
+  const { t } = useLanguage();
   const heroUrl = location.images?.[0]?.url ?? null;
   const ratingLabel = location.rating?.average ? location.rating.average.toFixed(1) : '—';
   const reviewLabel = formatReviews(location.rating?.count ?? 0);
+
+  const localizedReviews = t('({reviewLabel} reviews)').replace('{reviewLabel}', reviewLabel);
 
   if (variant === 'detailed') {
     return (
@@ -53,27 +57,27 @@ export function PlaceCard({
           )}
           {location.glutenFree && (
             <View style={styles.glutenRibbon}>
-              <Text style={styles.glutenRibbonText}>Gluten Free</Text>
+              <Text style={styles.glutenRibbonText}>{t('Gluten Free')}</Text>
             </View>
           )}
         </View>
 
         <View style={styles.detailedBody}>
-          <Text style={styles.title} numberOfLines={1}>{location.name}</Text>
+          <Text style={styles.title} numberOfLines={1}>{t(location.name)}</Text>
 
           <View style={styles.metaRow}>
             <View style={styles.metaCell}>
               <Ionicons name="star" size={14} color={C.star} />
               <Text style={styles.metaStrong}>{ratingLabel}</Text>
-              <Text style={styles.metaMuted}>({reviewLabel} reviews)</Text>
+              <Text style={styles.metaMuted}>{localizedReviews}</Text>
             </View>
             {(distanceKm != null || etaMinutes != null) && (
               <View style={styles.metaCell}>
                 <Feather name="map-pin" size={14} color={C.green} />
                 <Text style={styles.metaMuted}>
-                  {distanceKm != null ? `${distanceKm.toFixed(1)} KM` : ''}
+                  {distanceKm != null ? `${distanceKm.toFixed(1)} ${t('KM')}` : ''}
                   {distanceKm != null && etaMinutes != null ? ' / ' : ''}
-                  {etaMinutes != null ? `${etaMinutes} min` : ''}
+                  {etaMinutes != null ? `${etaMinutes} ${t('min')}` : ''}
                 </Text>
               </View>
             )}
@@ -81,13 +85,13 @@ export function PlaceCard({
 
           {!!location.description && (
             <Text style={styles.description} numberOfLines={3}>
-              {location.description}
-              {location.description.length > 120 ? <Text style={styles.readMore}> Read More</Text> : null}
+              {t(location.description)}
+              {location.description.length > 120 ? <Text style={styles.readMore}> {t('Read More')}</Text> : null}
             </Text>
           )}
 
           <Pressable onPress={onContact} style={({ pressed }) => [styles.cta, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.ctaLabel}>Contact</Text>
+            <Text style={styles.ctaLabel}>{t('Contact')}</Text>
           </Pressable>
         </View>
       </View>
@@ -98,23 +102,23 @@ export function PlaceCard({
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.compactCard, pressed && { opacity: 0.95 }]}>
       <View style={styles.compactRowTop}>
-        <Text style={styles.compactTitle} numberOfLines={1}>{location.name}</Text>
+        <Text style={styles.compactTitle} numberOfLines={1}>{t(location.name)}</Text>
         <View style={styles.glutenChip}>
-          <Text style={styles.glutenChipText}>GF</Text>
+          <Text style={styles.glutenChipText}>{t('GF')}</Text>
           <Ionicons name="checkmark-circle" size={11} color={C.green} />
         </View>
       </View>
       <View style={styles.compactRow}>
         <Feather name="map-pin" size={13} color={C.muted} />
         <Text style={styles.compactMuted} numberOfLines={1}>
-          {distanceKm != null ? `${distanceKm.toFixed(1)} km away from you` : (location.address || location.city || '—')}
+          {distanceKm != null ? t('{distance} km away from you').replace('{distance}', distanceKm.toFixed(1)) : t(location.address || location.city || '—')}
         </Text>
       </View>
       <View style={styles.compactBottom}>
         <View style={styles.metaCell}>
           <Ionicons name="star" size={13} color={C.star} />
           <Text style={styles.metaStrong}>{ratingLabel}</Text>
-          <Text style={styles.metaMuted}>({reviewLabel} reviews)</Text>
+          <Text style={styles.metaMuted}>{localizedReviews}</Text>
         </View>
         {!!location.priceRange && (
           <Text style={styles.price}>{priceToDisplay(location.priceRange)}</Text>

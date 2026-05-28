@@ -20,6 +20,7 @@ import { AuthButton } from '../../../../shared/components/AuthButton';
 import { WaveBackground } from '../../../../shared/components/WaveBackground';
 import { Radius } from '../../../../shared/utils/theme';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { useAuth } from '../../state/auth.context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -29,6 +30,7 @@ export default function LoginScreen({ navigation, route }: Props) {
   const { login, isLoading, error, clearError } = useAuth();
   const [success, setSuccess] = useState<string | null>(null);
   const { theme: T, isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
   const { width: screenWidth } = Dimensions.get('window');
   const imageSize = Math.min(420, Math.floor(screenWidth * 0.72));
 
@@ -97,7 +99,8 @@ export default function LoginScreen({ navigation, route }: Props) {
     },
 
     // Forgot
-    forgotWrap: { alignSelf: 'flex-start', marginBottom: 24 },
+    // Forgot
+    forgotWrap: { alignSelf: isRTL ? 'flex-end' : 'flex-start', marginBottom: 24 },
     forgot: {
       fontSize: 14,
       fontWeight: '700',
@@ -113,11 +116,12 @@ export default function LoginScreen({ navigation, route }: Props) {
       bottom: 56,
       left: 0,
       right: 0,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 5,
     },
+
     switchText: {
       fontSize: 16,
       fontWeight: '500',
@@ -132,7 +136,7 @@ export default function LoginScreen({ navigation, route }: Props) {
     },
 
     eyeIcon: { fontSize: 18 },
-  }), [T]);
+  }), [T, isRTL]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -154,9 +158,9 @@ export default function LoginScreen({ navigation, route }: Props) {
 
   function validate(): boolean {
     const newErrors: typeof errors = {};
-    if (!email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Invalid email';
-    if (!password) newErrors.password = 'Password is required';
+    if (!email.trim()) newErrors.email = t('Email is required');
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = t('Invalid email');
+    if (!password) newErrors.password = t('Password is required');
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -195,36 +199,36 @@ export default function LoginScreen({ navigation, route }: Props) {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>Login</Text>
+          <Text style={styles.title}>{t('Login')}</Text>
 
           {/* Success banner */}
           {!!success && (
             <View style={styles.successBanner}>
-              <Feather name="check-circle" size={18} color="#388E3C" style={{ marginRight: 8 }} />
-              <Text style={styles.successBannerText}>{success}</Text>
+              <Feather name="check-circle" size={18} color="#388E3C" style={{ marginHorizontal: 8 }} />
+              <Text style={styles.successBannerText}>{t(success)}</Text>
             </View>
           )}
 
           {/* API error banner */}
           {!!error && (
             <View style={styles.errorBanner}>
-              <Feather name="alert-circle" size={18} color={T.red} style={{ marginRight: 8 }} />
-              <Text style={styles.errorBannerText}>{error}</Text>
+              <Feather name="alert-circle" size={18} color={T.red} style={{ marginHorizontal: 8 }} />
+              <Text style={styles.errorBannerText}>{t(error)}</Text>
             </View>
           )}
 
           {/* Fields */}
           <AuthInput
-            label="Email"
-            placeholder="Enter your email"
+            label={t('Email')}
+            placeholder={t('Enter your email')}
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
             error={errors.email}
           />
           <AuthInput
-            label="Password"
-            placeholder="Enter your password"
+            label={t('Password')}
+            placeholder={t('Enter your password')}
             secureTextEntry={!showPass}
             value={password}
             onChangeText={setPassword}
@@ -242,13 +246,13 @@ export default function LoginScreen({ navigation, route }: Props) {
             }
             style={styles.forgotWrap}
           >
-            <Text style={styles.forgot}>Forgot Password?</Text>
+            <Text style={styles.forgot}>{t('Forgot Password?')}</Text>
           </TouchableOpacity>
 
           {/* Submit */}
           <View style={styles.btnGroup}>
             <AuthButton
-              label="LOGIN"
+              label={t('LOGIN')}
               variant="outlined"
               loading={isLoading}
               onPress={handleLogin}
@@ -259,14 +263,14 @@ export default function LoginScreen({ navigation, route }: Props) {
       </KeyboardAvoidingView>
 
       <View style={styles.switchRow}>
-        <Text style={styles.switchText}>No Account? </Text>
+        <Text style={styles.switchText}>{t('No Account? ')}</Text>
         <TouchableOpacity
           onPress={() => {
             clearError();
             navigation.navigate('Register');
           }}
         >
-          <Text style={styles.switchLink}>Register</Text>
+          <Text style={styles.switchLink}>{t('Register')}</Text>
         </TouchableOpacity>
       </View>
 

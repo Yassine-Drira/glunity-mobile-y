@@ -10,12 +10,14 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../../../navigation/types';
+import { useLanguage } from '@/shared/context/language.context';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Splash'>;
 
 const { width, height } = Dimensions.get('window');
 
 export default function SplashScreen({ navigation }: Props) {
+  const { t } = useLanguage();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -63,10 +65,10 @@ export default function SplashScreen({ navigation }: Props) {
         ]}
       >
         {/* Titre principal */}
-        <Text style={styles.logoText}>Glutenia logo</Text>
+        <Text style={styles.logoText}>{t('Glutenia logo')}</Text>
 
         {/* Sous-titre */}
-        <Text style={styles.subtitle}>Sans Gluten, Sans probleme</Text>
+        <Text style={styles.subtitle}>{t('Sans Gluten, Sans probleme')}</Text>
       </Animated.View>
 
       {/* ═══════════════════════════════
