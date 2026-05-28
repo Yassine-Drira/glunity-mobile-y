@@ -19,6 +19,7 @@ import { AuthButton } from '../../../../shared/components/AuthButton';
 import { WaveBackground } from '../../../../shared/components/WaveBackground';
 import { Radius } from '../../../../shared/utils/theme';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { useAuth } from '../../state/auth.context';
 import { Feather } from '@expo/vector-icons';
 import type { RegisterProfileType } from '../../api/auth.api';
@@ -51,6 +52,7 @@ const PROFILE_OPTIONS: Array<{ value: RegisterProfileType; label: string }> = [
 export default function RegisterScreen({ navigation }: Props) {
   const { register, isLoading, error, clearError } = useAuth();
   const { theme: T, isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
 
   const styles = React.useMemo(() => StyleSheet.create({
     safe:  { flex: 1, backgroundColor: T.bg },
@@ -163,7 +165,7 @@ export default function RegisterScreen({ navigation }: Props) {
       bottom: 56,
       left: 0,
       right: 0,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 10,
@@ -172,7 +174,7 @@ export default function RegisterScreen({ navigation }: Props) {
     switchLink: { fontSize: 16, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: '#343831' },
 
     eye: { fontSize: 18 },
-  }), [T]);
+  }), [T, isRTL]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -209,19 +211,19 @@ export default function RegisterScreen({ navigation }: Props) {
   function validate(): boolean {
     const e: FormErrors = {};
     if (!form.fullName.trim() || form.fullName.trim().length < 2)
-      e.fullName = 'Full name must be at least 2 characters';
+      e.fullName = t('Full name must be at least 2 characters');
     if (!form.email.trim() || !/\S+@\S+\.\S+/.test(form.email))
-      e.email = 'Valid email is required';
+      e.email = t('Valid email is required');
     if (form.password.length < 8)
-      e.password = 'Password must be at least 8 characters';
+      e.password = t('Password must be at least 8 characters');
     else if (!/[A-Z]/.test(form.password))
-      e.password = 'Must contain an uppercase letter';
+      e.password = t('Must contain an uppercase letter');
     else if (!/[0-9]/.test(form.password))
-      e.password = 'Must contain a number';
+      e.password = t('Must contain a number');
     if (form.confirm !== form.password)
-      e.confirm = 'Passwords do not match';
+      e.confirm = t('Passwords do not match');
     if (!form.profileType)
-      e.profileType = 'Please select a profile type';
+      e.profileType = t('Please select a profile type');
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -270,35 +272,35 @@ export default function RegisterScreen({ navigation }: Props) {
           <View style={styles.divider} />
 
           {/* Title */}
-          <Text style={styles.title}>GET STARTED</Text>
+          <Text style={styles.title}>{t('GET STARTED')}</Text>
 
           {/* API error banner */}
           {!!error && (
             <View style={styles.errorBanner}>
-              <Feather name="alert-circle" size={18} color={T.red} style={{ marginRight: 8 }} />
-              <Text style={styles.errorBannerText}>{error}</Text>
+              <Feather name="alert-circle" size={18} color={T.red} style={{ marginHorizontal: 8 }} />
+              <Text style={styles.errorBannerText}>{t(error)}</Text>
             </View>
           )}
 
           {/* Fields */}
           <AuthInput
-            label="Full Name"
-            placeholder="Enter your name"
+            label={t('Full Name')}
+            placeholder={t('Enter your name')}
             value={form.fullName}
             onChangeText={set('fullName')}
             error={errors.fullName}
           />
           <AuthInput
-            label="Email"
-            placeholder="Enter your email"
+            label={t('Email')}
+            placeholder={t('Enter your email')}
             keyboardType="email-address"
             value={form.email}
             onChangeText={set('email')}
             error={errors.email}
           />
           <AuthInput
-            label="Password"
-            placeholder="Create a password"
+            label={t('Password')}
+            placeholder={t('Create a password')}
             secureTextEntry={!showPass}
             value={form.password}
             onChangeText={set('password')}
@@ -307,8 +309,8 @@ export default function RegisterScreen({ navigation }: Props) {
             onRightIconPress={() => setShowPass((p) => !p)}
           />
           <AuthInput
-            label="Confirm Password"
-            placeholder="Re-enter your password"
+            label={t('Confirm Password')}
+            placeholder={t('Re-enter your password')}
             secureTextEntry={!showConfirm}
             value={form.confirm}
             onChangeText={set('confirm')}
@@ -317,7 +319,7 @@ export default function RegisterScreen({ navigation }: Props) {
             onRightIconPress={() => setShowConfirm((p) => !p)}
           />
 
-          <Text style={styles.profileLabel}>Profile Type</Text>
+          <Text style={styles.profileLabel}>{t('Profile Type')}</Text>
           <View style={styles.profileGrid}>
             {PROFILE_OPTIONS.map((option) => {
               const selected = form.profileType === option.value;
@@ -334,25 +336,25 @@ export default function RegisterScreen({ navigation }: Props) {
                   }}
                 >
                   <Text style={[styles.profileChipText, selected && styles.profileChipTextSelected]}>
-                    {option.label}
+                    {t(option.label)}
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
           {!!errors.profileType && (
-            <Text style={styles.profileError}>{errors.profileType}</Text>
+            <Text style={styles.profileError}>{t(errors.profileType)}</Text>
           )}
 
           {/* Password strength hint */}
           <Text style={styles.hint}>
-            Min 8 chars · one uppercase · one number
+            {t('Min 8 chars · one uppercase · one number')}
           </Text>
 
           {/* Submit */}
           <View style={styles.btnGroup}>
             <AuthButton
-              label="REGISTER"
+              label={t('REGISTER')}
               variant="outlined"
               loading={isLoading}
               onPress={handleRegister}
@@ -365,14 +367,14 @@ export default function RegisterScreen({ navigation }: Props) {
       <WaveBackground />
 
       <View style={styles.switchRow}>
-        <Text style={styles.switchText}>Already Account? </Text>
+        <Text style={styles.switchText}>{t('Already Account? ')}</Text>
         <TouchableOpacity
           onPress={() => {
             clearError();
             navigation.navigate('Login');
           }}
         >
-          <Text style={styles.switchLink}>Login</Text>
+          <Text style={styles.switchLink}>{t('Login')}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

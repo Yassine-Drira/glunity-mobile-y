@@ -97,6 +97,7 @@ export function AppNavigator() {
               onPressRecipesSeeAll={() => navigation.navigate('Recipes')}
               onPressEventsSeeAll={() => navigation.navigate('Events')}
               onPressProfilePhoto={handleProfileNavigation}
+              onPressNotification={() => navigation.navigate('Notifications')}
               onPressNavHome={() => navigation.navigate('Home')}
               onPressNavEvents={() => navigation.navigate('Events')}
               onPressNavProfile={handleProfileNavigation}

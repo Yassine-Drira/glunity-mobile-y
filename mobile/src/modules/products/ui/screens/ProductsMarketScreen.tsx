@@ -11,13 +11,16 @@ import {
   TouchableOpacity,
   View,
   Platform,
+  TextInput,
+  Easing,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { Radius } from '@/shared/utils/theme';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import productsApi, { Product } from '@/modules/seller/api/products.api';
@@ -124,27 +127,88 @@ const ProductCard = React.memo(({ product, onPress, cardWidth }: { product: Prod
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ProductsMarketScreen({ navigation }: Props) {
   const { user } = useAuth();
-  const { theme: T, isDark } = useTheme();
+  const { theme: T } = useTheme();
+  const { isRTL } = useLanguage();
   const insets   = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
 
   const screenWidth = Math.min(windowWidth, 600);
   const cardWidth = (screenWidth - H_PAD * 2 - CARD_GAP) / 2;
 
+  // Search State
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchAnim = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef<any>(null);
+
+  const toggleSearch = useCallback(() => {
+    const next = !searchOpen;
+    setSearchOpen(next);
+    if (next) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    } else {
+      inputRef.current?.blur();
+      setSearchQuery('');
+    }
+    Animated.timing(searchAnim, {
+      toValue: next ? 1 : 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [searchOpen, searchAnim]);
+
+  const searchHeight = searchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 48],
+  });
+
+  const searchOpacity = searchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
   const s = React.useMemo(() => StyleSheet.create({
     safe: { flex: 1, backgroundColor: T.bg },
     topHeader: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center',
       paddingHorizontal: H_PAD, paddingTop: 16, paddingBottom: 8,
       backgroundColor: T.bg,
     },
     avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: T.surfaceAlt },
     avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     greeting: { fontSize: 18, fontWeight: '500', fontFamily: 'Poppins_500Medium', color: T.text },
-    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    headerActions: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 },
     iconBtn: {
       width: 32, height: 32, borderRadius: 16, backgroundColor: T.surfaceAlt,
       alignItems: 'center', justifyContent: 'center',
+    },
+
+    // Search input styles
+    searchWrap: {
+      overflow: 'hidden',
+      borderRadius: 14,
+      marginBottom: 12,
+    },
+    searchInner: {
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: T.surface,
+      borderWidth: 1,
+      borderColor: T.border,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      gap: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 13,
+      color: T.text,
+      paddingVertical: 0,
+      backgroundColor: 'transparent',
+      includeFontPadding: false,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // List wrapper — fills all space beneath the global header
@@ -167,6 +231,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
       paddingTop: 8,
     },
     columnWrapper: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       marginBottom: CARD_GAP,
     },
@@ -178,9 +243,10 @@ export default function ProductsMarketScreen({ navigation }: Props) {
       fontFamily: 'Poppins_700Bold',
       color: T.text,
       marginBottom: 16,
+      textAlign: isRTL ? 'right' : 'left',
     },
     filterRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 8,
       marginBottom: 16,
       flexWrap: 'wrap',
@@ -228,7 +294,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
       textAlign: 'center',
       paddingHorizontal: 40,
     },
-  }), [T]);
+  }), [T, isRTL]);
 
   // All products fetched once from the API
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -261,23 +327,56 @@ export default function ProductsMarketScreen({ navigation }: Props) {
 
   // ── Client-side filter — instant, zero loading state needed ─────────────────
   const displayed = useMemo(() => {
+    let filtered = allProducts;
     switch (activeFilter) {
-      case 'certified': return allProducts.filter(p => p.certifiedGF);
-      case 'homemade':  return allProducts.filter(p => p.category?.toLowerCase() === 'homemade');
-      case 'Bakery':    return allProducts.filter(p => p.category === 'Bakery');
-      default:          return allProducts;
+      case 'certified': 
+        filtered = allProducts.filter(p => p.certifiedGF);
+        break;
+      case 'homemade':  
+        filtered = allProducts.filter(p => p.category?.toLowerCase() === 'homemade');
+        break;
+      case 'Bakery':    
+        filtered = allProducts.filter(p => p.category === 'Bakery');
+        break;
     }
-  }, [allProducts, activeFilter]);
 
-  // ── Profile navigation ───────────────────────────────────────────────────────
-  const handleProfileNav = useCallback(() => {
-    navigation.navigate(user?.profileType === 'pro_commerce' ? 'SellerProProfile' : 'Profile');
-  }, [user, navigation]);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        (p.name && p.name.toLowerCase().includes(q)) || 
+        (p.category && p.category.toLowerCase().includes(q)) || 
+        (p.description && p.description.toLowerCase().includes(q))
+      );
+    }
 
-  // ── List header — memoised so it only re-renders when the active pill changes
+    return filtered;
+  }, [allProducts, activeFilter, searchQuery]);
+
+  // ── List header — memoised so it only re-renders when the active pill or search changes
   const ListHeader = useMemo(() => (
     <>
       <Text style={s.pageTitle}>Gluten free products</Text>
+      
+      <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
+        <View style={s.searchInner}>
+          <Feather name="search" size={16} color={T.textMuted} />
+          <TextInput
+            ref={inputRef}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search products..."
+            placeholderTextColor={T.textMuted}
+            underlineColorAndroid="transparent"
+            style={s.searchInput}
+          />
+          {!!searchQuery && (
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={16} color={T.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </Animated.View>
+
       <View style={s.filterRow}>
         {FILTERS.map(f => (
           <TouchableOpacity
@@ -294,16 +393,25 @@ export default function ProductsMarketScreen({ navigation }: Props) {
         ))}
       </View>
     </>
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  ), [activeFilter]);
+  ), [activeFilter, searchHeight, searchOpacity, searchQuery, T, s]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   const headerActions = (
     <View style={s.headerActions}>
-      <TouchableOpacity style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} activeOpacity={0.7} id="market-search-btn">
-        <Feather name="search" size={18} color={T.text} />
+      <TouchableOpacity 
+        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} 
+        activeOpacity={0.7} 
+        onPress={toggleSearch}
+        id="market-search-btn"
+      >
+        <Feather name={searchOpen ? "x" : "search"} size={18} color={T.text} />
       </TouchableOpacity>
-      <TouchableOpacity style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} activeOpacity={0.7} id="market-notif-btn">
+      <TouchableOpacity 
+        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} 
+        activeOpacity={0.7} 
+        onPress={() => navigation.navigate('Notifications')}
+        id="market-notif-btn"
+      >
         <Feather name="bell" size={18} color={T.text} />
       </TouchableOpacity>
     </View>
@@ -313,6 +421,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
     <AppScaffold
       title="Market"
       activeTab="home"
+      rightElement={headerActions}
       contentStyle={{ backgroundColor: T.bg }}
     >
 

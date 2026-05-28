@@ -16,12 +16,14 @@ import { AuthButton } from '@/shared/components/AuthButton';
 import { WaveBackground } from '@/shared/components/WaveBackground';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen({ navigation }: Props) {
   const { theme: T, isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
   const { clearError } = useAuth();
   const { width: screenWidth } = Dimensions.get('window');
   const imageSize = Math.min(420, Math.floor(screenWidth * 0.72));
@@ -108,21 +110,19 @@ export default function WelcomeScreen({ navigation }: Props) {
         </View>
 
         {/* Heading */}
-        <Text style={styles.title}>Salut , Bienvenue!</Text>
-        <Text style={styles.subtitle}>
-          Connectez-vous{'\n'}pour continuer
-        </Text>
+        <Text style={styles.title}>{t('Salut , Bienvenue!')}</Text>
+        <Text style={styles.subtitle}>{t('Connectez-vous\npour continuer')}</Text>
 
         {/* CTA Buttons */}
         <View style={styles.btnGroup}>
           <AuthButton
-            label="Se connecter"
+            label={t('Se connecter')}
             variant="filled"
             onPress={() => navigation.navigate('Login')}
           />
           <View style={styles.btnSep} />
           <AuthButton
-            label="Creer un compte"
+            label={t('Creer un compte')}
             variant="outlined"
             onPress={() => navigation.navigate('Register')}
           />

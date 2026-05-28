@@ -115,7 +115,7 @@ function buildHtml(greenColor: string): string {
         userCircle=L.circle(pos,{radius:120,color:'#1A73E8',weight:1,opacity:0.18,fillColor:'#1A73E8',fillOpacity:0.07}).addTo(map);
       }
     }
-    window.addEventListener('message',function(e){try{var d=typeof e.data==='string'?JSON.parse(e.data):e.data;if(!d)return;if(d.type==='setLocations')render(d.payload||[]);if(d.type==='setUserLocation')updateUserLocation(d.payload?.lat,d.payload?.lng);if(d.type==='flyTo')map.flyTo([d.payload.lat,d.payload.lng],d.payload.zoom||16,{duration:0.6});}catch(err){}});
+    window.addEventListener('message',function(e){try{var d=typeof e.data==='string'?JSON.parse(e.data):e.data;if(!d)return;if(d.type==='setLocations')render(d.payload||[]);if(d.type==='setUserLocation')updateUserLocation(d.payload?.lat,d.payload?.lng);if(d.type==='flyTo'){var p=d.payload;if(p&&isFinite(p.lat)&&isFinite(p.lng))map.flyTo([p.lat,p.lng],p.zoom||16,{duration:0.6});}}catch(err){}});
     document.addEventListener('message',function(e){window.dispatchEvent(new MessageEvent('message',{data:e.data}));});
     send('ready',{});
   </script>

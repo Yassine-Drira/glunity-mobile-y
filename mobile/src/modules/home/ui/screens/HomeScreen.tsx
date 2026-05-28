@@ -22,6 +22,7 @@ import { homeScreenText } from "../../state/homeData";
 import type { HomeScreenProps, GlunityEvent } from "../../domain/home.types";
 import { AppScaffold } from "@/shared/components/AppScaffold";
 import { useTheme } from "@/shared/context/theme.context";
+import { useLanguage } from "@/shared/context/language.context";
 import { ScanFrameIcon } from "@/shared/components/icons/ScanFrameIcon";
 import { eventsApi } from '../../api/events.api';
 import { useNavigation } from '@react-navigation/native';
@@ -57,6 +58,313 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const { theme: T } = useTheme();
+  const { isRTL, t } = useLanguage();
+  const styles = React.useMemo(() => StyleSheet.create({
+    root: {
+      flex: 1,
+    },
+    screen: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: 12,
+    },
+    headerRow: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 18,
+      paddingHorizontal: 6,
+    },
+    userInfo: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      position: "relative",
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: "#E5E7EB",
+    },
+    avatarBadge: {
+      position: "absolute",
+      left: isRTL ? undefined : 27,
+      right: isRTL ? 27 : undefined,
+      top: 24,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      borderWidth: 2,
+      borderColor: "#F9FAFB",
+      backgroundColor: colors.primaryGreen,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    greeting: {
+      marginLeft: isRTL ? 0 : 8,
+      marginRight: isRTL ? 8 : 0,
+      fontSize: 18,
+      lineHeight: 23,
+      fontWeight: "500",
+      color: "#343831",
+      textAlign: isRTL ? "right" : "left",
+    },
+    headerActions: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    searchWrap: {
+      overflow: "hidden",
+      marginBottom: 10,
+      borderRadius: 14,
+    },
+    searchInner: {
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: T.surface,
+      borderWidth: 1,
+      borderColor: T.border,
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      gap: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 13,
+      color: T.text,
+      paddingVertical: 0,
+      backgroundColor: "transparent",
+      includeFontPadding: false,
+      textAlign: isRTL ? "right" : "left",
+    },
+    iconButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: T.surfaceAlt,
+    },
+    notificationDot: {
+      position: "absolute",
+      right: isRTL ? undefined : 8,
+      left: isRTL ? 8 : undefined,
+      top: 8,
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: ICON_RED,
+    },
+    heroCard: {
+      height: 238,
+      borderRadius: 24,
+      backgroundColor: "rgba(139, 195, 74, 0.8)",
+      alignItems: "center",
+      justifyContent: "center",
+      marginHorizontal: 6,
+    },
+    heroSubtitle: {
+      marginTop: 6,
+      fontSize: 10,
+      lineHeight: 24,
+      color: "#DCFCE7",
+      textTransform: "capitalize",
+      fontWeight: "400",
+      textAlign: "center",
+    },
+    scanCta: {
+      marginTop: 12,
+      height: 40,
+      minWidth: 86,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: "rgba(255,255,255,0.12)",
+      backgroundColor: "rgba(255,255,255,0.4)",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+    },
+    scanCtaText: {
+      fontSize: 11,
+      lineHeight: 20,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    sectionTitlePrimary: {
+      marginTop: 22,
+      marginLeft: 0,
+      fontSize: 15,
+      lineHeight: 28,
+      fontWeight: "700",
+      color: T.text,
+      textAlign: isRTL ? "right" : "left",
+    },
+    quickGrid: {
+      marginTop: 14,
+      flexDirection: isRTL ? "row-reverse" : "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+    },
+    quickCard: {
+      width: "48.2%",
+      backgroundColor: T.surface,
+      borderRadius: 16,
+      alignItems: "center",
+      paddingVertical: 24,
+      marginBottom: 14,
+      shadowColor: "#000000",
+      shadowOpacity: 0.12,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    quickIconWrap: {
+      width: 55,
+      height: 55,
+      borderRadius: 16,
+      backgroundColor: T.greenLight,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 10,
+    },
+    quickCardLabel: {
+      fontSize: 13,
+      lineHeight: 18,
+      letterSpacing: 0.2,
+      fontWeight: "700",
+      color: T.text,
+    },
+    sectionRow: {
+      marginTop: 10,
+      flexDirection: isRTL ? "row-reverse" : "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    sectionRowLeft: {
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    sectionTitleSecondary: {
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: "700",
+      letterSpacing: 0.2,
+      color: T.text,
+    },
+    gfPill: {
+      height: 24,
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      backgroundColor: "#8BC34A",
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    gfPillText: {
+      fontSize: 10,
+      fontWeight: "700",
+      color: "#FFFFFF",
+    },
+    seeAll: {
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: "700",
+      color: ICON_RED,
+    },
+    recipesList: {
+      marginTop: 12,
+      paddingBottom: 6,
+      gap: 12,
+      flexDirection: isRTL ? "row-reverse" : "row",
+    },
+    eventsList: {
+      marginTop: 12,
+      paddingBottom: 6,
+      paddingLeft: 4,
+      flexDirection: isRTL ? "row-reverse" : "row",
+    },
+    recipeCard: {
+      width: 138,
+      height: 190,
+      borderRadius: 20,
+      backgroundColor: T.surface,
+      shadowColor: "#000000",
+      shadowOpacity: 0.2,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 10,
+      elevation: 5,
+      overflow: "hidden",
+      alignItems: "center",
+    },
+    recipeImage: {
+      width: "100%",
+      height: 140,
+    },
+    recipeName: {
+      marginTop: 8,
+      textAlign: "center",
+      paddingHorizontal: 8,
+      fontSize: 15,
+      lineHeight: 17,
+      fontWeight: "700",
+      color: T.text,
+    },
+    eventsHeader: {
+      marginTop: 18,
+    },
+    eventsRow: {
+      marginTop: 10,
+      flexDirection: isRTL ? "row-reverse" : "row",
+      gap: 12,
+    },
+    eventCard: {
+      width: 220,
+      borderRadius: 16,
+      backgroundColor: T.surface,
+      overflow: "hidden",
+      shadowColor: "#000000",
+      shadowOpacity: 0.08,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 8,
+      elevation: 3,
+      marginRight: 12,
+    },
+    eventImage: {
+      width: "100%",
+      height: 128,
+      backgroundColor: T.surfaceAlt,
+    },
+    eventBody: {
+      paddingHorizontal: 10,
+      paddingTop: 8,
+      paddingBottom: 10,
+      alignItems: isRTL ? "flex-end" : "flex-start",
+    },
+    eventTitle: {
+      fontSize: 9,
+      lineHeight: 14,
+      fontWeight: "700",
+      color: T.text,
+    },
+    metaRow: {
+      marginTop: 4,
+      flexDirection: isRTL ? "row-reverse" : "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    metaText: {
+      flex: 1,
+      fontSize: 9,
+      lineHeight: 14,
+      fontWeight: "400",
+      color: T.textSub,
+      textAlign: isRTL ? "right" : "left",
+    },
+  }), [T, isRTL]);
   const navigation = useNavigation<any>();
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -200,13 +508,14 @@ export function HomeScreen({
 
   return (
     <AppScaffold
-      title="Home"
+      title={t('Home')}
       activeTab="home"
       onPressHome={onPressNavHome}
       onPressEvents={onPressNavEvents}
       onPressCenter={onPressNavFab}
       onPressReels={onPressNavReels}
       onPressProfile={onPressNavProfile}
+      rightElement={headerActions}
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[styles.root, { backgroundColor: T.bg }]}>
@@ -224,7 +533,7 @@ export function HomeScreen({
               ref={inputRef}
               value={query}
               onChangeText={setQuery}
-              placeholder="Search products, recipes, events"
+              placeholder={t('Search products, recipes, events')}
               placeholderTextColor={T.textMuted}
               underlineColorAndroid="transparent"
               style={[styles.searchInput, { color: T.text }]}
@@ -253,13 +562,13 @@ export function HomeScreen({
               <Ionicons name="qr-code" size={44} color="#FFFFFF" />
             </View>
           </Animated.View>
-          <Text style={styles.heroSubtitle}>{homeScreenText.qrSubtitle}</Text>
+          <Text style={styles.heroSubtitle}>{t(homeScreenText.qrSubtitle)}</Text>
           <TouchableOpacity activeOpacity={0.85} onPress={onPressScan} style={styles.scanCta}>
-            <Text style={styles.scanCtaText}>Tap to Scan</Text>
+            <Text style={styles.scanCtaText}>{t('Tap to Scan')}</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionTitlePrimary, { color: T.text }]}>{homeScreenText.quickAccessTitle}</Text>
+        <Text style={[styles.sectionTitlePrimary, { color: T.text }]}>{t(homeScreenText.quickAccessTitle)}</Text>
 
         <View style={styles.quickGrid}>
           {filteredQuickAccess.map((item) => (
@@ -272,21 +581,21 @@ export function HomeScreen({
               <View style={[styles.quickIconWrap, { backgroundColor: T.greenLight }]}>
                 <Ionicons name={item.icon} size={26} color={T.red} />
               </View>
-              <Text style={[styles.quickCardLabel, { color: T.text }]}>{item.label}</Text>
+              <Text style={[styles.quickCardLabel, { color: T.text }]}>{t(item.label)}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.sectionRow}>
           <View style={styles.sectionRowLeft}>
-            <Text style={[styles.sectionTitleSecondary, { color: T.text }]}>{homeScreenText.checkRecipesTitle}</Text>
+            <Text style={[styles.sectionTitleSecondary, { color: T.text }]}>{t(homeScreenText.checkRecipesTitle)}</Text>
             <View style={styles.gfPill}>
               <MaterialCommunityIcons name="check-decagram" size={10} color="#FFFFFF" />
               <Text style={styles.gfPillText}>GF</Text>
             </View>
           </View>
           <TouchableOpacity activeOpacity={0.8} onPress={onPressRecipesSeeAll}>
-            <Text style={styles.seeAll}>See All</Text>
+            <Text style={styles.seeAll}>{t('See All')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -307,9 +616,9 @@ export function HomeScreen({
         />
 
         <View style={[styles.sectionRow, styles.eventsHeader]}>
-          <Text style={[styles.sectionTitleSecondary, { color: T.text }]}>{homeScreenText.checkEventsTitle}</Text>
+          <Text style={[styles.sectionTitleSecondary, { color: T.text }]}>{t(homeScreenText.checkEventsTitle)}</Text>
           <TouchableOpacity activeOpacity={0.8} onPress={onPressEventsSeeAll}>
-            <Text style={styles.seeAll}>See All</Text>
+            <Text style={styles.seeAll}>{t('See All')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -333,300 +642,6 @@ export function HomeScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  screen: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 12,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 18,
-    paddingHorizontal: 6,
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    position: "relative",
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#E5E7EB",
-  },
-  avatarBadge: {
-    position: "absolute",
-    left: 27,
-    top: 24,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: "#F9FAFB",
-    backgroundColor: colors.primaryGreen,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  greeting: {
-    marginLeft: 8,
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "500",
-    color: "#343831",
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  searchWrap: {
-    overflow: "hidden",
-    marginBottom: 10,
-    borderRadius: 14,
-  },
-  searchInner: {
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: "#111827",
-    paddingVertical: 0,
-    backgroundColor: "transparent",
-    includeFontPadding: false,
-  },
-  iconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F6F5F3",
-  },
-  notificationDot: {
-    position: "absolute",
-    right: 8,
-    top: 8,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: ICON_RED,
-  },
-  heroCard: {
-    height: 238,
-    borderRadius: 24,
-    backgroundColor: "rgba(139, 195, 74, 0.8)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 6,
-  },
-  heroSubtitle: {
-    marginTop: 6,
-    fontSize: 10,
-    lineHeight: 24,
-    color: "#DCFCE7",
-    textTransform: "capitalize",
-    fontWeight: "400",
-  },
-  scanCta: {
-    marginTop: 12,
-    height: 40,
-    minWidth: 86,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "rgba(255,255,255,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 10,
-  },
-  scanCtaText: {
-    fontSize: 11,
-    lineHeight: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  sectionTitlePrimary: {
-    marginTop: 22,
-    marginLeft: 0,
-    fontSize: 15,
-    lineHeight: 28,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  quickGrid: {
-    marginTop: 14,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  quickCard: {
-    width: "48.2%",
-    backgroundColor: "#F6F5F3",
-    borderRadius: 16,
-    alignItems: "center",
-    paddingVertical: 24,
-    marginBottom: 14,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  quickIconWrap: {
-    width: 55,
-    height: 55,
-    borderRadius: 16,
-    backgroundColor: "rgba(139, 195, 74, 0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  quickCardLabel: {
-    fontSize: 13,
-    lineHeight: 18,
-    letterSpacing: 0.2,
-    fontWeight: "700",
-    color: "#2E2E2E",
-  },
-  sectionRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  sectionRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  sectionTitleSecondary: {
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-    color: "#363636",
-  },
-  gfPill: {
-    height: 24,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    backgroundColor: "#8BC34A",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  gfPillText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  seeAll: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "700",
-    color: ICON_RED,
-  },
-  recipesList: {
-    marginTop: 12,
-    paddingBottom: 6,
-    gap: 12,
-  },
-  eventsList: {
-    marginTop: 12,
-    paddingBottom: 6,
-    paddingLeft: 4,
-  },
-  recipeCard: {
-    width: 138,
-    height: 190,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 5,
-    overflow: "hidden",
-  },
-  recipeImage: {
-    width: "100%",
-    height: 140,
-  },
-  recipeName: {
-    marginTop: 8,
-    textAlign: "center",
-    paddingHorizontal: 8,
-    fontSize: 15,
-    lineHeight: 17,
-    fontWeight: "700",
-    color: "#000000",
-  },
-  eventsHeader: {
-    marginTop: 18,
-  },
-  eventsRow: {
-    marginTop: 10,
-    // kept for backward compatibility; replaced by horizontal FlatList
-    flexDirection: "row",
-    gap: 12,
-  },
-  eventCard: {
-    width: 220,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    overflow: "hidden",
-    shadowColor: "#000000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 3,
-    marginRight: 12,
-  },
-  eventImage: {
-    width: "100%",
-    height: 128,
-    backgroundColor: "#F3F4F6",
-  },
-  eventBody: {
-    paddingHorizontal: 10,
-    paddingTop: 8,
-    paddingBottom: 10,
-  },
-  eventTitle: {
-    fontSize: 9,
-    lineHeight: 14,
-    fontWeight: "700",
-    color: "#111827",
-  },
-  metaRow: {
-    marginTop: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  metaText: {
-    flex: 1,
-    fontSize: 9,
-    lineHeight: 14,
-    fontWeight: "400",
-    color: "#2E2E2E",
-  },
-});
+// Static styles removed to use dynamic useMemo-based stylesheet inside component.
 
 export default HomeScreen;

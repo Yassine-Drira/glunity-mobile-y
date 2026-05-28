@@ -16,6 +16,7 @@ import { AuthInput } from '@/shared/components/AuthInput';
 import { AuthButton } from '@/shared/components/AuthButton';
 import { Radius } from '@/shared/utils/theme';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import authApi from '../../api/auth.api';
 import { Feather } from '@expo/vector-icons';
 
@@ -26,6 +27,7 @@ type Step = 'form' | 'success' | 'error';
 export default function ResetPasswordScreen({ route, navigation }: Props) {
   const token = route.params?.token ?? '';
   const { theme: T, isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
 
   const styles = React.useMemo(() => StyleSheet.create({
     safe:  { flex: 1, backgroundColor: T.bg },
@@ -109,13 +111,13 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
   function validate(): boolean {
     const e: typeof errors = {};
     if (password.length < 8)
-      e.password = 'Minimum 8 characters';
+      e.password = t('Minimum 8 characters');
     else if (!/[A-Z]/.test(password))
-      e.password = 'Must include an uppercase letter';
+      e.password = t('Must include an uppercase letter');
     else if (!/[0-9]/.test(password))
-      e.password = 'Must include a number';
+      e.password = t('Must include a number');
     if (confirm !== password)
-      e.confirm = 'Passwords do not match';
+      e.confirm = t('Passwords do not match');
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -124,7 +126,7 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
     setApiError('');
     if (!validate()) return;
     if (!token) {
-      setApiError('Invalid or missing reset token. Please request a new link.');
+      setApiError(t('Invalid or missing reset token. Please request a new link.'));
       return;
     }
     setLoading(true);
@@ -133,7 +135,7 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
       setStep('success');
     } catch (err: any) {
       const msg = err?.response?.data?.message ?? 'Reset failed. The link may have expired.';
-      setApiError(msg);
+      setApiError(t(msg));
       if (msg.toLowerCase().includes('expir')) setStep('error');
     } finally {
       setLoading(false);
@@ -149,12 +151,12 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
           <View style={styles.iconCircle}>
             <Feather name="unlock" size={40} color={T.green} />
           </View>
-          <Text style={styles.resultTitle}>Password Updated!</Text>
+          <Text style={styles.resultTitle}>{t('Password Updated!')}</Text>
           <Text style={styles.resultBody}>
-            Your password has been reset successfully.{'\n'}You can now log in with your new password.
+            {t('Your password has been reset successfully.\nYou can now log in with your new password.')}
           </Text>
           <AuthButton
-            label="Go to Login"
+            label={t('Go to Login')}
             variant="filled"
             onPress={() => navigation.navigate('Login')}
             containerStyle={{ marginTop: 24, width: '100%' }}
@@ -174,18 +176,18 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
           <View style={[styles.iconCircle, styles.iconCircleRed]}>
             <Feather name="clock" size={40} color="#E53935" />
           </View>
-          <Text style={styles.resultTitle}>Link Expired</Text>
+          <Text style={styles.resultTitle}>{t('Link Expired')}</Text>
           <Text style={styles.resultBody}>
-            This reset link has expired or was already used.{'\n'}Please request a new one.
+            {t('This reset link has expired or was already used.\nPlease request a new one.')}
           </Text>
           <AuthButton
-            label="Request New Link"
+            label={t('Request New Link')}
             variant="filled"
             onPress={() => navigation.navigate('ForgotPassword')}
             containerStyle={{ marginTop: 24, width: '100%' }}
           />
           <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.backWrap}>
-            <Text style={styles.backText}>Back to Login</Text>
+            <Text style={styles.backText}>{t('Back to Login')}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.wave} />
@@ -211,21 +213,21 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
             <Feather name="lock" size={40} color={T.green} />
           </View>
 
-          <Text style={styles.title}>Set New Password</Text>
+          <Text style={styles.title}>{t('Set New Password')}</Text>
           <Text style={styles.subtitle}>
-            Choose a strong new password for your account.
+            {t('Choose a strong new password for your account.')}
           </Text>
 
           {/* API error */}
           {!!apiError && (
             <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{apiError}</Text>
+              <Text style={styles.errorText}>{t(apiError)}</Text>
             </View>
           )}
 
           <AuthInput
-            label="New Password"
-            placeholder="At least 8 characters"
+            label={t('New Password')}
+            placeholder={t('At least 8 characters')}
             secureTextEntry={!showPass}
             value={password}
             onChangeText={setPassword}
@@ -234,8 +236,8 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
             onRightIconPress={() => setShowPass((p) => !p)}
           />
           <AuthInput
-            label="Confirm Password"
-            placeholder="Re-enter your password"
+            label={t('Confirm Password')}
+            placeholder={t('Re-enter your password')}
             secureTextEntry={!showConf}
             value={confirm}
             onChangeText={setConfirm}
@@ -244,10 +246,10 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
             onRightIconPress={() => setShowConf((p) => !p)}
           />
 
-          <Text style={styles.hint}>Min 8 chars · one uppercase · one number</Text>
+          <Text style={styles.hint}>{t('Min 8 chars · one uppercase · one number')}</Text>
 
           <AuthButton
-            label="Reset Password"
+            label={t('Reset Password')}
             variant="filled"
             loading={loading}
             onPress={handleReset}
@@ -255,7 +257,7 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
           />
 
           <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.backWrap}>
-            <Text style={styles.backText}>Back to Login</Text>
+            <Text style={styles.backText}>{t('Back to Login')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/shared/context/theme.context';
 import type { GlunityEvent } from '../domain/home.types';
@@ -48,11 +48,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     width: '100%',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 2,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.06)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 8,
+        elevation: 2,
+      },
+    }),
   },
   image: {
     width: '100%',

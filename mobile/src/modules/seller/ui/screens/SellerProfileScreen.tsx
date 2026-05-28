@@ -16,6 +16,7 @@ import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import productsApi, { Product } from '../../api/products.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerProfile'>;
@@ -78,6 +79,7 @@ const getProductImage = (images?: string[], category?: string) => {
 export default function SellerProfileScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
+  const { isRTL } = useLanguage();
   const { width: windowWidth } = useWindowDimensions();
   const screenWidth = Math.min(windowWidth, 600);
   
@@ -95,7 +97,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
     // Top Header Styling
     header: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 20,
@@ -114,7 +116,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       elevation: 2,
     },
     userRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 8,
     },
@@ -133,7 +135,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     verifiedBadge: {
       position: 'absolute',
       bottom: -1,
-      right: -1,
+      right: isRTL ? undefined : -1,
+      left: isRTL ? -1 : undefined,
       width: 14,
       height: 14,
       borderRadius: 7,
@@ -148,9 +151,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontWeight: '500',
       fontFamily: 'Poppins_500Medium',
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
     headerActions: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 12,
     },
@@ -166,7 +170,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     notifIndicator: {
       position: 'absolute',
       top: 6,
-      right: 6,
+      right: isRTL ? undefined : 6,
+      left: isRTL ? 6 : undefined,
       width: 8,
       height: 8,
       borderRadius: 4,
@@ -193,6 +198,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     bakeryHeaderRow: {
       marginBottom: 14,
       paddingHorizontal: 4,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     bakeryName: {
       fontSize: 20.4,
@@ -200,9 +206,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontFamily: 'Poppins_700Bold',
       color: T.text,
       marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
     },
     gfTag: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 6,
     },
@@ -211,11 +218,12 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontWeight: '500',
       fontFamily: 'Poppins_500Medium',
       color: T.textMuted,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // Recommended Alert Card
     recommendedCard: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       backgroundColor: T.greenLight,
       borderRadius: 16,
@@ -231,16 +239,19 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       backgroundColor: T.green,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
+      marginRight: isRTL ? 0 : 12,
+      marginLeft: isRTL ? 12 : 0,
     },
     recommendedTexts: {
       flex: 1,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     recommendedTitle: {
       fontSize: 11.9,
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
     recommendedSub: {
       fontSize: 10.2,
@@ -248,6 +259,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontFamily: 'Poppins_400Regular',
       color: T.textMuted,
       marginTop: 1,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // Details list
@@ -257,7 +269,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       paddingHorizontal: 4,
     },
     detailsItem: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
     },
     detailsIconBox: {
@@ -265,16 +277,19 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       height: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
+      marginRight: isRTL ? 0 : 12,
+      marginLeft: isRTL ? 12 : 0,
     },
     detailsTextBox: {
       flex: 1,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     detailsText: {
       fontSize: 11.9,
       fontWeight: '500',
       fontFamily: 'Poppins_500Medium',
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
     detailsDistance: {
       fontSize: 10.2,
@@ -282,11 +297,12 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontFamily: 'Poppins_700Bold',
       color: T.green,
       marginTop: 2,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // Action Grid
     actionGrid: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       marginBottom: 28,
       paddingHorizontal: 4,
@@ -334,7 +350,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
     // Customer Actions Row (Follow/Message)
     customerActionsRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 12,
       marginBottom: 28,
       paddingHorizontal: 4,
@@ -343,7 +359,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       flex: 1,
       height: 44,
       borderRadius: 12,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
@@ -371,7 +387,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
     // Section Headers
     sectionHeaderRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 16,
@@ -382,12 +398,14 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       color: T.text,
+      textAlign: isRTL ? 'right' : 'left',
     },
     seeAllText: {
       fontSize: 11.9,
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       color: T.green,
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // Products Menu Horizontal List
@@ -395,6 +413,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       paddingHorizontal: 4,
       paddingBottom: 24,
       gap: 16,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
     },
     productCard: {
       width: 150,
@@ -423,7 +442,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     gfProductBadge: {
       position: 'absolute',
       top: 8,
-      left: 8,
+      left: isRTL ? undefined : 8,
+      right: isRTL ? 8 : undefined,
       backgroundColor: T.green,
       paddingHorizontal: 6,
       paddingVertical: 2,
@@ -437,6 +457,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     },
     productInfo: {
       paddingHorizontal: 4,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     productCategory: {
       fontSize: 9.5,
@@ -445,6 +466,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontFamily: 'Poppins_500Medium',
       textTransform: 'uppercase',
       marginBottom: 4,
+      textAlign: isRTL ? 'right' : 'left',
     },
     productName: {
       fontSize: 13,
@@ -452,11 +474,13 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontFamily: 'Poppins_700Bold',
       color: T.text,
       marginBottom: 8,
+      textAlign: isRTL ? 'right' : 'left',
     },
     productPriceRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      width: '100%',
     },
     productPrice: {
       fontSize: 13.6,
@@ -475,14 +499,14 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
     // Reviews Header
     reviewsHeaderRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 16,
       paddingHorizontal: 4,
     },
     ratingContainer: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
     },
     ratingText: {
@@ -508,7 +532,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       elevation: 1,
     },
     reviewUserInfoRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       marginBottom: 8,
     },
@@ -516,11 +540,13 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       width: 40,
       height: 40,
       borderRadius: 20,
-      marginRight: 12,
+      marginRight: isRTL ? 0 : 12,
+      marginLeft: isRTL ? 12 : 0,
     },
     reviewAuthorBox: {
       flex: 1,
       justifyContent: 'center',
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     reviewAuthor: {
       fontSize: 14,
@@ -528,16 +554,18 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       fontFamily: 'Poppins_700Bold',
       color: T.text,
       marginBottom: 2,
+      textAlign: isRTL ? 'right' : 'left',
     },
     starsRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
     },
     reviewComment: {
       fontSize: 12,
       color: T.textSub,
       lineHeight: 18,
+      textAlign: isRTL ? 'right' : 'left',
     },
-  }), [T, screenWidth]);
+  }), [T, screenWidth, isRTL]);
 
   const fetchProducts = async () => {
     try {

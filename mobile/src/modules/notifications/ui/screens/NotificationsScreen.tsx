@@ -13,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
+import { useLanguage } from '@/shared/context/language.context';
 import notificationsApi, { Notification } from '../../api/notifications.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Notifications'>;
@@ -24,7 +25,7 @@ const F = {
   bold: 'Poppins_700Bold',
 };
 
-function getRelativeTime(dateString: string) {
+function getRelativeTime(dateString: string, lang: 'en' | 'fr' | 'ar') {
   if (!dateString) return '';
   const now = new Date();
   const date = new Date(dateString);
@@ -33,15 +34,32 @@ function getRelativeTime(dateString: string) {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
+  if (lang === 'ar') {
+    if (diffMins < 1) return 'الآن';
+    if (diffMins < 60) return `منذ ${diffMins} د`;
+    if (diffHours < 24) return `منذ ${diffHours} س`;
+    if (diffDays === 1) return 'أمس';
+    return date.toLocaleDateString('ar-TN', { month: 'short', day: 'numeric' });
+  }
+  if (lang === 'fr') {
+    if (diffMins < 1) return "À l'instant";
+    if (diffMins < 60) return `Il y a ${diffMins} min`;
+    if (diffHours < 24) return `Il y a ${diffHours} h`;
+    if (diffDays === 1) return 'Hier';
+    return date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
+  }
+
+  // Default English
   if (diffMins < 1) return 'Just now';
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays === 1) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 export default function NotificationsScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
+  const { language, isRTL } = useLanguage();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -172,7 +190,7 @@ export default function NotificationsScreen({ navigation }: Props) {
           paddingBottom: 120, // offset BottomNavBar overlay
         },
         card: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           backgroundColor: T.surface,
           borderRadius: 16,
@@ -196,16 +214,19 @@ export default function NotificationsScreen({ navigation }: Props) {
           borderRadius: 22,
           alignItems: 'center',
           justifyContent: 'center',
-          marginRight: 14,
+          marginRight: isRTL ? 0 : 14,
+          marginLeft: isRTL ? 14 : 0,
         },
         textBlock: {
           flex: 1,
+          alignItems: isRTL ? 'flex-end' : 'flex-start',
         },
         rowTop: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           marginBottom: 4,
+          width: '100%',
         },
         title: {
           fontSize: 14.5,
@@ -213,7 +234,9 @@ export default function NotificationsScreen({ navigation }: Props) {
           fontWeight: '600',
           color: T.text,
           flex: 1,
-          marginRight: 8,
+          marginRight: isRTL ? 0 : 8,
+          marginLeft: isRTL ? 8 : 0,
+          textAlign: isRTL ? 'right' : 'left',
         },
         titleUnread: {
           fontWeight: '700',
@@ -229,13 +252,16 @@ export default function NotificationsScreen({ navigation }: Props) {
           color: T.textSub,
           fontFamily: F.regular,
           lineHeight: 18,
+          textAlign: isRTL ? 'right' : 'left',
+          width: '100%',
         },
         dot: {
           width: 8,
           height: 8,
           borderRadius: 4,
           backgroundColor: T.green,
-          marginLeft: 10,
+          marginLeft: isRTL ? 0 : 10,
+          marginRight: isRTL ? 10 : 0,
         },
         emptyBox: {
           alignItems: 'center',
@@ -258,7 +284,7 @@ export default function NotificationsScreen({ navigation }: Props) {
           paddingHorizontal: 32,
         },
       }),
-    [T]
+    [T, isRTL]
   );
 
   const rightElement = unreadCount > 0 ? (
@@ -314,7 +340,7 @@ export default function NotificationsScreen({ navigation }: Props) {
                     <Text style={[s.title, !item.isRead && s.titleUnread]} numberOfLines={1}>
                       {item.title}
                     </Text>
-                    <Text style={s.time}>{getRelativeTime(item.createdAt)}</Text>
+                    <Text style={s.time}>{getRelativeTime(item.createdAt, language)}</Text>
                   </View>
                   <Text style={s.body} numberOfLines={2}>
                     {item.body}

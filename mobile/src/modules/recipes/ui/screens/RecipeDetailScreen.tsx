@@ -12,6 +12,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import recipesApi, { Recipe } from '../../api/recipes.api';
 
@@ -61,6 +62,7 @@ function getRecipeImage(recipe: Recipe): string {
 export default function RecipeDetailScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
+  const { isRTL } = useLanguage();
 
   const s = React.useMemo(() => StyleSheet.create({
     safe: {
@@ -78,13 +80,13 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
     topbar: {
       paddingHorizontal: 22,
       paddingTop: 16,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 12,
     },
     userInfo: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       gap: 10,
     },
@@ -117,9 +119,10 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
       fontWeight: '700',
       color: T.text,
       fontFamily: 'Poppins_700Bold',
+      textAlign: isRTL ? 'right' : 'left',
     },
     topIcons: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       gap: 16,
     },
     iconBtn: {
@@ -129,7 +132,7 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
       justifyContent: 'center',
     },
     backRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       paddingHorizontal: 22,
       paddingTop: 16,
@@ -147,6 +150,7 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
       fontWeight: '700',
       color: T.text,
       fontFamily: 'Poppins_700Bold',
+      textAlign: isRTL ? 'right' : 'left',
     },
     sectionTitle: {
       paddingHorizontal: 22,
@@ -155,9 +159,10 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
       color: T.text,
       fontFamily: 'Poppins_700Bold',
       marginBottom: 16,
+      textAlign: isRTL ? 'right' : 'left',
     },
     nutritionHeroRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       paddingHorizontal: 22,
       gap: 16,
@@ -167,7 +172,7 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
       gap: 12,
     },
     nutritionRow: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
     },
     nutriCircle: {
@@ -193,11 +198,12 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
     nutriPill: {
       backgroundColor: T.surface,
       borderRadius: 18,
-      paddingLeft: 22,
-      paddingRight: 16,
+      paddingLeft: isRTL ? 16 : 22,
+      paddingRight: isRTL ? 22 : 16,
       height: 36,
       justifyContent: 'center',
-      marginLeft: -14,
+      marginLeft: isRTL ? 0 : -14,
+      marginRight: isRTL ? -14 : 0,
       zIndex: 1,
       shadowColor: 'rgba(0,0,0,0.04)',
       shadowOpacity: 0.08,
@@ -210,6 +216,7 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
       fontSize: 11,
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
+      textAlign: isRTL ? 'right' : 'left',
     },
     heroFoodContainer: {
       width: 176,
@@ -231,23 +238,27 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
     ingredientsWrap: {
       paddingHorizontal: 22,
       gap: 6,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     ingredientsText: {
       fontSize: 15,
       color: T.textSub,
       lineHeight: 22,
       fontFamily: 'Poppins_400Regular',
+      textAlign: isRTL ? 'right' : 'left',
     },
     stepsWrap: {
       paddingHorizontal: 22,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
     },
     stepText: {
       fontSize: 15,
       lineHeight: 22,
       color: T.textSub,
       fontFamily: 'Poppins_400Regular',
+      textAlign: isRTL ? 'right' : 'left',
     },
-  }), [T]);
+  }), [T, isRTL]);
 
   const [recipe, setRecipe] = React.useState<Recipe>(route.params?.initialRecipe || FALLBACK_RECIPE);
 

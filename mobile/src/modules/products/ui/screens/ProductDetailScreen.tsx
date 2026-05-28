@@ -18,6 +18,7 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import type { AppStackParamList } from '@/navigation/types';
 import type { Product } from '@/modules/seller/api/products.api';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const HERO_H = 210;  // fixed contained height matching the screenshot
@@ -74,6 +75,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const { product } = route.params as { product: Product };
   const { user }    = useAuth();
   const { theme: T } = useTheme();
+  const { t }       = useLanguage();
   const insets      = useSafeAreaInsets();
 
   const s = React.useMemo(() => StyleSheet.create({
@@ -323,7 +325,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
   return (
     <AppScaffold
-      title={product.name}
+      title={t(product.name)}
       activeTab="home"
       onBack={() => navigation.goBack()}
       rightElement={headerActions}
@@ -357,25 +359,25 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
           {/* Category pill */}
           <View style={[s.categoryPill, { backgroundColor: T.greenLight, borderColor: T.greenBorder }]}>
-            <Text style={[s.categoryPillText, { color: T.green }]}>{product.category}</Text>
+            <Text style={[s.categoryPillText, { color: T.green }]}>{t(product.category)}</Text>
           </View>
 
           {/* Product name */}
-          <Text style={[s.productName, { color: T.text }]}>{product.name}</Text>
+          <Text style={[s.productName, { color: T.text }]}>{t(product.name)}</Text>
 
           {/* Info rows */}
           <View style={s.infoSection}>
             <View style={s.infoRow}>
               <Feather name="map-pin" size={15} color={T.red} style={s.infoIcon} />
               <View>
-                <Text style={[s.infoMain, { color: T.text }]}>125 Rue Casablanca, Tunis</Text>
-                <Text style={[s.infoSub, { color: T.textMuted }]}>2.4 km away</Text>
+                <Text style={[s.infoMain, { color: T.text }]}>{t('125 Rue Casablanca, Tunis')}</Text>
+                <Text style={[s.infoSub, { color: T.textMuted }]}>{t('2.4 km away')}</Text>
               </View>
             </View>
 
             <View style={s.infoRow}>
               <Feather name="clock" size={15} color={T.red} style={s.infoIcon} />
-              <Text style={[s.infoMain, { color: T.text }]}>Open today • 08:00 - 19:00</Text>
+              <Text style={[s.infoMain, { color: T.text }]}>{t('Open today • 08:00 - 19:00')}</Text>
             </View>
 
             <View style={s.infoRow}>
@@ -385,18 +387,18 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
           </View>
 
           {/* About section */}
-          <Text style={[s.sectionTitle, { color: T.text }]}>About this product</Text>
-          <Text style={[s.description, { color: T.textSub }]}>{description}</Text>
+          <Text style={[s.sectionTitle, { color: T.text }]}>{t('About this product')}</Text>
+          <Text style={[s.description, { color: T.textSub }]}>{t(description)}</Text>
 
           {/* Ingredients */}
           {product.ingredients && product.ingredients.length > 0 && (
             <>
-              <Text style={[s.sectionTitle, { color: T.text }]}>Ingredients</Text>
+              <Text style={[s.sectionTitle, { color: T.text }]}>{t('Ingredients')}</Text>
               <View style={s.ingredientsWrap}>
                 {product.ingredients.map((ing, i) => (
                   <View key={`${ing}-${i}`} style={[s.chip, { backgroundColor: T.surface, borderColor: T.border }]}
                   >
-                    <Text style={[s.chipText, { color: T.text }]}>{ing}</Text>
+                    <Text style={[s.chipText, { color: T.text }]}>{t(ing)}</Text>
                   </View>
                 ))}
               </View>
@@ -414,7 +416,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         {/* Price + View Seller bar */}
         <View style={[s.bottomBar, { backgroundColor: T.surface, borderTopColor: T.border }]}>
           <View>
-            <Text style={[s.priceLabel, { color: T.textMuted }]}>Price</Text>
+            <Text style={[s.priceLabel, { color: T.textMuted }]}>{t('Price')}</Text>
             <Text style={[s.priceValue, { color: T.green }]}>{product.price}TND</Text>
           </View>
 
@@ -429,7 +431,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
             id="detail-view-seller-btn"
           >
             <Feather name="shopping-bag" size={16} color="#FFFFFF" />
-            <Text style={s.viewSellerText}>View Seller</Text>
+            <Text style={s.viewSellerText}>{t('View Seller')}</Text>
           </TouchableOpacity>
         </View>
       </View>

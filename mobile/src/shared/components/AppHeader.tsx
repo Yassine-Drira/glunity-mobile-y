@@ -17,6 +17,7 @@ import { useTheme } from '../context/theme.context';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useNavigation } from '@react-navigation/native';
 import notificationsApi from '@/modules/notifications/api/notifications.api';
+import { useLanguage } from '../context/language.context';
 
 const F = {
   regular:  'Poppins_400Regular',
@@ -38,6 +39,7 @@ interface AppHeaderProps {
   subtitle?: string;
 }
 
+
 export function AppHeader({
   title,
   onBack,
@@ -49,6 +51,7 @@ export function AppHeader({
   const { theme: C } = useTheme();
   const { user } = useAuth();
   const navigation = useNavigation<any>();
+  const { isRTL, t } = useLanguage();
 
   const [unreadCount, setUnreadCount] = React.useState(0);
 
@@ -86,14 +89,14 @@ export function AppHeader({
         },
         row: {
           height: 72,
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: 20,
         },
         // ── Main Tab Headers (Avatar + First Name left, Search + Bell right) ──
         mainLeft: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
         },
         avatarWrap: {
@@ -128,7 +131,8 @@ export function AppHeader({
           borderColor: C.bg,
         },
         profileInfo: {
-          marginLeft: 12,
+          marginLeft: isRTL ? 0 : 12,
+          marginRight: isRTL ? 12 : 0,
           justifyContent: 'center',
         },
         greetingText: {
@@ -138,6 +142,7 @@ export function AppHeader({
           textTransform: 'uppercase',
           letterSpacing: 0.8,
           marginBottom: 1,
+          textAlign: isRTL ? 'right' : 'left',
         },
         nameText: {
           fontSize: 16,
@@ -145,9 +150,10 @@ export function AppHeader({
           fontWeight: '700',
           color: C.text,
           letterSpacing: -0.3,
+          textAlign: isRTL ? 'right' : 'left',
         },
         mainRight: {
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           gap: 10,
         },
@@ -180,7 +186,7 @@ export function AppHeader({
         // ── Detail Screen Headers (Back Button + Title) ──
         detailRow: {
           flex: 1,
-          flexDirection: 'row',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
         },
         backBtn: {
@@ -192,7 +198,8 @@ export function AppHeader({
           justifyContent: 'center',
           borderWidth: 1,
           borderColor: C.border,
-          marginRight: 14,
+          marginRight: isRTL ? 0 : 14,
+          marginLeft: isRTL ? 14 : 0,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.04,
@@ -208,16 +215,18 @@ export function AppHeader({
           fontWeight: '700',
           color: C.text,
           letterSpacing: -0.4,
+          textAlign: isRTL ? 'right' : 'left',
         },
         detailSubtitle: {
           fontSize: 11.5,
           fontFamily: F.regular,
           color: C.textMuted,
           marginTop: 1,
+          textAlign: isRTL ? 'right' : 'left',
         },
         detailRightSlot: {
           minWidth: 40,
-          alignItems: 'flex-end',
+          alignItems: isRTL ? 'flex-start' : 'flex-end',
           justifyContent: 'center',
         },
         detailRightBtn: {
@@ -236,7 +245,7 @@ export function AppHeader({
           elevation: 1,
         },
       }),
-    [C, user]
+    [C, user, isRTL]
   );
 
   return (
@@ -246,7 +255,7 @@ export function AppHeader({
           // Detail screen header flow
           <View style={s.detailRow}>
             <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
-              <MaterialCommunityIcons name="arrow-left" size={20} color={C.text} />
+              <MaterialCommunityIcons name={isRTL ? "arrow-right" : "arrow-left"} size={20} color={C.text} />
             </TouchableOpacity>
 
             <View style={s.detailTitleWrap}>
@@ -281,7 +290,7 @@ export function AppHeader({
                 </View>
               </View>
               <View style={s.profileInfo}>
-                <Text style={s.greetingText}>Welcome</Text>
+                <Text style={s.greetingText}>{t('Welcome')}</Text>
                 <Text style={s.nameText}>{firstName}</Text>
               </View>
             </View>
@@ -289,13 +298,6 @@ export function AppHeader({
             <View style={s.mainRight}>
               {rightElement ?? (
                 <>
-                  <TouchableOpacity 
-                    activeOpacity={0.7} 
-                    style={s.actionBtn} 
-                    onPress={() => navigation.navigate('ProductsMarket')}
-                  >
-                    <Feather name="search" size={20} color={C.text} />
-                  </TouchableOpacity>
                   <TouchableOpacity 
                     activeOpacity={0.7} 
                     style={s.actionBtn} 

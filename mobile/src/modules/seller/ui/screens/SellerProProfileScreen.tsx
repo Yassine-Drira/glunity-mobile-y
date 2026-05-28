@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { Radius } from '@/shared/utils/theme';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerProProfile'>;
 
@@ -25,6 +26,7 @@ const ACTIVE_INDEX   = 1; // "Supporter" is active (second node, as in image)
 export default function SellerProProfileScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
   const { theme: T } = useTheme();
+  const { isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 8) + 110;
 
@@ -34,7 +36,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
 
     // Top header — identical layout to ProfileScreen
     topHeader: {
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
@@ -80,7 +82,8 @@ export default function SellerProProfileScreen({ navigation }: Props) {
     },
     heartBadge: {
       position: 'absolute',
-      right: 2,
+      right: isRTL ? undefined : 2,
+      left: isRTL ? 2 : undefined,
       bottom: 0,
       width: 28,
       height: 28,
@@ -99,6 +102,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
     name: {
       fontSize: 20, fontWeight: '700', color: T.text,
       marginTop: 8, marginBottom: 8, fontFamily: 'Poppins_700Bold',
+      textAlign: 'center',
     },
 
     // Red role pill
@@ -114,17 +118,22 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       fontWeight: '500', fontFamily: 'Poppins_500Medium',
     },
 
-    sectionWrap:  {},
+    sectionWrap:  {
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
+      width: '100%',
+    },
     sectionLabel: {
       fontSize: 12, color: T.textMuted, fontWeight: '600',
       marginBottom: 8, fontFamily: 'Poppins_600SemiBold',
+      textAlign: isRTL ? 'right' : 'left',
+      width: '100%',
     },
 
     // Role card
     card: {
       backgroundColor: 'transparent',
       paddingVertical: 8,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       alignItems: 'center',
     },
     roleIconBlock: {
@@ -134,7 +143,8 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       backgroundColor: T.redLight,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 14,
+      marginRight: isRTL ? 0 : 14,
+      marginLeft: isRTL ? 14 : 0,
     },
     roleTextWrap: { flex: 1 },
     roleTitle: {
@@ -143,6 +153,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       lineHeight: 20,
       color: T.text,
       fontFamily: 'Poppins_700Bold',
+      textAlign: isRTL ? 'right' : 'left',
     },
     roleSubtitle: {
       marginTop: 4,
@@ -150,6 +161,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       color: T.textSub,
       lineHeight: 18,
       fontFamily: 'Poppins_400Regular',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // Journey stepper card
@@ -157,6 +169,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       position: 'relative',
       backgroundColor: 'transparent',
       paddingVertical: 12,
+      width: '100%',
     },
     journeyTrack: {
       position: 'absolute',
@@ -168,13 +181,16 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       borderRadius: 2.5,
     },
     journeyTrackDone: {
+      position: 'absolute',
+      left: isRTL ? undefined : 0,
+      right: isRTL ? 0 : undefined,
       height: 5,
       backgroundColor: T.red,
       borderRadius: 2.5,
     },
     journeyRow: {
       width: '100%',
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
     },
@@ -238,12 +254,20 @@ export default function SellerProProfileScreen({ navigation }: Props) {
     bannerCard: {
       backgroundColor: T.greenLight, borderRadius: Radius.lg,
       paddingHorizontal: 16, paddingVertical: 16,
-      flexDirection: 'row', alignItems: 'center',
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center',
+      width: '100%',
     },
     bannerMascotImage: { width: 56, height: 56 },
     bannerText: {
-      flex: 1, marginLeft: 14, fontSize: 13, lineHeight: 20,
-      fontWeight: '500', color: T.text, fontFamily: 'Poppins_500Medium',
+      flex: 1,
+      marginLeft: isRTL ? 0 : 14,
+      marginRight: isRTL ? 14 : 0,
+      fontSize: 13,
+      lineHeight: 20,
+      fontWeight: '500',
+      color: T.text,
+      fontFamily: 'Poppins_500Medium',
+      textAlign: isRTL ? 'right' : 'left',
     },
 
     // Menu rows
@@ -252,27 +276,37 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       overflow: 'hidden', shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06,
       shadowRadius: 4, elevation: 1,
+      width: '100%',
     },
     menuRow: {
       backgroundColor: T.surface, paddingVertical: 15, paddingHorizontal: 16,
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between',
     },
-    menuDivider: { height: 1, backgroundColor: T.border, marginLeft: 64 },
-    menuLeft:    { flexDirection: 'row', alignItems: 'center' },
+    menuDivider: {
+      height: 1,
+      backgroundColor: T.border,
+      marginLeft: isRTL ? 0 : 64,
+      marginRight: isRTL ? 64 : 0,
+    },
+    menuLeft:    { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
     menuIconCircle: {
       width: 36, height: 36, borderRadius: 18,
       alignItems: 'center', justifyContent: 'center',
       backgroundColor: T.redLight,
     },
     menuLabel: {
-      marginLeft: 12, fontSize: 14, fontWeight: '500',
-      color: T.text, fontFamily: 'Poppins_500Medium',
+      marginLeft: isRTL ? 0 : 12,
+      marginRight: isRTL ? 12 : 0,
+      fontSize: 14,
+      fontWeight: '500',
+      color: T.text,
+      fontFamily: 'Poppins_500Medium',
     },
-  }), [T]);
+  }), [T, isRTL]);
 
   return (
     <AppScaffold
-      title="Profile"
+      title={t('Profile')}
       activeTab="profile"
       rightIcon="bell-outline"
       onPressHome={() => navigation.navigate('Home')}
@@ -306,21 +340,21 @@ export default function SellerProProfileScreen({ navigation }: Props) {
           <Text style={s.name}>{user?.fullName || 'Senda Abid'}</Text>
 
           <View style={s.roleBadgePill}>
-            <Text style={s.roleBadgeText}>Gluten-Free Ally</Text>
+            <Text style={s.roleBadgeText}>{t('Gluten-Free Ally')}</Text>
           </View>
         </View>
 
         {/* ── Your Role ─────────────────────────────────────────────────── */}
         <View style={s.sectionWrap}>
-          <Text style={s.sectionLabel}>Your Role</Text>
+          <Text style={s.sectionLabel}>{t('Your Role')}</Text>
           <View style={s.card}>
             <View style={s.roleIconBlock}>
               <MaterialCommunityIcons name="heart-outline" size={22} color={T.red} />
             </View>
             <View style={s.roleTextWrap}>
-              <Text style={s.roleTitle}>Gluten-Free Ally</Text>
+              <Text style={s.roleTitle}>{t('Gluten-Free Ally')}</Text>
               <Text style={s.roleSubtitle}>
-                You support and help someone living gluten-free.
+                {t('You support and help someone living gluten-free.')}
               </Text>
             </View>
           </View>
@@ -328,7 +362,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
 
         {/* ── Your Journey stepper ──────────────────────────────────────── */}
         <View style={s.sectionWrap}>
-          <Text style={s.sectionLabel}>Your Journey</Text>
+          <Text style={s.sectionLabel}>{t('Your Journey')}</Text>
           <View style={s.journeyCard}>
             <View style={s.journeyTrack}>
               <View
@@ -365,7 +399,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
                         !isCompleted && !isActive && s.stepLabelInactive,
                       ]}
                     >
-                      {label}
+                      {t(label)}
                     </Text>
                   </View>
                 );
@@ -385,9 +419,9 @@ export default function SellerProProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="shopping-bag" size={17} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>My products</Text>
+              <Text style={s.menuLabel}>{t('My products')}</Text>
             </View>
-            <Feather name="chevron-right" size={17} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={17} color={T.textMuted} />
           </TouchableOpacity>
 
           <View style={s.menuDivider} />
@@ -401,9 +435,9 @@ export default function SellerProProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="eye" size={17} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Visibility</Text>
+              <Text style={s.menuLabel}>{t('Visibility')}</Text>
             </View>
-            <Feather name="chevron-right" size={17} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={17} color={T.textMuted} />
           </TouchableOpacity>
 
           <View style={s.menuDivider} />
@@ -416,9 +450,9 @@ export default function SellerProProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="message-square" size={17} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Clients messages</Text>
+              <Text style={s.menuLabel}>{t('Clients messages')}</Text>
             </View>
-            <Feather name="chevron-right" size={17} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={17} color={T.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -433,9 +467,9 @@ export default function SellerProProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="settings" size={17} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Settings</Text>
+              <Text style={s.menuLabel}>{t('Settings')}</Text>
             </View>
-            <Feather name="chevron-right" size={17} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={17} color={T.textMuted} />
           </TouchableOpacity>
 
           <View style={s.menuDivider} />
@@ -445,9 +479,9 @@ export default function SellerProProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="shield" size={17} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Privacy &amp; Security</Text>
+              <Text style={s.menuLabel}>{t('Privacy & Security')}</Text>
             </View>
-            <Feather name="chevron-right" size={17} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={17} color={T.textMuted} />
           </TouchableOpacity>
 
           <View style={s.menuDivider} />
@@ -457,9 +491,9 @@ export default function SellerProProfileScreen({ navigation }: Props) {
               <View style={s.menuIconCircle}>
                 <Feather name="log-out" size={17} color={T.red} />
               </View>
-              <Text style={s.menuLabel}>Log out</Text>
+              <Text style={s.menuLabel}>{t('Log out')}</Text>
             </View>
-            <Feather name="chevron-right" size={17} color={T.textMuted} />
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={17} color={T.textMuted} />
           </TouchableOpacity>
         </View>
 

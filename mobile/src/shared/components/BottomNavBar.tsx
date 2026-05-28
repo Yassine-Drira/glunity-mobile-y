@@ -17,6 +17,8 @@ interface BottomNavBarProps {
   onPressProfile?: () => void;
 }
 
+import { useLanguage } from '../context/language.context';
+
 export function BottomNavBar({
   activeTab,
   idPrefix = 'nav',
@@ -28,6 +30,7 @@ export function BottomNavBar({
 }: BottomNavBarProps) {
   const insets = useSafeAreaInsets();
   const { theme: C } = useTheme();
+  const { isRTL, t } = useLanguage();
 
   const styles = useMemo(() => StyleSheet.create({
     container: {
@@ -49,7 +52,7 @@ export function BottomNavBar({
     },
     bottomBar: {
       height: 60,
-      flexDirection: 'row',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: 24,
@@ -104,40 +107,86 @@ export function BottomNavBar({
   const getIconFrameStyle = (tab: TabKey) => [styles.iconFrame, activeTab === tab ? styles.iconFrameActive : null];
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View
+      style={styles.container}
+      pointerEvents="box-none"
+      // Prevents this fixed bar from being announced as hidden when a
+      // React Navigation screen overlay sets aria-hidden on its parent.
+      importantForAccessibility="yes"
+      accessibilityRole="tablist"
+    >
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={onPressHome} id={`${idPrefix}-home`}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={onPressHome}
+          id={`${idPrefix}-home`}
+          accessibilityRole="tab"
+          accessibilityLabel={t('Home')}
+          accessibilityState={{ selected: activeTab === 'home' }}
+        >
           <View style={getIconFrameStyle('home')}>
             <Feather name="home" size={22} color={getIconColor('home')} />
           </View>
-          <Text style={getLabelStyle('home')}>Home</Text>
+          <Text style={getLabelStyle('home')}>{t('Home')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={onPressEvents} id={`${idPrefix}-events`}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={onPressEvents}
+          id={`${idPrefix}-events`}
+          accessibilityRole="tab"
+          accessibilityLabel={t('Events')}
+          accessibilityState={{ selected: activeTab === 'events' }}
+        >
           <View style={getIconFrameStyle('events')}>
             <Feather name="calendar" size={22} color={getIconColor('events')} />
           </View>
-          <Text style={getLabelStyle('events')}>Events</Text>
+          <Text style={getLabelStyle('events')}>{t('Events')}</Text>
         </TouchableOpacity>
 
         <View style={styles.navItem} />
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={onPressReels} id={`${idPrefix}-reels`}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={onPressReels}
+          id={`${idPrefix}-reels`}
+          accessibilityRole="tab"
+          accessibilityLabel={t('Reels')}
+          accessibilityState={{ selected: activeTab === 'reels' }}
+        >
           <View style={getIconFrameStyle('reels')}>
             <MaterialCommunityIcons name="movie-play-outline" size={24} color={getIconColor('reels')} />
           </View>
-          <Text style={getLabelStyle('reels')}>Reels</Text>
+          <Text style={getLabelStyle('reels')}>{t('Reels')}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} activeOpacity={0.8} onPress={onPressProfile} id={`${idPrefix}-profile`}>
+        <TouchableOpacity
+          style={styles.navItem}
+          activeOpacity={0.8}
+          onPress={onPressProfile}
+          id={`${idPrefix}-profile`}
+          accessibilityRole="tab"
+          accessibilityLabel={t('Profile')}
+          accessibilityState={{ selected: activeTab === 'profile' }}
+        >
           <View style={getIconFrameStyle('profile')}>
             <Feather name="user" size={22} color={getIconColor('profile')} />
           </View>
-          <Text style={getLabelStyle('profile')}>Profile</Text>
+          <Text style={getLabelStyle('profile')}>{t('Profile')}</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.fabButton} activeOpacity={0.85} onPress={onPressCenter} id={`${idPrefix}-fab`}>
+      <TouchableOpacity
+        style={styles.fabButton}
+        activeOpacity={0.85}
+        onPress={onPressCenter}
+        id={`${idPrefix}-fab`}
+        accessibilityRole="button"
+        accessibilityLabel={t('Scan for gluten')}
+      >
         <ScanFrameIcon size={28} color="#FFFFFF" strokeWidth={2.0} />
       </TouchableOpacity>
     </View>

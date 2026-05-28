@@ -10,6 +10,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
 import { AuthButton } from '@/shared/components/AuthButton';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { Feather } from '@expo/vector-icons';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'EmailVerified'>;
@@ -17,6 +18,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'EmailVerified'>;
 export default function EmailVerifiedScreen({ route, navigation }: Props) {
   const success = route.params?.success !== false;
   const { theme: T, isDark } = useTheme();
+  const { t, isRTL } = useLanguage();
 
   const styles = React.useMemo(() => StyleSheet.create({
     safe: { flex: 1, backgroundColor: T.bg },
@@ -66,14 +68,13 @@ export default function EmailVerifiedScreen({ route, navigation }: Props) {
             <Feather name="check-circle" size={60} color={T.green} />
           </View>
 
-          <Text style={styles.title}>Email Verified!</Text>
+          <Text style={styles.title}>{t('Email Verified!')}</Text>
           <Text style={styles.body}>
-            Your email address has been verified successfully.{'\n'}
-            You can now log in to your account and enjoy GlUnity.
+            {t('Your email address has been verified successfully.\nYou can now log in to your account and enjoy GlUnity.')}
           </Text>
 
           <AuthButton
-            label="Go to Login"
+            label={t('Go to Login')}
             variant="filled"
             onPress={() => navigation.navigate('Login')}
             containerStyle={{ marginTop: 24, width: '100%' }}
@@ -93,20 +94,19 @@ export default function EmailVerifiedScreen({ route, navigation }: Props) {
           <Feather name="x-circle" size={60} color="#E53935" />
         </View>
 
-        <Text style={styles.title}>Verification Failed</Text>
+        <Text style={styles.title}>{t('Verification Failed')}</Text>
         <Text style={styles.body}>
-          This verification link is invalid or has expired.{'\n'}
-          Please request a new verification email.
+          {t('This verification link is invalid or has expired.\nPlease request a new verification email.')}
         </Text>
 
         <AuthButton
-          label="Resend Verification"
+          label={t('Resend Verification')}
           variant="filled"
           onPress={() => navigation.navigate('Login')}
           containerStyle={{ marginTop: 24, width: '100%' }}
         />
         <AuthButton
-          label="Back to Login"
+          label={t('Back to Login')}
           variant="outlined"
           onPress={() => navigation.navigate('Login')}
           containerStyle={{ marginTop: 12, width: '100%' }}

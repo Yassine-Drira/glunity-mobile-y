@@ -17,6 +17,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { BottomNavBar } from '../../../../shared/components/BottomNavBar';
 import { FilterPill } from '../components/FilterPill';
 import { PlaceCard } from '../components/PlaceCard';
@@ -62,6 +63,7 @@ export default function MapScreen({
   onPressProfilePhoto,
 }: MapScreenProps) {
   const { theme: T } = useTheme();
+  const { isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapWebViewHandle>(null);
 
@@ -209,6 +211,7 @@ export default function MapScreen({
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          if (!isFinite(coords.lat) || !isFinite(coords.lng)) return;
           setUserLocation(coords);
           setTimeout(() => {
             mapRef.current?.flyTo(coords.lng, coords.lat, 14);
@@ -281,7 +284,9 @@ export default function MapScreen({
     setSelected(id);
     if (id) {
       const loc = items.find((l) => l.id === id);
-      if (loc) mapRef.current?.flyTo(loc.lng, loc.lat, 16);
+      if (loc && isFinite(loc.lat) && isFinite(loc.lng)) {
+        mapRef.current?.flyTo(loc.lng, loc.lat, 16);
+      }
     }
   }
 
@@ -350,7 +355,7 @@ export default function MapScreen({
         />
 
         <View style={styles.filterPillWrap}>
-          <FilterPill onPress={() => setShowFilters(true)} />
+          <FilterPill onPress={() => setShowFilters(true)} label={t('Filter')} />
         </View>
 
         <TouchableOpacity 
@@ -407,9 +412,9 @@ export default function MapScreen({
         <Pressable style={styles.modalBackdrop} onPress={() => setShowFilters(false)}>
           <Pressable style={styles.sheet} onPress={() => {}}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Filter places</Text>
+            <Text style={styles.sheetTitle}>{t('Filter places')}</Text>
 
-            <Text style={styles.sheetSubtitle}>Category</Text>
+            <Text style={styles.sheetSubtitle}>{t('Category')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
               {CATEGORIES.map((c) => {
                 const isActive = (filters.category || 'all') === c.key;
@@ -419,13 +424,13 @@ export default function MapScreen({
                     onPress={() => applyFilter({ category: c.key })}
                     style={[styles.chip, isActive && styles.chipActive]}
                   >
-                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{c.label}</Text>
+                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{t(c.label)}</Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
 
-            <Text style={styles.sheetSubtitle}>Status</Text>
+            <Text style={styles.sheetSubtitle}>{t('Status')}</Text>
             <View style={styles.toggleRow}>
               <Pressable
                 onPress={() => applyFilter({ certified: !filters.certified ? true : undefined })}
@@ -436,13 +441,13 @@ export default function MapScreen({
                   size={14}
                   color={filters.certified ? T.white : T.green}
                 />
-                <Text style={[styles.chipText, filters.certified && styles.chipTextActive]}>Certified only</Text>
+                <Text style={[styles.chipText, filters.certified && styles.chipTextActive]}>{t('Certified only')}</Text>
               </Pressable>
               <Pressable
                 onPress={() => applyFilter({ glutenFree: !filters.glutenFree ? true : undefined })}
                 style={[styles.chip, filters.glutenFree && styles.chipActive]}
               >
-                <Text style={[styles.chipText, filters.glutenFree && styles.chipTextActive]}>Gluten-free only</Text>
+                <Text style={[styles.chipText, filters.glutenFree && styles.chipTextActive]}>{t('Gluten-free only')}</Text>
               </Pressable>
             </View>
 
@@ -450,7 +455,7 @@ export default function MapScreen({
               onPress={() => { setFilters({ category: 'all' }); setShowFilters(false); }}
               style={styles.clearBtn}
             >
-              <Text style={styles.clearText}>Clear filters</Text>
+              <Text style={styles.clearText}>{t('Clear filters')}</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -461,12 +466,12 @@ export default function MapScreen({
         <Pressable style={styles.modalBackdrop} onPress={() => setShowContactFor(null)}>
           <Pressable style={styles.contactSheet} onPress={() => {}}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Get in Touch</Text>
-            <Text style={styles.contactMerchantName}>{showContactFor?.name}</Text>
+            <Text style={styles.sheetTitle}>{t('Get in Touch')}</Text>
+            <Text style={styles.contactMerchantName}>{t(showContactFor?.name || '')}</Text>
 
             <View style={styles.contactPhoneBox}>
               <Feather name="phone" size={20} color={T.green} />
-              <Text style={styles.contactPhoneNumber}>{showContactFor?.phone || 'No phone number listed'}</Text>
+              <Text style={styles.contactPhoneNumber}>{showContactFor?.phone || t('No phone number listed')}</Text>
             </View>
 
             {showContactFor?.phone ? (
@@ -476,7 +481,7 @@ export default function MapScreen({
                   onPress={handleCopyPhone}
                 >
                   <Feather name={copied ? "check" : "copy"} size={16} color={copied ? T.green : T.text} />
-                  <Text style={[styles.contactBtnText, { color: T.text }]}>{copied ? "Copied!" : "Copy Number"}</Text>
+                  <Text style={[styles.contactBtnText, { color: T.text }]}>{copied ? t('Copied!') : t('Copy Number')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
@@ -484,7 +489,7 @@ export default function MapScreen({
                   onPress={handleDialPhone}
                 >
                   <Feather name="phone-call" size={16} color="#FFFFFF" />
-                  <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>Call Now</Text>
+                  <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>{t('Call Now')}</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -493,7 +498,7 @@ export default function MapScreen({
               style={[styles.cancelBtn, { marginTop: 14 }]} 
               onPress={() => setShowContactFor(null)}
             >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
+              <Text style={styles.cancelBtnText}>{t('Cancel')}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>

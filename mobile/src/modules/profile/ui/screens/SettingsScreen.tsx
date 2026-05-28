@@ -18,6 +18,7 @@ import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import authApi from '@/modules/auth/api/auth.api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -30,25 +31,6 @@ const F = {
   semibold: 'Poppins_600SemiBold',
   bold: 'Poppins_700Bold',
 };
-
-const FAQS = [
-  {
-    q: 'How do I know a product is gluten-free?',
-    a: 'All products displayed on GlUnity are certified gluten-free by our partner sellers. Look for the "GF" badge on the product list, or check the recommended status of the bakery itself.',
-  },
-  {
-    q: 'How can I contact a seller?',
-    a: 'You can tap on the "View Seller" button on the product details page to view their profile, where you can call them directly or send a message.',
-  },
-  {
-    q: 'What is a Glutenia-recommended bakery?',
-    a: 'It is a bakery verified by our medical and food safety teams to ensure 100% cross-contamination-free production, safe for celiacs.',
-  },
-  {
-    q: 'How do I change my language preferences?',
-    a: 'You can update your language in the Edit Profile page or by editing your account settings directly.',
-  },
-];
 
 // ── SettingItem ────────────────────────────────────────────────────────────────
 interface SettingItemProps {
@@ -78,16 +60,23 @@ function SettingItem({
   onPress,
   theme: C,
 }: SettingItemProps) {
+  const { isRTL } = useLanguage();
   const s = useMemo(() => StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 20, backgroundColor: C.surface },
+    row: { 
+      flexDirection: isRTL ? 'row-reverse' : 'row', 
+      alignItems: 'center', 
+      paddingVertical: 16, 
+      paddingHorizontal: 20, 
+      backgroundColor: C.surface 
+    },
     rowBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
-    rowIcon: { width: 32, alignItems: 'flex-start' },
-    rowContent: { flex: 1 },
-    rowTitle: { fontFamily: F.semibold, fontSize: 15, color: C.text },
-    rowSub: { fontFamily: F.regular, fontSize: 12, color: C.muted, marginTop: 2 },
-    rowRight: { flexDirection: 'row', alignItems: 'center' },
-    rowValue: { fontFamily: F.regular, fontSize: 14, color: C.muted, marginRight: 8 },
-  }), [C]);
+    rowIcon: { width: 32, alignItems: isRTL ? 'flex-end' : 'flex-start' },
+    rowContent: { flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start', paddingHorizontal: 8 },
+    rowTitle: { fontFamily: F.semibold, fontSize: 15, color: C.text, textAlign: isRTL ? 'right' : 'left' },
+    rowSub: { fontFamily: F.regular, fontSize: 12, color: C.muted, marginTop: 2, textAlign: isRTL ? 'right' : 'left' },
+    rowRight: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
+    rowValue: { fontFamily: F.regular, fontSize: 14, color: C.muted, marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 },
+  }), [C, isRTL]);
 
   return (
     <TouchableOpacity
@@ -114,7 +103,7 @@ function SettingItem({
       ) : (
         <View style={s.rowRight}>
           {valueText ? <Text style={s.rowValue}>{valueText}</Text> : null}
-          {showChevron ? <MaterialCommunityIcons name="chevron-right" size={18} color={C.mutedLight} /> : null}
+          {showChevron ? <MaterialCommunityIcons name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={C.mutedLight} /> : null}
         </View>
       )}
     </TouchableOpacity>
@@ -125,6 +114,7 @@ function SettingItem({
 export default function SettingsScreen({ navigation }: Props) {
   const { user, logout, updateProfile, textSize, updateTextSize } = useAuth();
   const { theme: C, isDark, setDark } = useTheme();
+  const { language, setLanguage, t, isRTL } = useLanguage();
   
   // Notification preferences
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -132,6 +122,9 @@ export default function SettingsScreen({ navigation }: Props) {
 
   // Text size preference modal visibility
   const [showTextSizeModal, setShowTextSizeModal] = useState(false);
+
+  // Language preference modal visibility
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
 
   // Change Password Modal States
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -197,10 +190,17 @@ export default function SettingsScreen({ navigation }: Props) {
     }
   };
 
+  const handleLanguageSelect = async (lang: 'en' | 'fr' | 'ar') => {
+    setShowLanguageModal(false);
+    try {
+      await setLanguage(lang);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleDarkModeToggle = (val: boolean) => {
-    // Instant — no API wait, no lag
     setDark(val);
-    // Persist to backend silently in background
     updateProfile({ darkMode: val }).catch(() => {});
   };
 
@@ -209,24 +209,24 @@ export default function SettingsScreen({ navigation }: Props) {
     setPasswordSuccess('');
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError('All fields are required.');
+      setPasswordError(t('REQ_FIELDS'));
       return;
     }
 
     if (newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters.');
+      setPasswordError(t('PWD_LENGTH'));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError('New passwords do not match.');
+      setPasswordError(t('PWD_MATCH'));
       return;
     }
 
     setPasswordLoading(true);
     try {
       await authApi.changePassword(currentPassword, newPassword);
-      setPasswordSuccess('Password updated successfully! ✅');
+      setPasswordSuccess(t('PWD_SUCCESS'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -235,7 +235,7 @@ export default function SettingsScreen({ navigation }: Props) {
         setPasswordSuccess('');
       }, 1500);
     } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Failed to change password. Please verify current password.';
+      const msg = err?.response?.data?.message || t('PWD_FAIL');
       setPasswordError(msg);
     } finally {
       setPasswordLoading(false);
@@ -244,13 +244,12 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const handleReportBug = async () => {
     if (!bugTitle.trim() || !bugDesc.trim()) {
-      Alert.alert('Fields Required', 'Please enter a bug title and description.');
+      Alert.alert(t('FIELDS_REQ'), t('ENTER_BUG_DETAILS'));
       return;
     }
 
     setBugLoading(true);
     try {
-      // Simulate API submission delay
       await new Promise((resolve) => setTimeout(resolve, 1500));
       setBugSuccess(true);
       setBugTitle('');
@@ -260,88 +259,122 @@ export default function SettingsScreen({ navigation }: Props) {
         setBugSuccess(false);
       }, 1500);
     } catch (e) {
-      Alert.alert('Submission Error', 'Failed to report bug. Please try again.');
+      Alert.alert(t('SUBMIT_ERROR'), t('BUG_FAIL_TEXT'));
     } finally {
       setBugLoading(false);
     }
   };
 
-  // ── Dynamic styles (recomputed on every theme change) ──────────────────────
+  const getLanguageLabel = (code: string) => {
+    switch (code) {
+      case 'en': return t('ENGLISH');
+      case 'fr': return t('FRENCH');
+      case 'ar': return t('ARABIC');
+      default: return code;
+    }
+  };
+
+  const FAQS = useMemo(() => [
+    {
+      q: t('FAQ_Q1'),
+      a: t('FAQ_A1'),
+    },
+    {
+      q: t('FAQ_Q2'),
+      a: t('FAQ_A2'),
+    },
+    {
+      q: t('FAQ_Q3'),
+      a: t('FAQ_A3'),
+    },
+    {
+      q: t('FAQ_Q4'),
+      a: t('FAQ_A4'),
+    },
+  ], [t]);
+
+  // ── Dynamic styles (recomputed on every theme and language change) ──────────
   const s = useMemo(() => StyleSheet.create({
     safe:         { flex: 1, backgroundColor: C.bg },
     scroll:       { paddingHorizontal: 16, paddingTop: 12 },
     sectionLabel: {
       fontSize: 11, fontWeight: '700', color: C.textMuted, letterSpacing: 0.9,
       marginTop: 24, marginBottom: 8, fontFamily: F.bold, paddingHorizontal: 2,
+      textAlign: isRTL ? 'right' : 'left',
     },
     card:         { backgroundColor: C.surface, borderRadius: 16, overflow: 'hidden' },
     logoutBtn:    {
       marginTop: 24, height: 54, borderRadius: 16, backgroundColor: C.green,
-      paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 16, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between',
     },
     logoutIconWrap: {
       width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
       backgroundColor: 'rgba(255,255,255,0.25)',
     },
     logoutText:   { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '700', color: C.white, fontFamily: F.bold },
-    // Modal
+    
+    // Modals
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' },
     modalContent: {
       width: '92%', backgroundColor: C.surface, borderRadius: 24, padding: 24,
       shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 16,
     },
-    modalHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    modalTitle:   { fontSize: 18, fontWeight: '700', color: C.text, fontFamily: F.bold },
+    modalHeader:  { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    modalTitle:   { fontSize: 18, fontWeight: '700', color: C.text, fontFamily: F.bold, textAlign: isRTL ? 'right' : 'left' },
     modalErrorBanner: {
-      flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.redLight,
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, backgroundColor: C.redLight,
       borderColor: C.red, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 14,
     },
-    modalErrorText:   { flex: 1, fontSize: 13, color: C.red, fontFamily: F.regular },
+    modalErrorText:   { flex: 1, fontSize: 13, color: C.red, fontFamily: F.regular, textAlign: isRTL ? 'right' : 'left' },
     modalSuccessBanner: {
-      flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.greenLight,
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, backgroundColor: C.greenLight,
       borderColor: C.green, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 14,
     },
-    modalSuccessText: { flex: 1, fontSize: 13, color: C.green, fontFamily: F.regular },
+    modalSuccessText: { flex: 1, fontSize: 13, color: C.green, fontFamily: F.regular, textAlign: isRTL ? 'right' : 'left' },
     modalForm:    { gap: 14 },
-    inputLabel:   { fontSize: 12, fontWeight: '600', color: C.textSub, fontFamily: F.semibold },
+    inputLabel:   { fontSize: 12, fontWeight: '600', color: C.textSub, fontFamily: F.semibold, textAlign: isRTL ? 'right' : 'left' },
     modalInput:   {
       borderWidth: 1.5, borderColor: C.inputBorder, borderRadius: 12,
       paddingVertical: 12, paddingHorizontal: 14,
       fontSize: 14, color: C.text, backgroundColor: C.inputBg, fontFamily: F.regular,
+      textAlign: isRTL ? 'right' : 'left',
     },
     modalBtn:     { backgroundColor: C.green, borderRadius: 14, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
     modalBtnText: { fontSize: 15, color: C.white, fontWeight: '700', fontFamily: F.bold },
-    // Text size modal
+    
+    // Text size & language modals
     sizeOptionRow:       {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center',
       paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border,
     },
-    sizeOptionText:      { fontSize: 15, color: C.text, fontFamily: F.regular },
+    sizeOptionText:      { fontSize: 15, color: C.text, fontFamily: F.regular, textAlign: isRTL ? 'right' : 'left' },
     sizeOptionTextActive:{ color: C.green, fontWeight: '700', fontFamily: F.bold },
+    
     // Help modal
-    helpHeaderDesc: { fontSize: 13, color: C.textMuted, marginBottom: 16, fontFamily: F.regular },
+    helpHeaderDesc: { fontSize: 13, color: C.textMuted, marginBottom: 16, fontFamily: F.regular, textAlign: isRTL ? 'right' : 'left' },
     faqItem:        { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border, paddingVertical: 14 },
-    faqQuestionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-    faqQuestion:    { flex: 1, fontSize: 14, fontWeight: '600', color: C.text, fontFamily: F.semibold },
-    faqAnswer:      { fontSize: 13, color: C.textSub, marginTop: 10, lineHeight: 20, fontFamily: F.regular },
+    faqQuestionRow: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+    faqQuestion:    { flex: 1, fontSize: 14, fontWeight: '600', color: C.text, fontFamily: F.semibold, textAlign: isRTL ? 'right' : 'left' },
+    faqAnswer:      { fontSize: 13, color: C.textSub, marginTop: 10, lineHeight: 20, fontFamily: F.regular, textAlign: isRTL ? 'right' : 'left' },
+    
     // Bug modal
     bugSuccessContainer: { alignItems: 'center', paddingVertical: 36, gap: 10 },
     bugSuccessTitle:     { fontSize: 18, fontWeight: '700', color: C.text, fontFamily: F.bold },
     bugSuccessSub:       { fontSize: 13, color: C.textSub, fontFamily: F.regular },
-    severityRow: { flexDirection: 'row', gap: 10 },
+    severityRow: { flexDirection: isRTL ? 'row-reverse' : 'row', gap: 10 },
     severityBtn: {
       flex: 1, borderWidth: 1.5, borderColor: C.inputBorder, borderRadius: 10,
       paddingVertical: 10, alignItems: 'center', backgroundColor: C.inputBg,
     },
     severityBtnText: { fontSize: 13, fontWeight: '600', color: C.textSub, fontFamily: F.semibold },
-  }), [C]);
+  }), [C, isRTL]);
 
   const placeholderColor = C.textMuted;
 
   return (
     <>
     <AppScaffold
-      title="Settings"
+      title={t('SETTINGS')}
       activeTab="profile"
       onBack={() => navigation.goBack()}
       onPressHome={() => navigation.navigate('Home')}
@@ -360,33 +393,33 @@ export default function SettingsScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
         {/* ACCOUNT */}
-        <Text style={s.sectionLabel}>ACCOUNT</Text>
+        <Text style={s.sectionLabel}>{t('ACCOUNT')}</Text>
         <View style={s.card}>
           <SettingItem
             theme={C}
             iconName="account-edit-outline"
-            title="Edit Profile"
-            subtitle="Update your name, photo & info"
+            title={t('EDIT_PROFILE')}
+            subtitle={t('EDIT_PROFILE_SUB')}
             onPress={() => navigation.navigate('EditProfile')}
           />
           <SettingItem
             theme={C}
             iconName="lock-outline"
-            title="Change Password"
-            subtitle="Update your login credentials"
+            title={t('CHANGE_PASSWORD')}
+            subtitle={t('CHANGE_PASSWORD_SUB')}
             isLast
             onPress={() => setShowPasswordModal(true)}
           />
         </View>
 
         {/* NOTIFICATIONS */}
-        <Text style={s.sectionLabel}>NOTIFICATIONS</Text>
+        <Text style={s.sectionLabel}>{t('NOTIFICATIONS')}</Text>
         <View style={s.card}>
           <SettingItem
             theme={C}
             iconName="bell-ring-outline"
-            title="Push Notifications"
-            subtitle="Alerts, reminders and updates"
+            title={t('PUSH_NOTIFS')}
+            subtitle={t('PUSH_NOTIFS_SUB')}
             showSwitch
             switchValue={pushEnabled}
             onSwitchChange={handlePushToggle}
@@ -394,8 +427,8 @@ export default function SettingsScreen({ navigation }: Props) {
           <SettingItem
             theme={C}
             iconName="email-outline"
-            title="Email Updates"
-            subtitle="Weekly digest and newsletters"
+            title={t('EMAIL_UPDATES')}
+            subtitle={t('EMAIL_UPDATES_SUB')}
             showSwitch
             switchValue={emailEnabled}
             onSwitchChange={handleEmailToggle}
@@ -404,13 +437,13 @@ export default function SettingsScreen({ navigation }: Props) {
         </View>
 
         {/* APPEARANCE */}
-        <Text style={s.sectionLabel}>APPEARANCE</Text>
+        <Text style={s.sectionLabel}>{t('APPEARANCE')}</Text>
         <View style={s.card}>
           <SettingItem
             theme={C}
             iconName="weather-night"
-            title="Dark Mode"
-            subtitle="Switch to dark theme"
+            title={t('DARK_MODE')}
+            subtitle={t('DARK_MODE_SUB')}
             showSwitch
             switchValue={isDark}
             onSwitchChange={handleDarkModeToggle}
@@ -418,32 +451,48 @@ export default function SettingsScreen({ navigation }: Props) {
           <SettingItem
             theme={C}
             iconName="format-size"
-            title="Text Size"
-            valueText={textSize}
+            title={t('TEXT_SIZE')}
+            valueText={textSize === 'Small' ? t('SMALL') : textSize === 'Medium' ? t('MEDIUM_SIZE') : t('LARGE')}
             isLast
             onPress={() => setShowTextSizeModal(true)}
           />
         </View>
 
         {/* SUPPORT */}
-        <Text style={s.sectionLabel}>SUPPORT</Text>
+        <Text style={s.sectionLabel}>{t('SUPPORT')}</Text>
         <View style={s.card}>
           <SettingItem
             theme={C}
             iconName="help-circle-outline"
-            title="Help Center"
-            subtitle="FAQs and guides"
+            title={t('HELP_CENTER')}
+            subtitle={t('HELP_CENTER_SUB')}
             onPress={() => setShowHelpModal(true)}
           />
           <SettingItem
             theme={C}
+            iconName="translate"
+            title={t('LANGUAGE')}
+            subtitle={t('LANGUAGE_SUB')}
+            valueText={getLanguageLabel(language)}
+            onPress={() => setShowLanguageModal(true)}
+          />
+          <SettingItem
+            theme={C}
             iconName="bug-outline"
-            title="Report a Bug"
-            subtitle="Help us improve the app"
+            title={t('REPORT_BUG')}
+            subtitle={t('REPORT_BUG_SUB')}
             isLast
             onPress={() => setShowBugModal(true)}
           />
         </View>
+
+        {/* LOGOUT */}
+        <TouchableOpacity style={s.logoutBtn} onPress={logout}>
+          <View style={s.logoutIconWrap}>
+            <MaterialCommunityIcons name="logout" size={20} color={C.white} />
+          </View>
+          <Text style={s.logoutText}>{t('LOGOUT')}</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -459,7 +508,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Change Password</Text>
+              <Text style={s.modalTitle}>{t('CHANGE_PASSWORD')}</Text>
               <TouchableOpacity onPress={() => {
                 setShowPasswordModal(false);
                 setPasswordError('');
@@ -484,31 +533,31 @@ export default function SettingsScreen({ navigation }: Props) {
             )}
 
             <View style={s.modalForm}>
-              <Text style={s.inputLabel}>Current Password</Text>
+              <Text style={s.inputLabel}>{t('CURRENT_PASSWORD')}</Text>
               <TextInput
                 style={s.modalInput}
                 secureTextEntry
-                placeholder="Enter current password"
+                placeholder={t('ENTER_CURRENT_PWD')}
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
                 placeholderTextColor={placeholderColor}
               />
 
-              <Text style={s.inputLabel}>New Password</Text>
+              <Text style={s.inputLabel}>{t('NEW_PASSWORD')}</Text>
               <TextInput
                 style={s.modalInput}
                 secureTextEntry
-                placeholder="Enter new password"
+                placeholder={t('ENTER_NEW_PWD')}
                 value={newPassword}
                 onChangeText={setNewPassword}
                 placeholderTextColor={placeholderColor}
               />
 
-              <Text style={s.inputLabel}>Confirm New Password</Text>
+              <Text style={s.inputLabel}>{t('CONFIRM_PASSWORD')}</Text>
               <TextInput
                 style={s.modalInput}
                 secureTextEntry
-                placeholder="Confirm new password"
+                placeholder={t('CONFIRM_NEW_PWD')}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholderTextColor={placeholderColor}
@@ -522,7 +571,7 @@ export default function SettingsScreen({ navigation }: Props) {
                 {passwordLoading ? (
                   <ActivityIndicator color={C.white} size="small" />
                 ) : (
-                  <Text style={s.modalBtnText}>Change Password</Text>
+                  <Text style={s.modalBtnText}>{t('CHANGE_PASSWORD')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -540,7 +589,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <View style={s.modalOverlay}>
           <View style={[s.modalContent, { width: '80%' }]}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Text Size</Text>
+              <Text style={s.modalTitle}>{t('TEXT_SIZE')}</Text>
               <TouchableOpacity onPress={() => setShowTextSizeModal(false)}>
                 <MaterialCommunityIcons name="close" size={22} color={C.text} />
               </TouchableOpacity>
@@ -554,9 +603,49 @@ export default function SettingsScreen({ navigation }: Props) {
                   onPress={() => handleTextSizeSelect(size)}
                 >
                   <Text style={[s.sizeOptionText, textSize === size && s.sizeOptionTextActive]}>
-                    {size}
+                    {size === 'Small' ? t('SMALL') : size === 'Medium' ? t('MEDIUM_SIZE') : t('LARGE')}
                   </Text>
                   {textSize === size && (
+                    <MaterialCommunityIcons name="check" size={18} color={C.green} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Modal: Language Selection ────────────────────────────────────── */}
+      <Modal
+        visible={showLanguageModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={[s.modalContent, { width: '80%' }]}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>{t('SELECT_LANGUAGE')}</Text>
+              <TouchableOpacity onPress={() => setShowLanguageModal(false)}>
+                <MaterialCommunityIcons name="close" size={22} color={C.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ paddingVertical: 10 }}>
+              {(['en', 'fr', 'ar'] as const).map((lang) => (
+                <TouchableOpacity
+                  key={lang}
+                  style={s.sizeOptionRow}
+                  onPress={() => handleLanguageSelect(lang)}
+                >
+                  <Text style={[
+                    s.sizeOptionText, 
+                    language === lang && s.sizeOptionTextActive,
+                    isRTL && { textAlign: 'right' }
+                  ]}>
+                    {lang === 'en' ? t('ENGLISH') : lang === 'fr' ? t('FRENCH') : t('ARABIC')}
+                  </Text>
+                  {language === lang && (
                     <MaterialCommunityIcons name="check" size={18} color={C.green} />
                   )}
                 </TouchableOpacity>
@@ -576,14 +665,14 @@ export default function SettingsScreen({ navigation }: Props) {
         <View style={s.modalOverlay}>
           <View style={[s.modalContent, { maxHeight: '80%' }]}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Help Center</Text>
+              <Text style={s.modalTitle}>{t('HELP_CENTER')}</Text>
               <TouchableOpacity onPress={() => setShowHelpModal(false)}>
                 <MaterialCommunityIcons name="close" size={22} color={C.text} />
               </TouchableOpacity>
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ marginVertical: 10 }}>
-              <Text style={s.helpHeaderDesc}>Frequently Asked Questions</Text>
+              <Text style={s.helpHeaderDesc}>{t('HELP_CENTER_SUB')}</Text>
               {FAQS.map((faq, i) => (
                 <View key={i} style={s.faqItem}>
                   <TouchableOpacity
@@ -618,7 +707,7 @@ export default function SettingsScreen({ navigation }: Props) {
         <View style={s.modalOverlay}>
           <View style={s.modalContent}>
             <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>Report a Bug</Text>
+              <Text style={s.modalTitle}>{t('REPORT_BUG')}</Text>
               <TouchableOpacity onPress={() => setShowBugModal(false)}>
                 <MaterialCommunityIcons name="close" size={22} color={C.text} />
               </TouchableOpacity>
@@ -627,31 +716,31 @@ export default function SettingsScreen({ navigation }: Props) {
             {bugSuccess ? (
               <View style={s.bugSuccessContainer}>
                 <MaterialCommunityIcons name="check-circle-outline" size={48} color={C.green} />
-                <Text style={s.bugSuccessTitle}>Thank you! ✅</Text>
-                <Text style={s.bugSuccessSub}>Your report has been submitted.</Text>
+                <Text style={s.bugSuccessTitle}>{t('THANK_YOU')}</Text>
+                <Text style={s.bugSuccessSub}>{t('BUG_SUBMITTED')}</Text>
               </View>
             ) : (
               <View style={s.modalForm}>
-                <Text style={s.inputLabel}>Bug Title</Text>
+                <Text style={s.inputLabel}>{t('BUG_TITLE')}</Text>
                 <TextInput
                   style={s.modalInput}
-                  placeholder="e.g. App crashes on search"
+                  placeholder={t('BUG_TITLE_PLACEHOLDER')}
                   value={bugTitle}
                   onChangeText={setBugTitle}
                   placeholderTextColor={placeholderColor}
                 />
 
-                <Text style={s.inputLabel}>Bug Description</Text>
+                <Text style={s.inputLabel}>{t('BUG_DESC')}</Text>
                 <TextInput
                   style={[s.modalInput, { height: 80, textAlignVertical: 'top', paddingTop: 10 }]}
                   multiline
-                  placeholder="Tell us what went wrong..."
+                  placeholder={t('BUG_DESC_PLACEHOLDER')}
                   value={bugDesc}
                   onChangeText={setBugDesc}
                   placeholderTextColor={placeholderColor}
                 />
 
-                <Text style={s.inputLabel}>Severity</Text>
+                <Text style={s.inputLabel}>{t('SEVERITY')}</Text>
                 <View style={s.severityRow}>
                   {['Low', 'Medium', 'High'].map((sev) => (
                     <TouchableOpacity
@@ -663,7 +752,7 @@ export default function SettingsScreen({ navigation }: Props) {
                       onPress={() => setBugSeverity(sev)}
                     >
                       <Text style={[s.severityBtnText, bugSeverity === sev && { color: C.white }]}>
-                        {sev}
+                        {sev === 'Low' ? t('LOW') : sev === 'Medium' ? t('MEDIUM') : t('HIGH')}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -677,7 +766,7 @@ export default function SettingsScreen({ navigation }: Props) {
                   {bugLoading ? (
                     <ActivityIndicator color={C.white} size="small" />
                   ) : (
-                    <Text style={s.modalBtnText}>Submit Report</Text>
+                    <Text style={s.modalBtnText}>{t('SUBMIT_REPORT')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -689,4 +778,3 @@ export default function SettingsScreen({ navigation }: Props) {
     </>
   );
 }
-
