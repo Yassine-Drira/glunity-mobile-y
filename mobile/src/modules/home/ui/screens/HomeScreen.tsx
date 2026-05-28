@@ -14,6 +14,8 @@ import {
   Platform,
 } from "react-native";
 import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import EventCard from '@/modules/events/components/EventCard';
+import HomeEventCard from '../../components/HomeEventCard';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../theme/colors";
 import { homeScreenText } from "../../state/homeData";
@@ -21,6 +23,8 @@ import type { HomeScreenProps } from "../../domain/home.types";
 import { AppScaffold } from "@/shared/components/AppScaffold";
 import { useTheme } from "@/shared/context/theme.context";
 import { ScanFrameIcon } from "@/shared/components/icons/ScanFrameIcon";
+import { eventsApi } from '../../api/events.api';
+import { useNavigation } from '@react-navigation/native';
 
 const ICON_RED = "#C8102E";
 const optimizeUnsplashImage = (url: string, width: number, height: number) => {
@@ -53,6 +57,7 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const insets = useSafeAreaInsets();
   const { theme: T } = useTheme();
+  const navigation = useNavigation<any>();
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const searchAnim = React.useRef(new Animated.Value(0)).current;
@@ -66,10 +71,28 @@ export function HomeScreen({
     [recipes],
   );
 
+  const [homeEvents, setHomeEvents] = React.useState<GluunityEvent[]>(events || []);
+
   const optimizedEvents = React.useMemo(
-    () => events.map((item) => ({ ...item, imageUrl: optimizeUnsplashImage(item.imageUrl, 420, 320) })),
-    [events],
+    () => homeEvents.map((item) => ({ ...item, imageUrl: optimizeUnsplashImage(item.imageUrl, 420, 320) })),
+    [homeEvents],
   );
+
+
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const list = await eventsApi.list();
+        if (!mounted) return;
+        const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
+        setHomeEvents(withHandlers);
+      } catch (err) {
+        // failed to fetch events; keep existing homeEvents
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   React.useEffect(() => {
     Animated.loop(
@@ -291,30 +314,18 @@ export function HomeScreen({
           </TouchableOpacity>
         </View>
 
-        <View style={styles.eventsRow}>
-          {filteredEvents.map((item) => (
-            <TouchableOpacity key={item.id} activeOpacity={0.85} onPress={item.onPress} style={[styles.eventCard, { backgroundColor: T.surface }]}>
-              <Image source={{ uri: item.imageUrl }} style={styles.eventImage} />
-              <View style={styles.eventBody}>
-                <Text style={[styles.eventTitle, { color: T.text }]} numberOfLines={2}>
-                  {item.title}
-                </Text>
-                <View style={styles.metaRow}>
-                  <Ionicons name="location-outline" size={10} color={T.green} />
-                  <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>
-                    {item.location}
-                  </Text>
-                </View>
-                <View style={styles.metaRow}>
-                  <Ionicons name="calendar-outline" size={10} color={T.green} />
-                  <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>
-                    {item.date}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <FlatList
+          horizontal
+          data={filteredEvents}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.eventsList}
+          renderItem={({ item }) => (
+            <View style={{ width: 180, marginRight: 12 }}>
+              <HomeEventCard event={item} onPress={item.onPress} />
+            </View>
+          )}
+        />
 
         <View style={{ height: 116 + insets.bottom }} />
       </ScrollView>
@@ -537,6 +548,11 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
     gap: 12,
   },
+  eventsList: {
+    marginTop: 12,
+    paddingBottom: 6,
+    paddingLeft: 4,
+  },
   recipeCard: {
     width: 138,
     height: 190,
@@ -567,12 +583,12 @@ const styles = StyleSheet.create({
   },
   eventsRow: {
     marginTop: 10,
+    // kept for backward compatibility; replaced by horizontal FlatList
     flexDirection: "row",
-    justifyContent: "space-between",
     gap: 12,
   },
   eventCard: {
-    width: "48.3%",
+    width: 220,
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
@@ -581,6 +597,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 3,
+    marginRight: 12,
   },
   eventImage: {
     width: "100%",

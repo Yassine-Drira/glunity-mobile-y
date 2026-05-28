@@ -3,14 +3,18 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Image,
   Platform,
+  Dimensions,
+  TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
 import { AuthButton } from '@/shared/components/AuthButton';
+import { WaveBackground } from '@/shared/components/WaveBackground';
+import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -18,6 +22,9 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen({ navigation }: Props) {
   const { theme: T, isDark } = useTheme();
+  const { clearError } = useAuth();
+  const { width: screenWidth } = Dimensions.get('window');
+  const imageSize = Math.min(420, Math.floor(screenWidth * 0.72));
 
   const styles = React.useMemo(() => StyleSheet.create({
     safe: {
@@ -29,50 +36,43 @@ export default function WelcomeScreen({ navigation }: Props) {
       paddingHorizontal: 24,
       justifyContent: 'center',
       alignItems: 'center',
+      paddingTop: 40,
+      paddingBottom: 140,
     },
     mascotWrap: {
-      width: 160,
-      height: 160,
-      borderRadius: 80,
-      backgroundColor: T.greenLight,
+      width: '100%',
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 24,
-      // subtle shadow
-      ...Platform.select({
-        ios: {
-          shadowColor: T.green,
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.18,
-          shadowRadius: 20,
-        },
-        android: {
-          elevation: 8,
-        },
-        web: {
-          boxShadow: `0px 8px 20px rgba(139, 195, 74, 0.18)`,
-        },
-      }),
+      backgroundColor: 'transparent',
+      padding: 0,
+      // remove any native shadow/elevation
+      shadowColor: 'transparent',
+      shadowOpacity: 0,
+      shadowOffset: { width: 0, height: 0 },
+      shadowRadius: 0,
+      elevation: 0,
     },
     mascot: {
-      fontSize: 80,
+      fontSize: 140,
     },
     title: {
-      fontSize: 34,
-      fontWeight: '600',
-      fontFamily: 'Poppins_600SemiBold',
+      fontSize: 28,
+      fontWeight: '700',
+      fontFamily: 'Poppins_700Bold',
       color: T.text,
       textAlign: 'center',
-      marginBottom: 8,
+      marginBottom: 6,
     },
+    // no footer text; only WaveBackground will render
     subtitle: {
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: '500',
       fontFamily: 'Poppins_500Medium',
       color: T.textSub,
       textAlign: 'center',
-      lineHeight: 26,
-      marginBottom: 40,
+      lineHeight: 20,
+      marginBottom: 28,
     },
     btnGroup: {
       width: '100%',
@@ -100,11 +100,15 @@ export default function WelcomeScreen({ navigation }: Props) {
       <View style={styles.container}>
         {/* Mascot */}
         <View style={styles.mascotWrap}>
-          <MaterialCommunityIcons name={"barley" as any} size={80} color={T.green} />
+          {/* Local welcome image (place image 2 (2).png in mobile/assets/) */}
+          <Image
+            source={require('../../../../../assets/Logo/image 2 (2).png')}
+            style={{ width: imageSize, height: imageSize, resizeMode: 'contain' }}
+          />
         </View>
 
         {/* Heading */}
-        <Text style={styles.title}>Salut, Bienvenue!</Text>
+        <Text style={styles.title}>Salut , Bienvenue!</Text>
         <Text style={styles.subtitle}>
           Connectez-vous{'\n'}pour continuer
         </Text>
@@ -118,15 +122,15 @@ export default function WelcomeScreen({ navigation }: Props) {
           />
           <View style={styles.btnSep} />
           <AuthButton
-            label="Créer un compte"
+            label="Creer un compte"
             variant="outlined"
             onPress={() => navigation.navigate('Register')}
           />
         </View>
       </View>
 
-      {/* Bottom wave decoration */}
-      <View style={styles.waveBg} />
+
+      <WaveBackground />
     </SafeAreaView>
   );
 }
