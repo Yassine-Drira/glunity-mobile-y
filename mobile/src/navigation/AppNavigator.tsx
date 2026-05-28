@@ -20,6 +20,9 @@ import ProductDetailScreen  from '../modules/products/ui/screens/ProductDetailSc
 import MapScreen            from '../modules/map/ui/screens/MapScreen';
 import EventsCalendarScreen from '../modules/events/ui/screens/EventsCalendarScreen';
 import EventDetailScreen from '../modules/events/ui/screens/EventDetailScreen';
+import AddEventScreen from '../modules/events/ui/screens/AddEventScreen';
+import NotificationsScreen from '../modules/notifications/ui/screens/NotificationsScreen';
+import PatientResourcesScreen from '../modules/patient-resources/ui/screens/PatientResourcesScreen';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -38,20 +41,16 @@ export function AppNavigator() {
 
           const dynamicQuickAccessItems = homeScreenMockProps.quickAccessItems.map(item => {
             if (item.id === 'find-products') {
-              return {
-                ...item,
-                onPress: () => {
-                  navigation.navigate('ProductsMarket');
-                }
-              };
+              return { ...item, onPress: () => navigation.navigate('ProductsMarket') };
             }
             if (item.id === 'map') {
-              return {
-                ...item,
-                onPress: () => {
-                  navigation.navigate('Map');
-                }
-              };
+              return { ...item, onPress: () => navigation.navigate('Map') };
+            }
+            if (item.id === 'patient-resources') {
+              return { ...item, onPress: () => navigation.navigate('PatientResources') };
+            }
+            if (item.id === 'community') {
+              return { ...item, onPress: () => navigation.navigate('Events') };
             }
             return item;
           });
@@ -142,6 +141,9 @@ export function AppNavigator() {
       </Stack.Screen>
       <Stack.Screen name="Events" component={EventsCalendarScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="AddEvent" component={AddEventScreen} options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="PatientResources" component={PatientResourcesScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }

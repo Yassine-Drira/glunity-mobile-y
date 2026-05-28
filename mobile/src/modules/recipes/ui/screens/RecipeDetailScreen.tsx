@@ -253,7 +253,7 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
 
   React.useEffect(() => {
     const recipeId = route.params?.recipeId;
-    if (!recipeId) return;
+    if (!recipeId || recipeId.startsWith('mock-')) return;
 
     (async () => {
       try {

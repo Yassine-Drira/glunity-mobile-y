@@ -378,12 +378,12 @@ export default function SellerProProfileScreen({ navigation }: Props) {
         <View style={s.menuStack}>
           <TouchableOpacity
             style={s.menuRow}
-            onPress={() => navigation.navigate('AddProduct', {})}
+            onPress={() => navigation.navigate('SellerProfile', { sellerId: user?._id })}
             id="pro-profile-products-btn"
           >
             <View style={s.menuLeft}>
               <View style={s.menuIconCircle}>
-                <Feather name="search" size={17} color={T.red} />
+                <Feather name="shopping-bag" size={17} color={T.red} />
               </View>
               <Text style={s.menuLabel}>My products</Text>
             </View>

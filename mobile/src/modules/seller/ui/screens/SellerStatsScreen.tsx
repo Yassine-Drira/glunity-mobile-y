@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { Radius } from '@/shared/utils/theme';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -29,8 +29,6 @@ import Svg, {
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerStats'>;
 
-const { width } = Dimensions.get('window');
-
 // Pixels nodes representing the mockup line graph perfectly:
 // Monday is at 95px, peaks on Wednesday, dips on Thursday, reaches a massive peak on Friday (20px), and drops on Sunday.
 const CHART_PATH = "M 35,95 C 75,90 100,50 140,55 C 180,60 195,100 230,85 C 255,75 270,18 290,20 C 310,22 320,60 340,95";
@@ -39,6 +37,8 @@ const GRID_LINES_Y = [30, 65, 100];
 export default function SellerStatsScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const screenWidth = Math.min(windowWidth, 600);
   const [timeframe, setTimeframe] = useState('Last 7 days');
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
 
@@ -152,7 +152,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
       marginBottom: 28,
     },
     statCard: {
-      width: (width - 72) / 2,
+      width: (screenWidth - 72) / 2,
       height: 128.78,
       borderRadius: 24,
       backgroundColor: T.surface,
@@ -373,7 +373,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
       borderColor: '#FFFFFF',
       borderRadius: 2,
     },
-  }), [T]);
+  }), [T, screenWidth]);
 
   const stats = [
     {
@@ -486,7 +486,12 @@ export default function SellerStatsScreen({ navigation }: Props) {
 
         {/* ── Beautiful Cubic Bezier Line Chart ─────────────────────────────── */}
         <View style={[s.chartWrapper, { backgroundColor: T.surface, borderColor: T.border, borderWidth: 1 }]}>
-          <Svg width={width - 56} height={160} style={s.chartSvg}>
+          <Svg
+            width={screenWidth - 56}
+            height={160}
+            viewBox="0 0 350 160"
+            style={s.chartSvg}
+          >
             <Defs>
               <LinearGradient id="gradientFill" x1="0" y1="0" x2="0" y2="1">
                 <Stop offset="0%" stopColor={T.green} stopOpacity={0.25} />
@@ -500,7 +505,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                 key={idx}
                 x1="30"
                 y1={y}
-                x2={width - 70}
+                x2="340"
                 y2={y}
                 stroke={T.border}
                 strokeWidth={1}

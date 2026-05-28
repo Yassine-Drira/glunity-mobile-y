@@ -7,12 +7,16 @@ import { eventsApi } from '../../../home/api/events.api';
 import type { GlunityEvent } from '../../../home/domain/home.types';
 import { Ionicons } from '@expo/vector-icons';
 import EventCard from '../../components/EventCard';
+import { useAuth } from '@/modules/auth/state/auth.context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FILTERS = ['All', 'Meetups', 'Classes', 'Markets'];
 
 export default function EventsCalendarScreen({ navigation }: any) {
   const { theme: T } = useTheme();
-  const [events, setEvents] = React.useState<GluunityEvent[]>([]);
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const [events, setEvents] = React.useState<GlunityEvent[]>([]);
   const [filter, setFilter] = React.useState('All');
 
   const TYPE_MAP: Record<string, string | undefined> = {
@@ -113,17 +117,39 @@ export default function EventsCalendarScreen({ navigation }: any) {
     cardFooter: { marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     badge: { backgroundColor: '#E6FFFA', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, flexDirection: 'row', alignItems: 'center' },
     badgeText: { color: '#047857', fontWeight: '700', marginLeft: 6 },
-  }), [T]);
+    fab: {
+      position: 'absolute',
+      bottom: 96 + Math.max(insets.bottom, 12) + 20,
+      right: 20,
+      height: 46,
+      paddingHorizontal: 18,
+      borderRadius: 23,
+      backgroundColor: T.green,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      shadowColor: T.green,
+      shadowOpacity: 0.35,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 10,
+      elevation: 6,
+      zIndex: 99,
+      borderWidth: 1,
+      borderColor: 'rgba(255, 255, 255, 0.25)',
+    },
+    fabText: {
+      color: '#FFFFFF',
+      fontSize: 13.5,
+      fontWeight: '700',
+      fontFamily: 'Poppins_700Bold',
+    },
+  }), [T, insets]);
 
   return (
     <AppScaffold
       title="Events"
       activeTab="events"
-      onPressHome={() => navigation.navigate('Home')}
-      onPressEvents={() => navigation.navigate('Events')}
-      onPressCenter={() => {}}
-      onPressReels={() => {}}
-      onPressProfile={() => navigation.navigate('Profile')}
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[styles.root, { backgroundColor: T.bg }] }>
@@ -162,6 +188,16 @@ export default function EventsCalendarScreen({ navigation }: any) {
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
+        {user?.profileType === 'pro_commerce' && (
+          <TouchableOpacity
+            style={styles.fab}
+            onPress={() => navigation.navigate('AddEvent')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="calendar-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.fabText}>Add Event</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </AppScaffold>
   );

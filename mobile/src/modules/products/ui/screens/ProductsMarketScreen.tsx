@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
+  useWindowDimensions,
   FlatList,
   Image,
   RefreshControl,
@@ -24,10 +24,8 @@ import productsApi, { Product } from '@/modules/seller/api/products.api';
 import type { AppStackParamList } from '@/navigation/types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_GAP = 12;
 const H_PAD = 20;
-const CARD_W = (SCREEN_W - H_PAD * 2 - CARD_GAP) / 2;
 
 const FILTERS: { key: string; label: string }[] = [
   { key: 'all',       label: 'All' },
@@ -65,7 +63,7 @@ function getSellerName(sellerId: Product['sellerId']): string {
 type Props = NativeStackScreenProps<AppStackParamList, 'ProductsMarket'>;
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
-const ProductCard = React.memo(({ product, onPress }: { product: Product; onPress: () => void }) => {
+const ProductCard = React.memo(({ product, onPress, cardWidth }: { product: Product; onPress: () => void; cardWidth: number }) => {
   const { theme: T } = useTheme();
   const scaleAnim  = useRef(new Animated.Value(1)).current;
   const imageUri   = useMemo(() => getProductImage(product), [product]);
@@ -82,7 +80,7 @@ const ProductCard = React.memo(({ product, onPress }: { product: Product; onPres
       borderRadius: Radius.lg, overflow: 'hidden',
       shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3,
     },
-    imageWrap: { width: '100%', height: CARD_W, backgroundColor: T.surfaceAlt, position: 'relative' },
+    imageWrap: { width: '100%', height: cardWidth, backgroundColor: T.surfaceAlt, position: 'relative' },
     cardImage: { width: '100%', height: '100%' },
     certBadge: {
       position: 'absolute', top: 6, right: 6, backgroundColor: T.green,
@@ -93,10 +91,10 @@ const ProductCard = React.memo(({ product, onPress }: { product: Product; onPres
     productName: { fontSize: 13, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, lineHeight: 18 },
     sellerName: { fontSize: 11, color: T.red, fontWeight: '500', fontFamily: 'Poppins_500Medium' },
     price: { fontSize: 13, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.green, marginTop: 2 },
-  }), [T]);
+  }), [T, cardWidth]);
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }], width: CARD_W }}>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }], width: cardWidth }}>
       <TouchableOpacity
         activeOpacity={1}
         onPressIn={handlePressIn}
@@ -128,6 +126,10 @@ export default function ProductsMarketScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { theme: T, isDark } = useTheme();
   const insets   = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+
+  const screenWidth = Math.min(windowWidth, 600);
+  const cardWidth = (screenWidth - H_PAD * 2 - CARD_GAP) / 2;
 
   const s = React.useMemo(() => StyleSheet.create({
     safe: { flex: 1, backgroundColor: T.bg },
@@ -311,12 +313,6 @@ export default function ProductsMarketScreen({ navigation }: Props) {
     <AppScaffold
       title="Market"
       activeTab="home"
-      rightElement={headerActions}
-      onPressHome={() => navigation.navigate('Home')}
-      onPressEvents={() => navigation.navigate('Map')}
-      onPressCenter={() => {}}
-      onPressReels={() => {}}
-      onPressProfile={handleProfileNav}
       contentStyle={{ backgroundColor: T.bg }}
     >
 
@@ -358,6 +354,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
           renderItem={({ item }) => (
             <ProductCard
               product={item}
+              cardWidth={cardWidth}
               onPress={() => navigation.navigate('ProductDetail', { product: item })}
             />
           )}

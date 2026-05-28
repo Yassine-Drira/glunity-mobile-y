@@ -26,5 +26,8 @@ export type AppStackParamList = {
   Map: undefined;
   Events: undefined;
   EventDetail: { eventId: string };
+  AddEvent: undefined;
   SellerProProfile: undefined;
+  Notifications: undefined;
+  PatientResources: undefined;
 };

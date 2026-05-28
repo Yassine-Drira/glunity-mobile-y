@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '@/shared/context/theme.context';
 
 interface FilterPillProps {
   label?: string;
@@ -8,26 +9,26 @@ interface FilterPillProps {
   testID?: string;
 }
 
-const C = {
-  bg: '#FFFFFF',
-  text: '#2E2E2E',
-  shadow: '#000000',
-};
-
 /**
- * The white "Filter" pill that floats above the map (top-right of screen
- * in the mockup). Tapping it opens the filter sheet.
+ * The floating "Filter" pill that floats above the map.
+ * Tapping it opens the filter sheet.
  */
 export function FilterPill({ label = 'Filter', onPress, testID }: FilterPillProps) {
+  const { theme: T } = useTheme();
+
   return (
     <Pressable
       onPress={onPress}
       testID={testID}
-      style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.pill,
+        { backgroundColor: T.surface, borderColor: T.border },
+        pressed && styles.pressed,
+      ]}
     >
       <View style={styles.row}>
-        <Feather name="sliders" size={14} color={C.text} />
-        <Text style={styles.label}>{label}</Text>
+        <Feather name="sliders" size={13} color={T.green} />
+        <Text style={[styles.label, { color: T.text }]}>{label}</Text>
       </View>
     </Pressable>
   );
@@ -35,14 +36,14 @@ export function FilterPill({ label = 'Filter', onPress, testID }: FilterPillProp
 
 const styles = StyleSheet.create({
   pill: {
-    backgroundColor: C.bg,
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
-    shadowColor: C.shadow,
-    shadowOpacity: 0.12,
+    borderWidth: 1,
+    shadowColor: '#000000',
+    shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
+    shadowRadius: 12,
     elevation: 3,
   },
   pressed: { opacity: 0.85 },
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: C.text,
-    fontFamily: 'Poppins_500Medium',
+    fontWeight: '600',
+    fontFamily: 'Poppins_600SemiBold',
   },
 });

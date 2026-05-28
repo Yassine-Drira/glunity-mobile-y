@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
-  Dimensions,
+  useWindowDimensions,
   Switch,
   Modal,
   Alert,
@@ -19,15 +19,18 @@ import type { AppStackParamList } from '@/navigation/types';
 import productsApi from '../../api/products.api';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'AddProduct'>;
-
-const { width } = Dimensions.get('window');
 
 const CATEGORIES = ['Bakery', 'Pastry & Cakes', 'Breads & Buns', 'Flour & Mixes', 'Snacks', 'Desserts'];
 
 export default function AddProductScreen({ navigation, route }: Props) {
   const { theme: T } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const screenWidth = Math.min(windowWidth, 600);
+  const bottomInset = Math.max(insets.bottom, 8) + 110;
   const productToEdit = route.params?.product;
   const isEditing = !!productToEdit;
 
@@ -387,7 +390,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
       alignItems: 'center',
     },
     modalContent: {
-      width: width * 0.82,
+      width: screenWidth * 0.82,
       backgroundColor: T.surface,
       borderRadius: 24,
       padding: 24,
@@ -476,7 +479,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
       borderColor: '#FFFFFF',
       borderRadius: 2,
     },
-  }), [T]);
+  }), [T, screenWidth]);
 
   // Form states
   const [productName, setProductName] = useState('');
@@ -608,6 +611,29 @@ export default function AddProductScreen({ navigation, route }: Props) {
     }
   };
 
+  React.useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      const isDirty = productName.trim() || category.trim() || price.trim() || description.trim();
+      if (!isDirty || isSubmitting || successModalVisible) {
+        return;
+      }
+      e.preventDefault();
+      Alert.alert(
+        'Discard draft?',
+        'You have unsaved changes. Are you sure you want to discard them and leave?',
+        [
+          { text: 'Keep Editing', style: 'cancel', onPress: () => {} },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+    return unsubscribe;
+  }, [navigation, productName, category, price, description, isSubmitting, successModalVisible]);
+
   const handleDelete = () => {
     const performDelete = async () => {
       try {
@@ -671,7 +697,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
 
       <ScrollView
         style={s.flex}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingBottom: bottomInset }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >

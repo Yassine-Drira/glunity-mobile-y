@@ -65,7 +65,7 @@ export function PlaceCard({
             <View style={styles.metaCell}>
               <Ionicons name="star" size={14} color={C.star} />
               <Text style={styles.metaStrong}>{ratingLabel}</Text>
-              <Text style={styles.metaMuted}>({reviewLabel} Reviews)</Text>
+              <Text style={styles.metaMuted}>({reviewLabel} reviews)</Text>
             </View>
             {(distanceKm != null || etaMinutes != null) && (
               <View style={styles.metaCell}>
@@ -96,24 +96,25 @@ export function PlaceCard({
 
   // compact variant
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.compactCard, pressed && { opacity: 0.92 }]}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.compactCard, pressed && { opacity: 0.95 }]}>
       <View style={styles.compactRowTop}>
+        <Text style={styles.compactTitle} numberOfLines={1}>{location.name}</Text>
         <View style={styles.glutenChip}>
-          <Text style={styles.glutenChipText}>Gluten-free</Text>
-          <Ionicons name="checkmark-circle" size={14} color={C.green} />
+          <Text style={styles.glutenChipText}>GF</Text>
+          <Ionicons name="checkmark-circle" size={11} color={C.green} />
         </View>
       </View>
       <View style={styles.compactRow}>
-        <Feather name="map-pin" size={14} color={C.muted} />
-        <Text style={styles.compactMuted}>
+        <Feather name="map-pin" size={13} color={C.muted} />
+        <Text style={styles.compactMuted} numberOfLines={1}>
           {distanceKm != null ? `${distanceKm.toFixed(1)} km away from you` : (location.address || location.city || '—')}
         </Text>
       </View>
       <View style={styles.compactBottom}>
         <View style={styles.metaCell}>
-          <Ionicons name="star" size={14} color={C.star} />
+          <Ionicons name="star" size={13} color={C.star} />
           <Text style={styles.metaStrong}>{ratingLabel}</Text>
-          <Text style={styles.metaMuted}>{reviewLabel} reviews</Text>
+          <Text style={styles.metaMuted}>({reviewLabel} reviews)</Text>
         </View>
         {!!location.priceRange && (
           <Text style={styles.price}>{priceToDisplay(location.priceRange)}</Text>
@@ -129,12 +130,11 @@ function formatReviews(n: number): string {
 }
 
 function priceToDisplay(p: string): string {
-  // Visual cue for the mockup ("20 TND" style); fallback to the symbols
   if (!p) return '';
   return p;
 }
 
-const RADIUS = 22;
+const RADIUS = 20;
 
 const styles = StyleSheet.create({
   // ── Compact ────────────────────────────────────────────────────────────────
@@ -142,70 +142,86 @@ const styles = StyleSheet.create({
     backgroundColor: C.white,
     borderRadius: RADIUS,
     padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
     shadowColor: C.shadow,
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.08,
     shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 14,
-    elevation: 4,
+    shadowRadius: 16,
+    elevation: 5,
   },
-  compactRowTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  compactRowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 10 },
+  compactTitle: { fontSize: 16, fontWeight: '700', color: C.text, fontFamily: 'Poppins_700Bold', flex: 1 },
   compactRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  compactMuted: { fontSize: 12, color: C.muted, fontFamily: 'Poppins_400Regular' },
-  compactBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  compactMuted: { fontSize: 12, color: C.muted, fontFamily: 'Poppins_400Regular', flex: 1 },
+  compactBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F4F4F3', paddingTop: 10, marginTop: 4 },
   glutenChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#F2F8E9',
-    borderRadius: 999,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: '#EBF8E1',
+    borderRadius: 8,
   },
-  glutenChipText: { fontSize: 12, color: C.text, fontFamily: 'Poppins_500Medium' },
-  price: { fontSize: 16, fontWeight: '700', color: C.text, fontFamily: 'Poppins_700Bold' },
+  glutenChipText: { fontSize: 11, fontWeight: '600', color: C.green, fontFamily: 'Poppins_600SemiBold' },
+  price: { fontSize: 15, fontWeight: '700', color: C.text, fontFamily: 'Poppins_700Bold' },
 
   // ── Detailed ───────────────────────────────────────────────────────────────
   detailedCard: {
     backgroundColor: C.white,
     borderRadius: RADIUS,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
     shadowColor: C.shadow,
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 20,
-    elevation: 6,
+    shadowRadius: 24,
+    elevation: 7,
   },
   heroWrap: { position: 'relative' },
-  hero: { width: '100%', height: 170 },
-  heroPlaceholder: { backgroundColor: '#EEE', alignItems: 'center', justifyContent: 'center' },
+  hero: { width: '100%', height: 160 },
+  heroPlaceholder: { backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   glutenRibbon: {
     position: 'absolute',
-    right: 16,
-    top: 0,
-    paddingHorizontal: 14,
-    paddingVertical: 24,
+    left: 12,
+    top: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     backgroundColor: C.green,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   glutenRibbonText: {
     color: C.white,
     fontFamily: 'Poppins_600SemiBold',
-    fontSize: 12,
-    transform: [{ rotate: '-90deg' }],
+    fontSize: 11,
+    fontWeight: '600',
   },
-  detailedBody: { padding: 18, gap: 10 },
-  title: { fontSize: 20, fontWeight: '700', color: C.text, fontFamily: 'Poppins_700Bold' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 18, flexWrap: 'wrap' },
+  detailedBody: { padding: 16, gap: 8 },
+  title: { fontSize: 19, fontWeight: '700', color: C.text, fontFamily: 'Poppins_700Bold' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 16, flexWrap: 'wrap' },
   metaCell: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaStrong: { fontSize: 13, fontWeight: '600', color: C.text, fontFamily: 'Poppins_600SemiBold' },
   metaMuted: { fontSize: 12, color: C.muted, fontFamily: 'Poppins_400Regular' },
-  description: { fontSize: 13, lineHeight: 19, color: C.text, fontFamily: 'Poppins_400Regular' },
-  readMore: { color: C.star, fontFamily: 'Poppins_600SemiBold' },
+  description: { fontSize: 13, lineHeight: 18, color: C.muted, fontFamily: 'Poppins_400Regular' },
+  readMore: { color: C.greenDeep, fontFamily: 'Poppins_600SemiBold' },
   cta: {
-    marginTop: 6,
+    marginTop: 8,
     backgroundColor: C.green,
-    borderRadius: 999,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
+    shadowColor: C.green,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
   },
-  ctaLabel: { color: C.white, fontFamily: 'Poppins_600SemiBold', fontSize: 15 },
+  ctaLabel: { color: C.white, fontFamily: 'Poppins_600SemiBold', fontSize: 14, fontWeight: '600' },
 });

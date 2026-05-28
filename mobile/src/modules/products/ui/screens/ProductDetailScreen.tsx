@@ -20,7 +20,6 @@ import type { Product } from '@/modules/seller/api/products.api';
 import { useTheme } from '@/shared/context/theme.context';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_H = 210;  // fixed contained height matching the screenshot
 
 const CATEGORY_FALLBACKS: Record<string, string> = {
@@ -145,7 +144,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
 
     // ── Hero image — contained block, full width, no border radius
     heroImage: {
-      width: SCREEN_W,
+      width: '100%',
       height: HERO_H,
       backgroundColor: T.surfaceAlt,
     },

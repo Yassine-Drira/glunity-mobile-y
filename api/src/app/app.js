@@ -17,6 +17,11 @@ const recipesRoutes   = require('./modules/recipes/recipes.routes');
 const productsRoutes  = require('./modules/products/products.routes');
 const locationsRoutes = require('./modules/locations/locations.routes');
 const eventsRoutes = require('./modules/events/events.routes');
+const notificationsRoutes = require('./modules/notifications/notifications.routes');
+const badgesRoutes = require('./modules/badges/badges.routes');
+const reviewsRoutes = require('./modules/reviews/reviews.routes');
+const channelsRoutes = require('./modules/channels/channels.routes');
+const patientResourcesRoutes = require('./modules/patient-resources/patient-resources.routes');
 
 const app = express();
 
@@ -41,6 +46,11 @@ app.use('/api/recipes',   recipesRoutes);
 app.use('/api/products',  productsRoutes);
 app.use('/api/locations', locationsRoutes);
 app.use('/api/events', eventsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/badges', badgesRoutes);
+app.use('/api/reviews', reviewsRoutes);
+app.use('/api/channels', channelsRoutes);
+app.use('/api/patient-resources', patientResourcesRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {

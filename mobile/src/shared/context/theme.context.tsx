@@ -57,8 +57,8 @@ export const DARK = {
   greenLight:  'rgba(163,214,92,0.15)',
   greenBorder: 'rgba(163,214,92,0.35)',
   // ── Destructive ──────────────────────────────────────────────────────────────
-  red:         '#FF6B6B',   // softer red, still strong on dark
-  redLight:    'rgba(255,107,107,0.15)',
+  red:         '#C8102E',   // brand red color C8102E
+  redLight:    'rgba(200,16,46,0.15)',
   // ── Misc ─────────────────────────────────────────────────────────────────────
   white:       '#FFFFFF',
   switchTrack: '#3A3A3E',

@@ -1,8 +1,10 @@
 import React from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, View, ViewStyle } from 'react-native';
+import { SafeAreaView, StatusBar, StyleSheet, View, ViewStyle, Platform } from 'react-native';
 import { useTheme } from '../context/theme.context';
 import { AppHeader } from './AppHeader';
 import { BottomNavBar } from './BottomNavBar';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '@/modules/auth/state/auth.context';
 
 export type AppTabKey = 'home' | 'events' | 'reels' | 'profile';
 
@@ -38,6 +40,20 @@ export function AppScaffold({
   onPressProfile,
 }: AppScaffoldProps) {
   const { theme: C } = useTheme();
+  const navigation = useNavigation<any>();
+  const { user } = useAuth();
+
+  const handleHome = onPressHome || (() => navigation.navigate('Home'));
+  const handleEvents = onPressEvents || (() => navigation.navigate('Events'));
+  const handleCenter = onPressCenter || (() => navigation.navigate('Map'));
+  const handleReels = onPressReels || (() => {});
+  const handleProfile = onPressProfile || (() => {
+    if (user?.profileType === 'pro_commerce') {
+      navigation.navigate('SellerProProfile');
+    } else {
+      navigation.navigate('Profile');
+    }
+  });
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: C.bg }]}>
@@ -54,11 +70,11 @@ export function AppScaffold({
       </View>
       <BottomNavBar
         activeTab={activeTab}
-        onPressHome={onPressHome}
-        onPressEvents={onPressEvents}
-        onPressCenter={onPressCenter}
-        onPressReels={onPressReels}
-        onPressProfile={onPressProfile}
+        onPressHome={handleHome}
+        onPressEvents={handleEvents}
+        onPressCenter={handleCenter}
+        onPressReels={handleReels}
+        onPressProfile={handleProfile}
       />
     </SafeAreaView>
   );
@@ -67,6 +83,14 @@ export function AppScaffold({
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
+    ...Platform.select({
+      web: {
+        maxWidth: 600,
+        width: '100%',
+        alignSelf: 'center',
+        boxShadow: '0 0 20px rgba(0,0,0,0.1)',
+      },
+    }),
   },
   content: {
     flex: 1,

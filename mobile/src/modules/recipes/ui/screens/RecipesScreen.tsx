@@ -358,18 +358,6 @@ export default function RecipesScreen({ navigation }: Props) {
     <AppScaffold
       title="Recipes"
       activeTab="home"
-      rightElement={headerActions}
-      onPressHome={() => navigation.navigate('Home')}
-      onPressEvents={() => navigation.navigate('Map')}
-      onPressCenter={() => {}}
-      onPressReels={() => {}}
-      onPressProfile={() => {
-        if (user?.profileType === 'pro_commerce') {
-          navigation.navigate('SellerProProfile');
-        } else {
-          navigation.navigate('Profile');
-        }
-      }}
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[s.mainContainer, { backgroundColor: T.bg }]}>

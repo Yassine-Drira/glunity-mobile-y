@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Clipboard,
   Image,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +16,7 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useTheme } from '@/shared/context/theme.context';
 import { BottomNavBar } from '../../../../shared/components/BottomNavBar';
 import { FilterPill } from '../components/FilterPill';
 import { PlaceCard } from '../components/PlaceCard';
@@ -31,14 +34,7 @@ interface MapScreenProps {
   onPressProfilePhoto?: () => void;
 }
 
-const C = {
-  bg: '#F6F5F3',
-  white: '#FFFFFF',
-  text: '#2E2E2E',
-  green: '#8BC34A',
-  greenDeep: '#6FAA2D',
-  muted: '#6B6B6B',
-};
+
 
 const CATEGORIES: Array<{ key: LocationCategory | 'all'; label: string }> = [
   { key: 'all',        label: 'All' },
@@ -65,15 +61,189 @@ export default function MapScreen({
   onPressNavProfile,
   onPressProfilePhoto,
 }: MapScreenProps) {
+  const { theme: T } = useTheme();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapWebViewHandle>(null);
 
   const [filters, setFilters]       = useState<LocationFilters>({ category: 'all' });
   const [showFilters, setShowFilters] = useState(false);
+  const [showContactFor, setShowContactFor] = useState<MapLocation | null>(null);
+  const [copied, setCopied] = useState(false);
   const [items, setItems]           = useState<MapLocation[]>([]);
   const [selectedId, setSelected]   = useState<string | null>(null);
   const [isLoading, setLoading]     = useState(true);
   const [errorMsg, setError]        = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locatingUser, setLocatingUser] = useState(false);
+
+  const styles = useMemo(() => StyleSheet.create({
+    root: { flex: 1, backgroundColor: T.bg },
+
+    // ── header ────────────────────────────────────────────────────────────────
+    header: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      paddingHorizontal: 18, paddingVertical: 12,
+    },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    avatarWrap: { width: 40, height: 40, position: 'relative' },
+    avatar: { width: 40, height: 40, borderRadius: 20 },
+    avatarFallback: { backgroundColor: T.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+    avatarLetter: { fontSize: 16, fontWeight: '600', color: T.text, fontFamily: 'Poppins_600SemiBold' },
+    avatarBadge: {
+      position: 'absolute', right: -2, bottom: -2, width: 16, height: 16, borderRadius: 8,
+      backgroundColor: T.green, borderWidth: 2, borderColor: T.bg, alignItems: 'center', justifyContent: 'center',
+    },
+    userName: { fontSize: 17, fontWeight: '600', color: T.text, fontFamily: 'Poppins_600SemiBold' },
+    iconBtn: {
+      width: 38, height: 38, borderRadius: 19, backgroundColor: T.surface,
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1, borderColor: T.border,
+    },
+
+    // ── map ───────────────────────────────────────────────────────────────────
+    mapWrap: { flex: 1, position: 'relative', overflow: 'hidden', borderRadius: 0 },
+    filterPillWrap: { position: 'absolute', top: 14, alignSelf: 'center' },
+    myLocationBtn: {
+      position: 'absolute',
+      top: 70,
+      right: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: T.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+      zIndex: 20,
+    },
+    loadingBadge: {
+      position: 'absolute', top: 16, right: 16,
+      width: 36, height: 36, borderRadius: 18, backgroundColor: T.surface,
+      alignItems: 'center', justifyContent: 'center',
+      shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+    },
+    errorBadge: {
+      position: 'absolute', top: 60, left: 16, right: 16,
+      backgroundColor: T.redLight, borderRadius: 12, padding: 12,
+      borderWidth: 1, borderColor: T.red,
+    },
+    errorText: { color: T.red, fontSize: 12, fontFamily: 'Poppins_500Medium' },
+
+    // ── bottom card slot ──────────────────────────────────────────────────────
+    cardSlot: { position: 'absolute', left: 16, right: 16 },
+
+    // ── filter sheet ──────────────────────────────────────────────────────────
+    modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    sheet: {
+      backgroundColor: T.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      padding: 20, paddingBottom: 34,
+      borderWidth: 1, borderColor: T.border, borderBottomWidth: 0,
+    },
+    sheetHandle: {
+      alignSelf: 'center', width: 40, height: 5, borderRadius: 2.5,
+      backgroundColor: T.divider, marginBottom: 16,
+    },
+    sheetTitle: { fontSize: 19, fontFamily: 'Poppins_700Bold', color: T.text, marginBottom: 16 },
+    sheetSubtitle: { fontSize: 13, color: T.textMuted, fontFamily: 'Poppins_600SemiBold', marginTop: 10, marginBottom: 8 },
+    chipRow: { gap: 8, paddingVertical: 4, paddingRight: 8 },
+    chip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999,
+      backgroundColor: T.surfaceAlt,
+      borderWidth: 1, borderColor: T.border,
+    },
+    chipActive: { backgroundColor: T.green, borderColor: T.green },
+    chipText: { fontSize: 13, color: T.textSub, fontFamily: 'Poppins_500Medium' },
+    chipTextActive: { color: T.white, fontFamily: 'Poppins_600SemiBold' },
+    toggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    clearBtn: { marginTop: 20, alignItems: 'center', paddingVertical: 10 },
+    clearText: { color: T.green, fontFamily: 'Poppins_600SemiBold', fontSize: 14 },
+
+    // ── contact sheet ────────────────────────────────────────────────────────
+    contactSheet: {
+      backgroundColor: T.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      padding: 20, paddingBottom: 34,
+      borderWidth: 1, borderColor: T.border, borderBottomWidth: 0,
+      width: '100%',
+    },
+    contactMerchantName: {
+      fontSize: 15, color: T.textSub, fontFamily: 'Poppins_500Medium', marginBottom: 20, textAlign: 'center'
+    },
+    contactPhoneBox: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+      backgroundColor: T.surfaceAlt, borderRadius: 14, padding: 18, marginBottom: 20,
+      borderWidth: 1, borderColor: T.border,
+    },
+    contactPhoneNumber: {
+      fontSize: 20, fontWeight: '700', color: T.text, fontFamily: 'Poppins_700Bold', letterSpacing: 0.5
+    },
+    contactActionsRow: {
+      flexDirection: 'row', gap: 12, width: '100%'
+    },
+    contactBtn: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      paddingVertical: 14, borderRadius: 12,
+    },
+    contactBtnText: {
+      fontSize: 14, fontWeight: '600', fontFamily: 'Poppins_600SemiBold'
+    },
+    cancelBtn: {
+      width: '100%', paddingVertical: 14, alignItems: 'center', justifyContent: 'center',
+      borderRadius: 12, borderWidth: 1, borderColor: T.border,
+    },
+    cancelBtnText: {
+      fontSize: 14, fontWeight: '600', color: T.textSub, fontFamily: 'Poppins_600SemiBold'
+    },
+  }), [T]);
+
+  // Auto-detect user location on mount (Web Browser Geolocation)
+  useEffect(() => {
+    if (Platform.OS === 'web' && navigator.geolocation) {
+      setLocatingUser(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(coords);
+          setTimeout(() => {
+            mapRef.current?.flyTo(coords.lng, coords.lat, 14);
+          }, 1500);
+          setLocatingUser(false);
+        },
+        (err) => {
+          console.warn('Geolocation failed or permission denied:', err);
+          setLocatingUser(false);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, []);
+
+  const handleMyLocation = () => {
+    if (Platform.OS === 'web' && navigator.geolocation) {
+      setLocatingUser(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(coords);
+          mapRef.current?.flyTo(coords.lng, coords.lat, 15);
+          setLocatingUser(false);
+        },
+        (err) => {
+          alert('Could not retrieve your location: ' + err.message);
+          setLocatingUser(false);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } else {
+      alert('Location services are not available on this platform.');
+    }
+  };
 
   const fetchLocations = useCallback(async (f: LocationFilters) => {
     setLoading(true);
@@ -107,15 +277,34 @@ export default function MapScreen({
     setShowFilters(false);
   }
 
-  function onSelectFromMap(id: string) {
+  function onSelectFromMap(id: string | null) {
     setSelected(id);
-    const loc = items.find((l) => l.id === id);
-    if (loc) mapRef.current?.flyTo(loc.lng, loc.lat, 16);
+    if (id) {
+      const loc = items.find((l) => l.id === id);
+      if (loc) mapRef.current?.flyTo(loc.lng, loc.lat, 16);
+    }
   }
 
   function onContact() {
-    if (selected?.phone) Linking.openURL(`tel:${selected.phone}`).catch(() => {});
+    if (selected) {
+      setShowContactFor(selected);
+    }
   }
+
+  const handleCopyPhone = () => {
+    if (showContactFor?.phone) {
+      Clipboard.setString(showContactFor.phone);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDialPhone = () => {
+    if (showContactFor?.phone) {
+      Linking.openURL(`tel:${showContactFor.phone}`).catch(() => {});
+      setShowContactFor(null);
+    }
+  };
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -140,10 +329,10 @@ export default function MapScreen({
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconBtn}>
-            <Feather name="search" size={18} color={C.text} />
+            <Feather name="search" size={18} color={T.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}>
-            <Feather name="bell" size={18} color={C.text} />
+            <Feather name="bell" size={18} color={T.text} />
           </TouchableOpacity>
         </View>
       </View>
@@ -157,15 +346,29 @@ export default function MapScreen({
           onSelectLocation={onSelectFromMap}
           initialCenter={{ lng: 10.181667, lat: 36.806389 }}
           initialZoom={14}
+          userLocation={userLocation}
         />
 
         <View style={styles.filterPillWrap}>
           <FilterPill onPress={() => setShowFilters(true)} />
         </View>
 
+        <TouchableOpacity 
+          style={styles.myLocationBtn} 
+          onPress={handleMyLocation} 
+          activeOpacity={0.8}
+          title="My Location"
+        >
+          {locatingUser ? (
+            <ActivityIndicator size="small" color={T.green} />
+          ) : (
+            <Ionicons name="navigate-outline" size={20} color={T.green} />
+          )}
+        </TouchableOpacity>
+
         {isLoading && (
           <View style={styles.loadingBadge}>
-            <ActivityIndicator size="small" color={C.green} />
+            <ActivityIndicator size="small" color={T.green} />
           </View>
         )}
 
@@ -177,8 +380,8 @@ export default function MapScreen({
       </View>
 
       {/* ── Floating place card ────────────────────────────────────────── */}
-      <View style={[styles.cardSlot, { bottom: 96 + Math.max(insets.bottom, 10) + 16 }]}>
-        {selected ? (
+      {selected ? (
+        <View style={[styles.cardSlot, { bottom: 96 + Math.max(insets.bottom, 10) + 16 }]}>
           <PlaceCard
             location={selected}
             variant="detailed"
@@ -186,15 +389,8 @@ export default function MapScreen({
             etaMinutes={15}
             onContact={onContact}
           />
-        ) : items[0] ? (
-          <PlaceCard
-            location={items[0]}
-            variant="compact"
-            distanceKm={1.2}
-            onPress={() => setSelected(items[0].id)}
-          />
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       {/* ── Bottom navigation (re-using shared component, untouched) ─── */}
       <BottomNavBar
@@ -238,7 +434,7 @@ export default function MapScreen({
                 <Ionicons
                   name="checkmark-circle"
                   size={14}
-                  color={filters.certified ? C.white : C.green}
+                  color={filters.certified ? T.white : T.green}
                 />
                 <Text style={[styles.chipText, filters.certified && styles.chipTextActive]}>Certified only</Text>
               </Pressable>
@@ -259,75 +455,51 @@ export default function MapScreen({
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ── Contact sheet modal ────────────────────────────────────────── */}
+      <Modal visible={!!showContactFor} animationType="slide" transparent onRequestClose={() => setShowContactFor(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowContactFor(null)}>
+          <Pressable style={styles.contactSheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Get in Touch</Text>
+            <Text style={styles.contactMerchantName}>{showContactFor?.name}</Text>
+
+            <View style={styles.contactPhoneBox}>
+              <Feather name="phone" size={20} color={T.green} />
+              <Text style={styles.contactPhoneNumber}>{showContactFor?.phone || 'No phone number listed'}</Text>
+            </View>
+
+            {showContactFor?.phone ? (
+              <View style={styles.contactActionsRow}>
+                <TouchableOpacity 
+                  style={[styles.contactBtn, { backgroundColor: T.surfaceAlt }]} 
+                  onPress={handleCopyPhone}
+                >
+                  <Feather name={copied ? "check" : "copy"} size={16} color={copied ? T.green : T.text} />
+                  <Text style={[styles.contactBtnText, { color: T.text }]}>{copied ? "Copied!" : "Copy Number"}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.contactBtn, { backgroundColor: T.green }]} 
+                  onPress={handleDialPhone}
+                >
+                  <Feather name="phone-call" size={16} color="#FFFFFF" />
+                  <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>Call Now</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            <TouchableOpacity 
+              style={[styles.cancelBtn, { marginTop: 14 }]} 
+              onPress={() => setShowContactFor(null)}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
-
-  // ── header ────────────────────────────────────────────────────────────────
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 18, paddingVertical: 12,
-  },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flexShrink: 1 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarWrap: { width: 40, height: 40, position: 'relative' },
-  avatar: { width: 40, height: 40, borderRadius: 20 },
-  avatarFallback: { backgroundColor: '#D7D7D7', alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontSize: 16, fontWeight: '600', color: C.text, fontFamily: 'Poppins_600SemiBold' },
-  avatarBadge: {
-    position: 'absolute', right: -2, bottom: -2, width: 16, height: 16, borderRadius: 8,
-    backgroundColor: C.green, borderWidth: 2, borderColor: C.bg, alignItems: 'center', justifyContent: 'center',
-  },
-  userName: { fontSize: 17, fontWeight: '600', color: C.text, fontFamily: 'Poppins_600SemiBold' },
-  iconBtn: {
-    width: 38, height: 38, borderRadius: 19, backgroundColor: C.white,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
-  // ── map ───────────────────────────────────────────────────────────────────
-  mapWrap: { flex: 1, position: 'relative', overflow: 'hidden', borderRadius: 0 },
-  filterPillWrap: { position: 'absolute', top: 14, alignSelf: 'center' },
-  loadingBadge: {
-    position: 'absolute', top: 16, right: 16,
-    width: 36, height: 36, borderRadius: 18, backgroundColor: C.white,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
-  },
-  errorBadge: {
-    position: 'absolute', top: 60, left: 16, right: 16,
-    backgroundColor: '#FFE9E9', borderRadius: 12, padding: 12,
-  },
-  errorText: { color: '#B71C1C', fontSize: 12, fontFamily: 'Poppins_500Medium' },
-
-  // ── bottom card slot ──────────────────────────────────────────────────────
-  cardSlot: { position: 'absolute', left: 16, right: 16 },
-
-  // ── filter sheet ──────────────────────────────────────────────────────────
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
-  sheet: {
-    backgroundColor: C.white, borderTopLeftRadius: 26, borderTopRightRadius: 26,
-    padding: 20, paddingBottom: 30,
-  },
-  sheetHandle: {
-    alignSelf: 'center', width: 42, height: 4, borderRadius: 2,
-    backgroundColor: '#D9D9D9', marginBottom: 14,
-  },
-  sheetTitle: { fontSize: 18, fontFamily: 'Poppins_700Bold', color: C.text, marginBottom: 14 },
-  sheetSubtitle: { fontSize: 13, color: C.muted, fontFamily: 'Poppins_500Medium', marginTop: 8, marginBottom: 8 },
-  chipRow: { gap: 8, paddingVertical: 4, paddingRight: 8 },
-  chip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,
-    backgroundColor: '#F1F1EE',
-  },
-  chipActive: { backgroundColor: C.green },
-  chipText: { fontSize: 13, color: C.text, fontFamily: 'Poppins_500Medium' },
-  chipTextActive: { color: C.white },
-  toggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  clearBtn: { marginTop: 18, alignItems: 'center', paddingVertical: 12 },
-  clearText: { color: C.greenDeep, fontFamily: 'Poppins_600SemiBold', fontSize: 14 },
-});
+// Styles dynamically resolved inside MapScreen

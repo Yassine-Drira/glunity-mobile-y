@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import { Radius } from '@/shared/utils/theme';
@@ -19,8 +19,6 @@ import { useTheme } from '@/shared/context/theme.context';
 import productsApi, { Product } from '../../api/products.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerProfile'>;
-
-const { width } = Dimensions.get('window');
 
 const REVIEWS = [
   {
@@ -80,6 +78,8 @@ const getProductImage = (images?: string[], category?: string) => {
 export default function SellerProfileScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const screenWidth = Math.min(windowWidth, 600);
   
   const targetSellerId = route?.params?.sellerId;
   const targetSeller = route?.params?.seller;
@@ -292,7 +292,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       paddingHorizontal: 4,
     },
     actionButton: {
-      width: (width - 72) / 3,
+      width: (screenWidth - 72) / 3,
       height: 91.78,
       borderRadius: 16,
       padding: 12,
@@ -537,7 +537,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       color: T.textSub,
       lineHeight: 18,
     },
-  }), [T]);
+  }), [T, screenWidth]);
 
   const fetchProducts = async () => {
     try {
@@ -593,40 +593,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Top Header ────────────────────────────────────────────────────── */}
-        <View style={s.header}>
-          {!isOwnProfile ? (
-            <TouchableOpacity
-              style={s.backBtn}
-              onPress={() => navigation.goBack()}
-              id="seller-back-btn"
-            >
-              <Feather name="arrow-left" size={20} color={T.text} />
-            </TouchableOpacity>
-          ) : (
-            <View style={s.userRow}>
-              <View style={s.avatarContainer}>
-                <Image
-                  source={{ uri: user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=150' }}
-                  style={s.avatarImage}
-                />
-                <View style={s.verifiedBadge}>
-                  <Feather name="check" size={8} color="#FFFFFF" />
-                </View>
-              </View>
-              <Text style={s.greeting}>{user?.fullName?.split(' ')[0] || 'Seller'}</Text>
-            </View>
-          )}
-          <View style={s.headerActions}>
-            <TouchableOpacity style={s.iconBtn} activeOpacity={0.7} id="seller-search-btn">
-              <Feather name="search" size={18} color={T.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.iconBtn} activeOpacity={0.7} id="seller-notif-btn">
-              <Feather name="bell" size={18} color={T.text} />
-              <View style={s.notifIndicator} />
-            </TouchableOpacity>
-          </View>
-        </View>
+
 
         {/* ── Bakery Hero Image Cover ───────────────────────────────────────── */}
         <View style={s.heroContainer}>

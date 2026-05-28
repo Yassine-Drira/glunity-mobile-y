@@ -58,7 +58,7 @@ export default function RegisterScreen({ navigation }: Props) {
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 260,
+      paddingBottom: 110,
       paddingTop: 12,
     },
 
@@ -181,6 +181,17 @@ export default function RegisterScreen({ navigation }: Props) {
     }, [clearError]),
   );
 
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  React.useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   const [form, setForm] = useState<FormState>({
     fullName: '',
     email: '',
@@ -253,6 +264,7 @@ export default function RegisterScreen({ navigation }: Props) {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEnabled={keyboardOpen}
         >
           {/* Divider accent */}
           <View style={styles.divider} />

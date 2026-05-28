@@ -19,7 +19,7 @@ import HomeEventCard from '../../components/HomeEventCard';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../theme/colors";
 import { homeScreenText } from "../../state/homeData";
-import type { HomeScreenProps } from "../../domain/home.types";
+import type { HomeScreenProps, GlunityEvent } from "../../domain/home.types";
 import { AppScaffold } from "@/shared/components/AppScaffold";
 import { useTheme } from "@/shared/context/theme.context";
 import { ScanFrameIcon } from "@/shared/components/icons/ScanFrameIcon";
@@ -71,7 +71,7 @@ export function HomeScreen({
     [recipes],
   );
 
-  const [homeEvents, setHomeEvents] = React.useState<GluunityEvent[]>(events || []);
+  const [homeEvents, setHomeEvents] = React.useState<GlunityEvent[]>(events || []);
 
   const optimizedEvents = React.useMemo(
     () => homeEvents.map((item) => ({ ...item, imageUrl: optimizeUnsplashImage(item.imageUrl, 420, 320) })),
@@ -202,7 +202,6 @@ export function HomeScreen({
     <AppScaffold
       title="Home"
       activeTab="home"
-      rightElement={headerActions}
       onPressHome={onPressNavHome}
       onPressEvents={onPressNavEvents}
       onPressCenter={onPressNavFab}
@@ -271,7 +270,7 @@ export function HomeScreen({
               style={[styles.quickCard, { backgroundColor: T.surface }]}
             >
               <View style={[styles.quickIconWrap, { backgroundColor: T.greenLight }]}>
-                <Ionicons name={item.icon} size={22} color={T.green} />
+                <Ionicons name={item.icon} size={26} color={T.red} />
               </View>
               <Text style={[styles.quickCardLabel, { color: T.text }]}>{item.label}</Text>
             </TouchableOpacity>
@@ -282,7 +281,7 @@ export function HomeScreen({
           <View style={styles.sectionRowLeft}>
             <Text style={[styles.sectionTitleSecondary, { color: T.text }]}>{homeScreenText.checkRecipesTitle}</Text>
             <View style={styles.gfPill}>
-              <Ionicons name="sparkles" size={10} color="#FFFFFF" />
+              <MaterialCommunityIcons name="check-decagram" size={10} color="#FFFFFF" />
               <Text style={styles.gfPillText}>GF</Text>
             </View>
           </View>
@@ -499,10 +498,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   quickCardLabel: {
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 18,
     letterSpacing: 0.2,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#2E2E2E",
   },
   sectionRow: {
@@ -540,7 +539,7 @@ const styles = StyleSheet.create({
   seeAll: {
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: "600",
+    fontWeight: "700",
     color: ICON_RED,
   },
   recipesList: {

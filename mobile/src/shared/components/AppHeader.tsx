@@ -1,15 +1,6 @@
 /**
  * AppHeader — Unified global header for every screen in the app.
- *
- * Usage variants:
- *   1. Back header (detail screens):
- *      <AppHeader title="Settings" onBack={() => navigation.goBack()} />
- *
- *   2. Main screen header (home-level, no back):
- *      <AppHeader title="Profile" rightIcon="bell" onRightPress={...} />
- *
- *   3. With both:
- *      <AppHeader title="Edit Profile" onBack={...} rightIcon="check" onRightPress={...} />
+ * Integrates directly with the page background and showcases real user avatar/name on main screens.
  */
 import React, { useMemo } from 'react';
 import {
@@ -19,9 +10,13 @@ import {
   StyleSheet,
   StatusBar,
   Platform,
+  Image,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/theme.context';
+import { useAuth } from '@/modules/auth/state/auth.context';
+import { useNavigation } from '@react-navigation/native';
+import notificationsApi from '@/modules/notifications/api/notifications.api';
 
 const F = {
   regular:  'Poppins_400Regular',
@@ -52,106 +47,270 @@ export function AppHeader({
   subtitle,
 }: AppHeaderProps) {
   const { theme: C } = useTheme();
+  const { user } = useAuth();
+  const navigation = useNavigation<any>();
+
+  const [unreadCount, setUnreadCount] = React.useState(0);
+
+  // Fetch unread status
+  React.useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await notificationsApi.list();
+        if (res.success && mounted) {
+          const unread = res.data.filter((n: any) => !n.isRead).length;
+          setUnreadCount(unread);
+        }
+      } catch (err) {
+        // Mute api check failures
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
+
+  // Extract first name and default fallback avatar
+  const firstName = user?.fullName ? user.fullName.split(' ')[0] : 'Yassmine';
+  const avatarUrl = user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop';
 
   const s = useMemo(
     () =>
       StyleSheet.create({
-        // Extra top padding on Android to clear status bar
         wrap: {
-          backgroundColor: C.surface,
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: C.border,
-          paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0,
+          backgroundColor: C.bg,
+          paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) + 6 : 6,
+          paddingBottom: 4,
         },
         row: {
-          height: 54,
+          height: 72,
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 16,
+          justifyContent: 'space-between',
+          paddingHorizontal: 20,
         },
-        // ── left slot ──────────────────────────────────────────────────────────
-        leftSlot: {
-          width: 40,
-          height: 40,
-          alignItems: 'flex-start',
-          justifyContent: 'center',
+        // ── Main Tab Headers (Avatar + First Name left, Search + Bell right) ──
+        mainLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
         },
-        backBtn: {
-          width: 36,
-          height: 36,
-          borderRadius: 18,
+        avatarWrap: {
+          position: 'relative',
+          width: 44,
+          height: 44,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 4,
+          elevation: 2,
+        },
+        avatar: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          borderWidth: 1.5,
+          borderColor: C.surface,
           backgroundColor: C.surfaceAlt,
+        },
+        shieldBadge: {
+          position: 'absolute',
+          right: -2,
+          bottom: -2,
+          width: 17,
+          height: 17,
+          borderRadius: 8.5,
+          backgroundColor: C.green, // Verification Badge Green
           alignItems: 'center',
           justifyContent: 'center',
+          borderWidth: 1.5,
+          borderColor: C.bg,
         },
-        // ── centre ─────────────────────────────────────────────────────────────
-        centre: {
-          flex: 1,
-          alignItems: 'center',
+        profileInfo: {
+          marginLeft: 12,
           justifyContent: 'center',
         },
-        title: {
+        greetingText: {
+          fontSize: 10,
+          fontFamily: F.regular,
+          color: C.textMuted,
+          textTransform: 'uppercase',
+          letterSpacing: 0.8,
+          marginBottom: 1,
+        },
+        nameText: {
           fontSize: 16,
           fontFamily: F.bold,
           fontWeight: '700',
           color: C.text,
-          letterSpacing: 0.1,
+          letterSpacing: -0.3,
         },
-        subtitle: {
-          fontSize: 11,
+        mainRight: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+        },
+        actionBtn: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: C.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: C.border,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 2,
+          elevation: 1,
+        },
+        badgeDot: {
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: 8,
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: '#FF3B30', // Vibrant Red
+          borderWidth: 1.5,
+          borderColor: C.surface,
+        },
+        // ── Detail Screen Headers (Back Button + Title) ──
+        detailRow: {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+        backBtn: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: C.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: C.border,
+          marginRight: 14,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 2,
+          elevation: 1,
+        },
+        detailTitleWrap: {
+          flex: 1,
+        },
+        detailTitle: {
+          fontSize: 18,
+          fontFamily: F.bold,
+          fontWeight: '700',
+          color: C.text,
+          letterSpacing: -0.4,
+        },
+        detailSubtitle: {
+          fontSize: 11.5,
           fontFamily: F.regular,
           color: C.textMuted,
           marginTop: 1,
         },
-        // ── right slot ─────────────────────────────────────────────────────────
-        rightSlot: {
-          width: 40,
-          height: 40,
+        detailRightSlot: {
+          minWidth: 40,
           alignItems: 'flex-end',
           justifyContent: 'center',
         },
-        rightBtn: {
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: C.surfaceAlt,
+        detailRightBtn: {
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: C.surface,
           alignItems: 'center',
           justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: C.border,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.04,
+          shadowRadius: 2,
+          elevation: 1,
         },
       }),
-    [C],
+    [C, user]
   );
 
   return (
     <View style={s.wrap}>
       <View style={s.row}>
-        {/* Left — back button or spacer */}
-        <View style={s.leftSlot}>
-          {onBack ? (
+        {onBack ? (
+          // Detail screen header flow
+          <View style={s.detailRow}>
             <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
               <MaterialCommunityIcons name="arrow-left" size={20} color={C.text} />
             </TouchableOpacity>
-          ) : null}
-        </View>
 
-        {/* Centre — title + optional subtitle */}
-        <View style={s.centre}>
-          <Text style={s.title} numberOfLines={1}>
-            {title}
-          </Text>
-          {subtitle ? <Text style={s.subtitle}>{subtitle}</Text> : null}
-        </View>
+            <View style={s.detailTitleWrap}>
+              <Text style={s.detailTitle} numberOfLines={1}>
+                {title}
+              </Text>
+              {subtitle ? <Text style={s.detailSubtitle}>{subtitle}</Text> : null}
+            </View>
 
-        {/* Right — icon button, custom element, or spacer */}
-        <View style={s.rightSlot}>
-          {rightElement ?? (
-            rightIcon ? (
-              <TouchableOpacity style={s.rightBtn} onPress={onRightPress} activeOpacity={0.7}>
-                <MaterialCommunityIcons name={rightIcon as any} size={20} color={C.text} />
-              </TouchableOpacity>
-            ) : null
-          )}
-        </View>
+            <View style={s.detailRightSlot}>
+              {rightElement ?? (
+                rightIcon ? (
+                  <TouchableOpacity 
+                    style={s.detailRightBtn} 
+                    onPress={onRightPress ?? (rightIcon.includes('bell') ? () => navigation.navigate('Notifications') : undefined)} 
+                    activeOpacity={0.7}
+                  >
+                    <MaterialCommunityIcons name={rightIcon as any} size={20} color={C.text} />
+                  </TouchableOpacity>
+                ) : null
+              )}
+            </View>
+          </View>
+        ) : (
+          // Main tab screens header flow
+          <>
+            <View style={s.mainLeft}>
+              <View style={s.avatarWrap}>
+                <Image source={{ uri: avatarUrl }} style={s.avatar} />
+                <View style={s.shieldBadge}>
+                  <MaterialCommunityIcons name="shield-check" size={10} color="#FFFFFF" />
+                </View>
+              </View>
+              <View style={s.profileInfo}>
+                <Text style={s.greetingText}>Welcome</Text>
+                <Text style={s.nameText}>{firstName}</Text>
+              </View>
+            </View>
+
+            <View style={s.mainRight}>
+              {rightElement ?? (
+                <>
+                  <TouchableOpacity 
+                    activeOpacity={0.7} 
+                    style={s.actionBtn} 
+                    onPress={() => navigation.navigate('ProductsMarket')}
+                  >
+                    <Feather name="search" size={20} color={C.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    activeOpacity={0.7} 
+                    style={s.actionBtn} 
+                    onPress={() => navigation.navigate('Notifications')}
+                  >
+                    <View style={{ position: 'relative' }}>
+                      <Feather name="bell" size={20} color={C.text} />
+                      {unreadCount > 0 && <View style={s.badgeDot} />}
+                    </View>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </>
+        )}
       </View>
     </View>
   );
