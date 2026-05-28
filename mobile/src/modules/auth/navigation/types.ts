@@ -24,5 +24,7 @@ export type AppStackParamList = {
   ProductsMarket: undefined;
   ProductDetail: { product: any };
   Map: undefined;
+  Events: undefined;
+  EventDetail: { eventId: string };
   SellerProProfile: undefined;
 };

@@ -14,6 +14,7 @@ interface AuthInputProps extends TextInputProps {
   error?: string;
   rightIcon?: React.ReactNode;
   onRightIconPress?: () => void;
+  hideLabel?: boolean;
 }
 
 export function AuthInput({
@@ -22,13 +23,14 @@ export function AuthInput({
   rightIcon,
   onRightIconPress,
   style,
+  hideLabel,
   ...rest
 }: AuthInputProps) {
   const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
+      {!hideLabel && <Text style={styles.label}>{label}</Text>}
       <View
         style={[
           styles.inputContainer,
@@ -59,6 +61,7 @@ export function AuthInput({
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: Spacing.md,
+    alignSelf: 'stretch',
   },
   label: {
     fontSize: 13,
@@ -70,7 +73,8 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    minHeight: 52,
+    paddingVertical: 10,
     backgroundColor: Colors.inputBg,
     borderWidth: 1,
     borderColor: Colors.inputBorder,
@@ -90,6 +94,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: Font.regular,
     color: Colors.dark,
+    textAlignVertical: 'center',
   },
   icon: {
     paddingLeft: Spacing.sm,

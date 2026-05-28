@@ -4,6 +4,7 @@ import type { AppStackParamList } from '../modules/auth/navigation/types';
 
 import HomeScreen        from '../modules/home/ui/screens/HomeScreen';
 import { homeScreenMockProps } from '../modules/home/state/homeData';
+import { eventsApi } from '../modules/home/api/events.api';
 import RecipesScreen     from '../modules/recipes/ui/screens/RecipesScreen';
 import RecipeDetailScreen from '../modules/recipes/ui/screens/RecipeDetailScreen';
 import { useAuth } from '../modules/auth/state/auth.context';
@@ -17,6 +18,8 @@ import SellerStatsScreen       from '../modules/seller/ui/screens/SellerStatsScr
 import ProductsMarketScreen from '../modules/products/ui/screens/ProductsMarketScreen';
 import ProductDetailScreen  from '../modules/products/ui/screens/ProductDetailScreen';
 import MapScreen            from '../modules/map/ui/screens/MapScreen';
+import EventsCalendarScreen from '../modules/events/ui/screens/EventsCalendarScreen';
+import EventDetailScreen from '../modules/events/ui/screens/EventDetailScreen';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -60,6 +63,23 @@ export function AppNavigator() {
             }
           }));
 
+          const [events, setEvents] = React.useState(homeScreenMockProps.events);
+
+          React.useEffect(() => {
+            let mounted = true;
+            (async () => {
+              try {
+                const list = await eventsApi.list();
+                if (!mounted) return;
+                const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
+                setEvents(withHandlers);
+              } catch (err) {
+                // Keep mock events on error
+              }
+            })();
+            return () => { mounted = false; };
+          }, [navigation]);
+
           const handleProfileNavigation = () => {
             if (user?.profileType === 'pro_commerce') {
               navigation.navigate('SellerProProfile');
@@ -74,10 +94,12 @@ export function AppNavigator() {
               user={displayUser}
               quickAccessItems={dynamicQuickAccessItems}
               recipes={dynamicRecipes}
+              events={events}
               onPressRecipesSeeAll={() => navigation.navigate('Recipes')}
+              onPressEventsSeeAll={() => navigation.navigate('Events')}
               onPressProfilePhoto={handleProfileNavigation}
               onPressNavHome={() => navigation.navigate('Home')}
-              onPressNavEvents={() => navigation.navigate('Map')}
+              onPressNavEvents={() => navigation.navigate('Events')}
               onPressNavProfile={handleProfileNavigation}
             />
           );
@@ -110,7 +132,7 @@ export function AppNavigator() {
               userName={user?.fullName || 'Guest'}
               userAvatarUri={user?.avatarUrl || null}
               onPressNavHome={() => navigation.navigate('Home')}
-              onPressNavEvents={() => {}}
+              onPressNavEvents={() => navigation.navigate('Events')}
               onPressNavReels={() => {}}
               onPressNavProfile={handleProfileNavigation}
               onPressProfilePhoto={handleProfileNavigation}
@@ -118,6 +140,8 @@ export function AppNavigator() {
           );
         }}
       </Stack.Screen>
+      <Stack.Screen name="Events" component={EventsCalendarScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }

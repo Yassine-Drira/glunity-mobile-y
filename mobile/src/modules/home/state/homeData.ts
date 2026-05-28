@@ -63,24 +63,8 @@ export const recipesMock: Recipe[] = [
   },
 ];
 
-export const eventsMock: GlunityEvent[] = [
-  {
-    id: "event-1",
-    title: "Gluten Free Cooking Workshop",
-    imageUrl: "https://images.unsplash.com/photo-1556911220-bff31c812dba",
-    location: "Central Park, NYC",
-    date: "Sat, Jun 15 · 2:00 PM",
-    onPress: () => {},
-  },
-  {
-    id: "event-2",
-    title: "Celiac Community Meetup",
-    imageUrl: "https://images.unsplash.com/photo-1511578314322-379afb476865",
-    location: "Brooklyn Hub, NYC",
-    date: "Sun, Jun 23 · 11:00 AM",
-    onPress: () => {},
-  },
-];
+// Static events removed — only dynamic events from the database should be rendered.
+export const eventsMock: GlunityEvent[] = [];
 
 export const homeScreenMockProps: HomeScreenProps = {
   user: {
@@ -95,7 +79,7 @@ export const homeScreenMockProps: HomeScreenProps = {
   quickAccessItems: quickAccessItemsMock,
   recipes: recipesMock,
   onPressRecipesSeeAll: () => {},
-  events: eventsMock,
+  events: [],
   onPressEventsSeeAll: () => {},
   onPressNavHome: () => {},
   onPressNavEvents: () => {},

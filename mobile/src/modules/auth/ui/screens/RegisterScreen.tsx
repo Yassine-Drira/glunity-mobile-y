@@ -58,8 +58,8 @@ export default function RegisterScreen({ navigation }: Props) {
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 130,
-      paddingTop: 32,
+      paddingBottom: 260,
+      paddingTop: 12,
     },
 
     divider: {
@@ -67,7 +67,7 @@ export default function RegisterScreen({ navigation }: Props) {
       height: 1,
       backgroundColor: '#FFFFFF',
       alignSelf: 'center',
-      marginBottom: 32,
+      marginBottom: 8,
     },
 
     title: {
@@ -77,7 +77,7 @@ export default function RegisterScreen({ navigation }: Props) {
       color: T.text,
       textAlign: 'center',
       letterSpacing: 1.5,
-      marginBottom: 4,
+      marginBottom: 12,
     },
     subtitle: {
       fontSize: 14,
@@ -85,7 +85,7 @@ export default function RegisterScreen({ navigation }: Props) {
       fontWeight: '500',
       fontFamily: 'Poppins_500Medium',
       textAlign: 'center',
-      marginBottom: 24,
+      marginBottom: 16,
     },
 
     // Error banner
@@ -104,7 +104,7 @@ export default function RegisterScreen({ navigation }: Props) {
     hint: {
       fontSize: 12,
       color: T.textSub,
-      marginBottom: 24,
+      marginBottom: 16,
       textAlign: 'center',
       fontFamily: 'Poppins_400Regular',
     },
@@ -121,7 +121,7 @@ export default function RegisterScreen({ navigation }: Props) {
     profileGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      marginBottom: 16,
+      marginBottom: 12,
     },
     profileChip: {
       borderWidth: 1,
@@ -160,13 +160,13 @@ export default function RegisterScreen({ navigation }: Props) {
 
     switchRow: {
       position: 'absolute',
-      bottom: 18,
+      bottom: 56,
       left: 0,
       right: 0,
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 5,
+      zIndex: 10,
     },
     switchText: { fontSize: 16, fontWeight: '500', fontFamily: 'Poppins_500Medium', color: '#FFFFFF' },
     switchLink: { fontSize: 16, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: '#343831' },
@@ -259,7 +259,6 @@ export default function RegisterScreen({ navigation }: Props) {
 
           {/* Title */}
           <Text style={styles.title}>GET STARTED</Text>
-          <Text style={styles.subtitle}>Create your free account</Text>
 
           {/* API error banner */}
           {!!error && (
@@ -351,6 +350,8 @@ export default function RegisterScreen({ navigation }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      <WaveBackground />
+
       <View style={styles.switchRow}>
         <Text style={styles.switchText}>Already Account? </Text>
         <TouchableOpacity
@@ -362,8 +363,6 @@ export default function RegisterScreen({ navigation }: Props) {
           <Text style={styles.switchLink}>Login</Text>
         </TouchableOpacity>
       </View>
-
-      <WaveBackground />
     </SafeAreaView>
   );
 }

@@ -14,6 +14,7 @@ const usersRoutes     = require('./modules/users/users.routes');
 const recipesRoutes   = require('./modules/recipes/recipes.routes');
 const productsRoutes  = require('./modules/products/products.routes');
 const locationsRoutes = require('./modules/locations/locations.routes');
+const eventsRoutes = require('./modules/events/events.routes');
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/users',     usersRoutes);
 app.use('/api/recipes',   recipesRoutes);
 app.use('/api/products',  productsRoutes);
 app.use('/api/locations', locationsRoutes);
+app.use('/api/events', eventsRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {

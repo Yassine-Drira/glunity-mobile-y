@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Image,
+  Dimensions,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,6 +29,8 @@ export default function LoginScreen({ navigation, route }: Props) {
   const { login, isLoading, error, clearError } = useAuth();
   const [success, setSuccess] = useState<string | null>(null);
   const { theme: T, isDark } = useTheme();
+  const { width: screenWidth } = Dimensions.get('window');
+  const imageSize = Math.min(420, Math.floor(screenWidth * 0.72));
 
   const styles = React.useMemo(() => StyleSheet.create({
     safe:  { flex: 1, backgroundColor: T.bg },
@@ -35,12 +39,12 @@ export default function LoginScreen({ navigation, route }: Props) {
       flexGrow: 1,
       paddingHorizontal: 24,
       paddingBottom: 120,
-      paddingTop: 24,
+      paddingTop: 12,
     },
 
     // Header area
-    header: { alignItems: 'center', marginBottom: 24 },
-    mascot: { fontSize: 80, marginBottom: 12 },
+    header: { alignItems: 'center', marginBottom: 6 },
+    mascot: { fontSize: 80, marginBottom: 4 },
     divider: {
       width: '90%',
       height: 1,
@@ -53,7 +57,7 @@ export default function LoginScreen({ navigation, route }: Props) {
       fontFamily: 'Poppins_600SemiBold',
       color: T.text,
       textAlign: 'center',
-      marginBottom: 24,
+      marginBottom: 6,
     },
 
     // Error banner
@@ -106,7 +110,7 @@ export default function LoginScreen({ navigation, route }: Props) {
     // Switch
     switchRow: {
       position: 'absolute',
-      bottom: 18,
+      bottom: 56,
       left: 0,
       right: 0,
       flexDirection: 'row',
@@ -182,8 +186,12 @@ export default function LoginScreen({ navigation, route }: Props) {
         >
           {/* Header */}
           <View style={styles.header}>
-            <MaterialCommunityIcons name="shield-check-outline" size={80} color={T.green} />
-            <View style={styles.divider} />
+            {/* Use same welcome image as WelcomeScreen */}
+            <Image
+              source={require('../../../../../assets/Logo/image 2 (2).png')}
+              style={{ width: imageSize, height: imageSize, resizeMode: 'contain', marginBottom: 4 }}
+            />
+              <View style={styles.divider} />
           </View>
 
           {/* Title */}

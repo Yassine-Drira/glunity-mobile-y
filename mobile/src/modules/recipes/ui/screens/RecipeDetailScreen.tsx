@@ -266,9 +266,9 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
   }, [route.params?.recipeId]);
 
   const nutritionRows = [
-    { value: recipe.nutritionInfo.calories ?? 370, label: 'Calories' },
-    { value: recipe.nutritionInfo.carbs ?? 35, label: 'Carbo' },
-    { value: recipe.nutritionInfo.protein ?? 6.8, label: 'Protein' },
+    { value: recipe.nutritionInfo?.calories ?? 370, label: 'Calories' },
+    { value: recipe.nutritionInfo?.carbs ?? 35, label: 'Carbo' },
+    { value: recipe.nutritionInfo?.protein ?? 6.8, label: 'Protein' },
   ];
 
   return (
@@ -316,7 +316,7 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
           {/* Ingredients Section */}
           <Text style={[s.sectionTitle, { color: T.text, marginTop: 24, marginBottom: 8 }]}>Ingredients</Text>
           <View style={s.ingredientsWrap}>
-            {recipe.ingredients.map((ing, idx) => (
+            {(recipe.ingredients || []).map((ing, idx) => (
               <Text key={`${idx}-${ing}`} style={[s.ingredientsText, { color: T.textSub }]}>
                 • {ing}
               </Text>
@@ -326,7 +326,7 @@ export default function RecipeDetailScreen({ navigation, route }: Props) {
           {/* Recipe Preparation Section */}
           <Text style={[s.sectionTitle, { color: T.text, marginTop: 24, marginBottom: 8 }]}>Recipe Preparation</Text>
           <View style={s.stepsWrap}>
-            {recipe.steps.map((step, idx) => (
+            {(recipe.steps || []).map((step, idx) => (
               <Text key={`${idx}-${step}`} style={[s.stepText, { color: T.textSub }]}>
                 {step}
               </Text>

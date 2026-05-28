@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Image,
   SafeAreaView,
   StatusBar,
   TouchableOpacity,
@@ -14,11 +15,10 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
 import { AuthInput } from '@/shared/components/AuthInput';
 import { AuthButton } from '@/shared/components/AuthButton';
-import { WaveBackground } from '@/shared/components/WaveBackground';
 import { Radius } from '@/shared/utils/theme';
 import { useTheme } from '@/shared/context/theme.context';
 import authApi from '../../api/auth.api';
-import { Feather } from '@expo/vector-icons';
+// no icons or footer on this simplified screen
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 
@@ -43,23 +43,12 @@ function EmailStep({
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingTop:        40,
-      paddingBottom:     140,
+      paddingTop:        28,
+      paddingBottom:     80,
     },
-    illustrationBox: {
-      width: 110,
-      height: 110,
-      borderRadius: 55,
-      backgroundColor: T.greenLight,
-      alignItems: 'center',
+    centeredContent: {
       justifyContent: 'center',
-      alignSelf: 'center',
-      marginBottom: 24,
-      shadowColor: T.green,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 16,
-      elevation: 6,
+      alignItems: 'center',
     },
     title: {
       fontSize: 24,
@@ -67,7 +56,7 @@ function EmailStep({
       fontFamily: 'Poppins_700Bold',
       color: T.text,
       textAlign: 'center',
-      marginBottom: 8,
+      marginBottom: 12,
     },
     subtitle: {
       fontSize: 14,
@@ -121,19 +110,11 @@ function EmailStep({
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, styles.centeredContent]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Illustration */}
-        <View style={styles.illustrationBox}>
-          <Feather name="mail" size={40} color={T.green} />
-        </View>
-
         <Text style={styles.title}>Forgot Password</Text>
-        <Text style={styles.subtitle}>
-          Enter your email address and we'll send you a password reset link.
-        </Text>
 
         {/* Error */}
         {!!error && (
@@ -188,13 +169,7 @@ function SentStep({
       alignItems: 'center',
       justifyContent: 'center',
     },
-    mailboxBox: {
-      width: 140,
-      height: 140,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 24,
-    },
+    // mailboxBox removed per mock (no icons)
     title: {
       fontSize: 24,
       fontWeight: '700',
@@ -223,18 +198,12 @@ function SentStep({
 
   return (
     <View style={[styles.scroll, styles.centeredContent]}>
-      <View style={styles.mailboxBox}>
-        <Feather name="send" size={60} color={T.green} />
-      </View>
+      <Image
+        source={require('../../../../../assets/Logo/Group 4.png')}
+        style={{ width: 180, height: 160, resizeMode: 'contain', marginBottom: 18 }}
+      />
 
-      <Text style={styles.title}>Check Your Inbox</Text>
-      <Text style={styles.sentBody}>
-        A password reset link has been sent to{'\n'}
-        <Text style={styles.sentEmail}>{email}</Text>
-      </Text>
-      <Text style={styles.sentHint}>
-        The link expires in 15 minutes. Check your spam folder if you don't see it.
-      </Text>
+      <Text style={styles.sentBody}>Email sent to change your password</Text>
 
       <AuthButton
         label="Back to Login"
@@ -279,7 +248,7 @@ export default function ForgotPasswordScreen({ navigation, route }: Props) {
         />
       )}
 
-      <WaveBackground />
+      {/* no footer on this screen per design */}
     </SafeAreaView>
   );
 }

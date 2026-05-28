@@ -24,6 +24,14 @@ export interface GlunityEvent {
   location: string;
   date: string;
   onPress: () => void;
+  // optional extended fields from API
+  type?: string;
+  startsAt?: string | null;
+  attendeesCount?: number;
+  attendees?: string[];
+  locationLat?: number;
+  locationLng?: number;
+  maxCapacity?: number;
 }
 
 export interface HomeScreenProps {
