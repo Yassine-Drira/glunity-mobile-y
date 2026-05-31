@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Clipboard,
-  Image,
   Linking,
   Modal,
   Platform,
@@ -18,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
-import { BottomNavBar } from '../../../../shared/components/BottomNavBar';
+import { AppScaffold } from '@/shared/components/AppScaffold';
 import { FilterPill } from '../components/FilterPill';
 import { PlaceCard } from '../components/PlaceCard';
 import { MapWebView, MapWebViewHandle } from '../components/MapWebView';
@@ -54,13 +53,10 @@ const CATEGORIES: Array<{ key: LocationCategory | 'all'; label: string }> = [
  *  - Bottom card: compact (no selection) → detailed when a pin is tapped
  */
 export default function MapScreen({
-  userName = 'Guest',
-  userAvatarUri,
   onPressNavHome,
   onPressNavEvents,
   onPressNavReels,
   onPressNavProfile,
-  onPressProfilePhoto,
 }: MapScreenProps) {
   const { theme: T } = useTheme();
   const { isRTL, t } = useLanguage();
@@ -312,198 +308,170 @@ export default function MapScreen({
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* ── Top header (avatar / name / search / bell) ──────────────────── */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Pressable onPress={onPressProfilePhoto} hitSlop={8}>
-            <View style={styles.avatarWrap}>
-              {userAvatarUri ? (
-                <Image source={{ uri: userAvatarUri }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarFallback]}>
-                  <Text style={styles.avatarLetter}>{userName.charAt(0).toUpperCase()}</Text>
-                </View>
-              )}
-              <View style={styles.avatarBadge}>
-                <Feather name="check" size={9} color="#FFFFFF" />
-              </View>
-            </View>
-          </Pressable>
-          <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Feather name="search" size={18} color={T.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Feather name="bell" size={18} color={T.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* ── Map + filter pill overlay ──────────────────────────────────── */}
-      <View style={styles.mapWrap}>
-        <MapWebView
-          ref={mapRef}
-          locations={items}
-          focusedId={selectedId}
-          onSelectLocation={onSelectFromMap}
-          initialCenter={{ lng: 10.181667, lat: 36.806389 }}
-          initialZoom={14}
-          userLocation={userLocation}
-        />
-
-        <View style={styles.filterPillWrap}>
-          <FilterPill onPress={() => setShowFilters(true)} label={t('Filter')} />
-        </View>
-
-        <TouchableOpacity 
-          style={styles.myLocationBtn} 
-          onPress={handleMyLocation} 
-          activeOpacity={0.8}
-          title="My Location"
-        >
-          {locatingUser ? (
-            <ActivityIndicator size="small" color={T.green} />
-          ) : (
-            <Ionicons name="navigate-outline" size={20} color={T.green} />
-          )}
-        </TouchableOpacity>
-
-        {isLoading && (
-          <View style={styles.loadingBadge}>
-            <ActivityIndicator size="small" color={T.green} />
-          </View>
-        )}
-
-        {!!errorMsg && !isLoading && (
-          <View style={styles.errorBadge}>
-            <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>
-          </View>
-        )}
-      </View>
-
-      {/* ── Floating place card ────────────────────────────────────────── */}
-      {selected ? (
-        <View style={[styles.cardSlot, { bottom: 96 + Math.max(insets.bottom, 10) + 16 }]}>
-          <PlaceCard
-            location={selected}
-            variant="detailed"
-            distanceKm={5}
-            etaMinutes={15}
-            onContact={onContact}
+    <AppScaffold
+      title={t('Map')}
+      activeTab="events"
+      onPressHome={onPressNavHome}
+      onPressEvents={onPressNavEvents}
+      onPressCenter={() => {}}
+      onPressReels={onPressNavReels}
+      onPressProfile={onPressNavProfile}
+      contentStyle={{ backgroundColor: T.bg }}
+    >
+      <View style={styles.root}>
+        {/* ── Map + filter pill overlay ──────────────────────────────────── */}
+        <View style={styles.mapWrap}>
+          <MapWebView
+            ref={mapRef}
+            locations={items}
+            focusedId={selectedId}
+            onSelectLocation={onSelectFromMap}
+            initialCenter={{ lng: 10.181667, lat: 36.806389 }}
+            initialZoom={14}
+            userLocation={userLocation}
           />
-        </View>
-      ) : null}
 
-      {/* ── Bottom navigation (re-using shared component, untouched) ─── */}
-      <BottomNavBar
-        activeTab="events"
-        onPressHome={onPressNavHome}
-        onPressEvents={onPressNavEvents}
-        onPressCenter={() => {}}
-        onPressReels={onPressNavReels}
-        onPressProfile={onPressNavProfile}
-      />
+          <View style={styles.filterPillWrap}>
+            <FilterPill onPress={() => setShowFilters(true)} label={t('Filter')} />
+          </View>
 
-      {/* ── Filter sheet ───────────────────────────────────────────────── */}
-      <Modal visible={showFilters} animationType="slide" transparent onRequestClose={() => setShowFilters(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowFilters(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{t('Filter places')}</Text>
+          <TouchableOpacity
+            style={styles.myLocationBtn}
+            onPress={handleMyLocation}
+            activeOpacity={0.8}
+            title="My Location"
+          >
+            {locatingUser ? (
+              <ActivityIndicator size="small" color={T.green} />
+            ) : (
+              <Ionicons name="navigate-outline" size={20} color={T.green} />
+            )}
+          </TouchableOpacity>
 
-            <Text style={styles.sheetSubtitle}>{t('Category')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {CATEGORIES.map((c) => {
-                const isActive = (filters.category || 'all') === c.key;
-                return (
-                  <Pressable
-                    key={c.key}
-                    onPress={() => applyFilter({ category: c.key })}
-                    style={[styles.chip, isActive && styles.chipActive]}
-                  >
-                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{t(c.label)}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <Text style={styles.sheetSubtitle}>{t('Status')}</Text>
-            <View style={styles.toggleRow}>
-              <Pressable
-                onPress={() => applyFilter({ certified: !filters.certified ? true : undefined })}
-                style={[styles.chip, filters.certified && styles.chipActive]}
-              >
-                <Ionicons
-                  name="checkmark-circle"
-                  size={14}
-                  color={filters.certified ? T.white : T.green}
-                />
-                <Text style={[styles.chipText, filters.certified && styles.chipTextActive]}>{t('Certified only')}</Text>
-              </Pressable>
-              <Pressable
-                onPress={() => applyFilter({ glutenFree: !filters.glutenFree ? true : undefined })}
-                style={[styles.chip, filters.glutenFree && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, filters.glutenFree && styles.chipTextActive]}>{t('Gluten-free only')}</Text>
-              </Pressable>
+          {isLoading && (
+            <View style={styles.loadingBadge}>
+              <ActivityIndicator size="small" color={T.green} />
             </View>
+          )}
 
-            <Pressable
-              onPress={() => { setFilters({ category: 'all' }); setShowFilters(false); }}
-              style={styles.clearBtn}
-            >
-              <Text style={styles.clearText}>{t('Clear filters')}</Text>
+          {!!errorMsg && !isLoading && (
+            <View style={styles.errorBadge}>
+              <Text style={styles.errorText} numberOfLines={2}>{errorMsg}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* ── Floating place card ────────────────────────────────────────── */}
+        {selected ? (
+          <View style={[styles.cardSlot, { bottom: 96 + Math.max(insets.bottom, 10) + 16 }]}>
+            <PlaceCard
+              location={selected}
+              variant="detailed"
+              distanceKm={5}
+              etaMinutes={15}
+              onContact={onContact}
+            />
+          </View>
+        ) : null}
+
+        {/* ── Filter sheet ───────────────────────────────────────────────── */}
+        <Modal visible={showFilters} animationType="slide" transparent onRequestClose={() => setShowFilters(false)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowFilters(false)}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>{t('Filter places')}</Text>
+
+              <Text style={styles.sheetSubtitle}>{t('Category')}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {CATEGORIES.map((c) => {
+                  const isActive = (filters.category || 'all') === c.key;
+                  return (
+                    <Pressable
+                      key={c.key}
+                      onPress={() => applyFilter({ category: c.key })}
+                      style={[styles.chip, isActive && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{t(c.label)}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              <Text style={styles.sheetSubtitle}>{t('Status')}</Text>
+              <View style={styles.toggleRow}>
+                <Pressable
+                  onPress={() => applyFilter({ certified: !filters.certified ? true : undefined })}
+                  style={[styles.chip, filters.certified && styles.chipActive]}
+                >
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={14}
+                    color={filters.certified ? T.white : T.green}
+                  />
+                  <Text style={[styles.chipText, filters.certified && styles.chipTextActive]}>{t('Certified only')}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => applyFilter({ glutenFree: !filters.glutenFree ? true : undefined })}
+                  style={[styles.chip, filters.glutenFree && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, filters.glutenFree && styles.chipTextActive]}>{t('Gluten-free only')}</Text>
+                </Pressable>
+              </View>
+
+              <Pressable
+                onPress={() => { setFilters({ category: 'all' }); setShowFilters(false); }}
+                style={styles.clearBtn}
+              >
+                <Text style={styles.clearText}>{t('Clear filters')}</Text>
+              </Pressable>
             </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
 
-      {/* ── Contact sheet modal ────────────────────────────────────────── */}
-      <Modal visible={!!showContactFor} animationType="slide" transparent onRequestClose={() => setShowContactFor(null)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowContactFor(null)}>
-          <Pressable style={styles.contactSheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>{t('Get in Touch')}</Text>
-            <Text style={styles.contactMerchantName}>{t(showContactFor?.name || '')}</Text>
+        {/* ── Contact sheet modal ────────────────────────────────────────── */}
+        <Modal visible={!!showContactFor} animationType="slide" transparent onRequestClose={() => setShowContactFor(null)}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setShowContactFor(null)}>
+            <Pressable style={styles.contactSheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>{t('Get in Touch')}</Text>
+              <Text style={styles.contactMerchantName}>{t(showContactFor?.name || '')}</Text>
 
-            <View style={styles.contactPhoneBox}>
-              <Feather name="phone" size={20} color={T.green} />
-              <Text style={styles.contactPhoneNumber}>{showContactFor?.phone || t('No phone number listed')}</Text>
-            </View>
-
-            {showContactFor?.phone ? (
-              <View style={styles.contactActionsRow}>
-                <TouchableOpacity 
-                  style={[styles.contactBtn, { backgroundColor: T.surfaceAlt }]} 
-                  onPress={handleCopyPhone}
-                >
-                  <Feather name={copied ? "check" : "copy"} size={16} color={copied ? T.green : T.text} />
-                  <Text style={[styles.contactBtnText, { color: T.text }]}>{copied ? t('Copied!') : t('Copy Number')}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.contactBtn, { backgroundColor: T.green }]} 
-                  onPress={handleDialPhone}
-                >
-                  <Feather name="phone-call" size={16} color="#FFFFFF" />
-                  <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>{t('Call Now')}</Text>
-                </TouchableOpacity>
+              <View style={styles.contactPhoneBox}>
+                <Feather name="phone" size={20} color={T.green} />
+                <Text style={styles.contactPhoneNumber}>{showContactFor?.phone || t('No phone number listed')}</Text>
               </View>
-            ) : null}
 
-            <TouchableOpacity 
-              style={[styles.cancelBtn, { marginTop: 14 }]} 
-              onPress={() => setShowContactFor(null)}
-            >
-              <Text style={styles.cancelBtnText}>{t('Cancel')}</Text>
-            </TouchableOpacity>
+              {showContactFor?.phone ? (
+                <View style={styles.contactActionsRow}>
+                  <TouchableOpacity
+                    style={[styles.contactBtn, { backgroundColor: T.surfaceAlt }]}
+                    onPress={handleCopyPhone}
+                  >
+                    <Feather name={copied ? "check" : "copy"} size={16} color={copied ? T.green : T.text} />
+                    <Text style={[styles.contactBtnText, { color: T.text }]}>{copied ? t('Copied!') : t('Copy Number')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.contactBtn, { backgroundColor: T.green }]}
+                    onPress={handleDialPhone}
+                  >
+                    <Feather name="phone-call" size={16} color="#FFFFFF" />
+                    <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>{t('Call Now')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.cancelBtn, { marginTop: 14 }]}
+                onPress={() => setShowContactFor(null)}
+              >
+                <Text style={styles.cancelBtnText}>{t('Cancel')}</Text>
+              </TouchableOpacity>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
-    </View>
+        </Modal>
+      </View>
+    </AppScaffold>
   );
 }
 

@@ -34,6 +34,16 @@ const notificationsApi = {
     const { data } = await http.post<{ success: boolean }>('/notifications/read-all');
     return data;
   },
+
+  async remove(id: string): Promise<{ success: boolean }> {
+    const { data } = await http.delete<{ success: boolean }>(`/notifications/${id}`);
+    return data;
+  },
+
+  async removeAll(): Promise<{ success: boolean }> {
+    const { data } = await http.delete<{ success: boolean }>('/notifications');
+    return data;
+  },
 };
 
 export default notificationsApi;

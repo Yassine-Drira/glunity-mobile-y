@@ -213,7 +213,9 @@ export function HomeScreen({
       backgroundColor: T.surface,
       borderRadius: 16,
       alignItems: "center",
-      paddingVertical: 24,
+      paddingVertical: 20,
+      minHeight: 140,
+      justifyContent: 'center',
       marginBottom: 14,
       shadowColor: "#000000",
       shadowOpacity: 0.12,
@@ -289,7 +291,7 @@ export function HomeScreen({
     },
     recipeCard: {
       width: 138,
-      height: 190,
+      minHeight: 190,
       borderRadius: 20,
       backgroundColor: T.surface,
       shadowColor: "#000000",
@@ -299,10 +301,11 @@ export function HomeScreen({
       elevation: 5,
       overflow: "hidden",
       alignItems: "center",
+      paddingBottom: 10,
     },
     recipeImage: {
       width: "100%",
-      height: 140,
+      height: 120,
     },
     recipeName: {
       marginTop: 8,
@@ -494,18 +497,6 @@ export function HomeScreen({
     outputRange: [0, 1],
   });
 
-  const headerActions = (
-    <View style={styles.headerActions}>
-      <TouchableOpacity onPress={toggleSearch} activeOpacity={0.8} style={[styles.iconButton, { backgroundColor: T.surfaceAlt }]}>
-        <Feather name="search" size={18} color={T.text} />
-      </TouchableOpacity>
-      <TouchableOpacity onPress={onPressNotification} activeOpacity={0.8} style={[styles.iconButton, { backgroundColor: T.surfaceAlt }]}>
-        <Ionicons name="notifications-outline" size={18} color={T.text} />
-        {hasNotification ? <View style={styles.notificationDot} /> : null}
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <AppScaffold
       title={t('Home')}
@@ -515,7 +506,9 @@ export function HomeScreen({
       onPressCenter={onPressNavFab}
       onPressReels={onPressNavReels}
       onPressProfile={onPressNavProfile}
-      rightElement={headerActions}
+      showSearch
+      onSearchPress={toggleSearch}
+      searchIcon={searchOpen ? 'x' : 'search'}
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[styles.root, { backgroundColor: T.bg }]}>

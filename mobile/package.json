@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "lint": "echo \"mobile lint placeholder\"",
-    "test": "echo \"mobile test placeholder\""
+    "test": "echo \"mobile test placeholder\"",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",

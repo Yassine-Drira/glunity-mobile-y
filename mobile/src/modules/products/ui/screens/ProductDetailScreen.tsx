@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +17,7 @@ import { AppScaffold } from '@/shared/components/AppScaffold';
 import { Radius } from '@/shared/utils/theme';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import type { AppStackParamList } from '@/navigation/types';
-import type { Product } from '@/modules/seller/api/products.api';
+import productsApi, { Product } from '@/modules/seller/api/products.api';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 
@@ -72,11 +73,36 @@ type Props = NativeStackScreenProps<AppStackParamList, 'ProductDetail'>;
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProductDetailScreen({ route, navigation }: Props) {
-  const { product } = route.params as { product: Product };
+  const { product: initialProduct, productId } = route.params as { product?: Product; productId?: string };
+  const [product, setProduct] = React.useState<Product | null>(initialProduct || null);
+  const [loading, setLoading] = React.useState(!initialProduct && !!productId);
   const { user }    = useAuth();
   const { theme: T } = useTheme();
   const { t }       = useLanguage();
   const insets      = useSafeAreaInsets();
+
+  React.useEffect(() => {
+    if (initialProduct) {
+      setProduct(initialProduct);
+      return;
+    }
+    if (productId) {
+      let mounted = true;
+      (async () => {
+        try {
+          const res = await productsApi.getById(productId);
+          if (res.success && mounted) {
+            setProduct(res.data);
+          }
+        } catch (err) {
+          console.warn('Failed to load product by ID:', err);
+        } finally {
+          if (mounted) setLoading(false);
+        }
+      })();
+      return () => { mounted = false; };
+    }
+  }, [initialProduct, productId]);
 
   const s = React.useMemo(() => StyleSheet.create({
     safe: {
@@ -301,11 +327,11 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     },
   }), [T]);
 
-  const imageUri    = useMemo(() => getProductImage(product), [product]);
-  const sellerName  = useMemo(() => getSellerName(product.sellerId), [product.sellerId]);
+  const imageUri    = useMemo(() => product ? getProductImage(product) : '', [product]);
+  const sellerName  = useMemo(() => product ? getSellerName(product.sellerId) : '', [product?.sellerId]);
   const description = useMemo(
-    () => CATEGORY_DESCRIPTIONS[product.category] ?? DEFAULT_DESCRIPTION,
-    [product.category],
+    () => (product && CATEGORY_DESCRIPTIONS[product.category]) ?? DEFAULT_DESCRIPTION,
+    [product?.category],
   );
 
   const handleProfileNav = () => {
@@ -322,6 +348,21 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       </TouchableOpacity>
     </View>
   );
+
+  if (loading || !product) {
+    return (
+      <AppScaffold
+        title={t('Loading...')}
+        activeTab="home"
+        onBack={() => navigation.goBack()}
+        contentStyle={{ backgroundColor: T.bg }}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={T.green} />
+        </View>
+      </AppScaffold>
+    );
+  }
 
   return (
     <AppScaffold

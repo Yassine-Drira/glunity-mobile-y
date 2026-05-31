@@ -438,30 +438,13 @@ export default function RecipesScreen({ navigation }: Props) {
     return salad ? [salad] : source.slice(2, 3);
   }, [items, loaded]);
 
-  const headerActions = (
-    <View style={s.topIcons}>
-      <TouchableOpacity 
-        activeOpacity={0.8} 
-        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]}
-        onPress={toggleSearch}
-      > 
-        <Feather name={searchOpen ? "x" : "search"} size={20} color={T.text} />
-      </TouchableOpacity>
-      <TouchableOpacity 
-        activeOpacity={0.8} 
-        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]}
-        onPress={() => navigation.navigate('Notifications')}
-      > 
-        <Feather name="bell" size={20} color={T.text} />
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <AppScaffold
       title="Recipes"
       activeTab="home"
-      rightElement={headerActions}
+      showSearch
+      onSearchPress={toggleSearch}
+      searchIcon={searchOpen ? 'x' : 'search'}
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[s.mainContainer, { backgroundColor: T.bg }]}>

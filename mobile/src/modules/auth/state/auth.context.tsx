@@ -30,6 +30,7 @@ interface AuthContextValue extends AuthState {
   register:      (dto: RegisterDto) => Promise<void>;
   logout:        () => Promise<void>;
   updateProfile: (dto: UpdateProfileDto) => Promise<void>;
+  checkIn:       () => Promise<number>;
   clearError:    () => void;
   textSize:      'Small' | 'Medium' | 'Large';
   updateTextSize: (size: 'Small' | 'Medium' | 'Large') => Promise<void>;
@@ -154,13 +155,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const checkIn = useCallback(async () => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const res = await authApi.checkIn();
+      dispatch({ type: 'UPDATE_USER', payload: res.data.user });
+      return res.data.pointsEarned;
+    } catch (err) {
+      const message = getAuthErrorMessage(err, 'Failed to check in.');
+      dispatch({ type: 'SET_ERROR', payload: message });
+      throw err;
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
   const clearError = useCallback(() => {
     dispatch({ type: 'SET_ERROR', payload: null });
   }, []);
 
   const value = useMemo(
-    () => ({ ...state, login, register, logout, updateProfile, clearError, textSize, updateTextSize }),
-    [state, login, register, logout, updateProfile, clearError, textSize, updateTextSize],
+    () => ({ ...state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize }),
+    [state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

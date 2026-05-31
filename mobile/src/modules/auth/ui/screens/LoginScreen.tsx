@@ -40,7 +40,7 @@ export default function LoginScreen({ navigation, route }: Props) {
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 120,
+      paddingBottom: 40,
       paddingTop: 12,
     },
 
@@ -50,7 +50,7 @@ export default function LoginScreen({ navigation, route }: Props) {
     divider: {
       width: '90%',
       height: 1,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: 'rgba(255,255,255,0.35)',
     },
 
     title: {
@@ -112,10 +112,7 @@ export default function LoginScreen({ navigation, route }: Props) {
 
     // Switch
     switchRow: {
-      position: 'absolute',
-      bottom: 56,
-      left: 0,
-      right: 0,
+      marginTop: 20,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
@@ -132,7 +129,7 @@ export default function LoginScreen({ navigation, route }: Props) {
       fontSize: 16,
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
-      color: '#343831',
+      color: isDark ? T.green : '#343831',
     },
 
     eyeIcon: { fontSize: 18 },
@@ -225,6 +222,7 @@ export default function LoginScreen({ navigation, route }: Props) {
             value={email}
             onChangeText={setEmail}
             error={errors.email}
+            themeColors={T}
           />
           <AuthInput
             label={t('Password')}
@@ -235,6 +233,7 @@ export default function LoginScreen({ navigation, route }: Props) {
             error={errors.password}
             rightIcon={<Feather name={showPass ? 'eye-off' : 'eye'} size={20} color={T.textMuted} />}
             onRightIconPress={() => setShowPass((p) => !p)}
+            themeColors={T}
           />
 
           {/* Forgot password */}
@@ -259,22 +258,22 @@ export default function LoginScreen({ navigation, route }: Props) {
             />
           </View>
 
+          <View style={styles.switchRow}>
+            <Text style={styles.switchText}>{t('No Account? ')}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                clearError();
+                navigation.navigate('Register');
+              }}
+            >
+              <Text style={styles.switchLink}>{t('Register')}</Text>
+            </TouchableOpacity>
+          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchText}>{t('No Account? ')}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            clearError();
-            navigation.navigate('Register');
-          }}
-        >
-          <Text style={styles.switchLink}>{t('Register')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <WaveBackground />
+      <WaveBackground color={isDark ? '#1E3516' : '#8BC34A'} />
     </SafeAreaView>
   );
 }

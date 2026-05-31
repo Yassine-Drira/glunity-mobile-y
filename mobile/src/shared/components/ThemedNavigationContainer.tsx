@@ -6,6 +6,7 @@
  * and tab bars flip instantly when the user toggles dark mode.
  */
 import React from 'react';
+import { Platform } from 'react-native';
 import {
   NavigationContainer,
   DarkTheme,
@@ -48,10 +49,25 @@ interface Props {
 
 export function ThemedNavigationContainer({ children, linking }: Props) {
   const { isDark } = useTheme();
+
+  const handleStateChange = () => {
+    if (Platform.OS === 'web') {
+      try {
+        const activeEl = document.activeElement as HTMLElement | null;
+        if (activeEl && typeof activeEl.blur === 'function') {
+          activeEl.blur();
+        }
+      } catch (e) {
+        // Safe catch
+      }
+    }
+  };
+
   return (
     <NavigationContainer
       linking={linking}
       theme={isDark ? MyDarkTheme : MyLightTheme}
+      onStateChange={handleStateChange}
     >
       {children}
     </NavigationContainer>

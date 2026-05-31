@@ -22,7 +22,7 @@ export type AppStackParamList = {
   AddProduct: { product?: any } | undefined;
   SellerStats: undefined;
   ProductsMarket: undefined;
-  ProductDetail: { product: any };
+  ProductDetail: { product?: any; productId?: string };
   Map: undefined;
   Events: undefined;
   EventDetail: { eventId: string };

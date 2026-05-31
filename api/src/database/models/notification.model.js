@@ -3,7 +3,7 @@
 const mongoose = require('mongoose');
 const { Schema, model, Types } = mongoose;
 
-const NOTIFICATION_TYPES = ['system', 'event', 'product', 'community'];
+const NOTIFICATION_TYPES = ['system', 'event', 'product', 'community', 'achievement'];
 
 const notificationSchema = new Schema(
 	{

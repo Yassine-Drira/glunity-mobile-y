@@ -9,7 +9,7 @@ const authRepository = {
   },
 
   findById(id) {
-    return User.findOne({ _id: id, isActive: true });
+    return User.findOne({ _id: id, isActive: true }).populate('badges');
   },
 
   findByVerificationToken(hashedToken) {

@@ -6,7 +6,7 @@ const AppError     = require('../../common/errors/app-error');
 const { hashPassword, verifyPassword } = require('../../common/utils/password');
 
 // Whitelist of fields users are allowed to update
-const ALLOWED_FIELDS = ['fullName', 'phone', 'bio', 'language', 'darkMode', 'pushToken'];
+const ALLOWED_FIELDS = ['fullName', 'phone', 'bio', 'language', 'darkMode', 'pushToken', 'pushEnabled', 'emailEnabled'];
 
 const usersController = {
   /** PATCH /api/users/me — update the authenticated user's profile */
@@ -65,6 +65,76 @@ const usersController = {
     res.status(200).json({
       success: true,
       message: 'Password changed successfully',
+    });
+  }),
+
+  /** POST /api/users/check-in — daily user check-in to get points and build streaks */
+  checkIn: asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+    if (!user) throw AppError.notFound('User');
+
+    const now = new Date();
+    const todayStr = now.toDateString();
+    
+    if (user.lastCheckInAt && user.lastCheckInAt.toDateString() === todayStr) {
+      return res.status(400).json({
+        success: false,
+        code: 'ALREADY_CHECKED_IN',
+        message: 'You have already checked in today!'
+      });
+    }
+
+    // Check if streak continues (last check-in was yesterday)
+    let isStreakContinued = false;
+    if (user.lastCheckInAt) {
+      const yesterday = new Date();
+      yesterday.setDate(now.getDate() - 1);
+      if (user.lastCheckInAt.toDateString() === yesterday.toDateString()) {
+        isStreakContinued = true;
+      }
+    }
+
+    if (isStreakContinued) {
+      user.streakDays += 1;
+    } else {
+      user.streakDays = 1; // Start new streak
+    }
+
+    user.lastCheckInAt = now;
+    
+    // Base is 10 points. Streak bonus up to 10 points.
+    const basePoints = 10;
+    const streakBonus = Math.min(user.streakDays, 10);
+    const totalPointsEarned = basePoints + streakBonus;
+
+    const badgesService = require('../badges/badges.service');
+    const updatedUser = await badgesService.awardPointsAndCheckBadges(user._id, totalPointsEarned);
+    
+    user.points = updatedUser.points;
+    user.badges = updatedUser.badges;
+    await user.save();
+
+    // Create a check-in achievement notification
+    const notificationsService = require('../notifications/notifications.service');
+    try {
+      await notificationsService.create({
+        userId: user._id,
+        title: `Daily Check-In Completed! 🔥`,
+        body: `You checked in today and earned +${totalPointsEarned} XP! Current streak: ${user.streakDays} ${user.streakDays === 1 ? 'day' : 'days'}.`,
+        type: 'achievement',
+        isRead: false
+      });
+    } catch (nErr) {
+      console.warn('Failed to create check-in notification:', nErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        pointsEarned: totalPointsEarned,
+        streakDays: user.streakDays,
+        user: user.toPublic()
+      }
     });
   }),
 };

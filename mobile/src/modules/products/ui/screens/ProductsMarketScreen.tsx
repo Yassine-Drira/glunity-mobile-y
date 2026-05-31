@@ -396,32 +396,13 @@ export default function ProductsMarketScreen({ navigation }: Props) {
   ), [activeFilter, searchHeight, searchOpacity, searchQuery, T, s]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
-  const headerActions = (
-    <View style={s.headerActions}>
-      <TouchableOpacity 
-        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} 
-        activeOpacity={0.7} 
-        onPress={toggleSearch}
-        id="market-search-btn"
-      >
-        <Feather name={searchOpen ? "x" : "search"} size={18} color={T.text} />
-      </TouchableOpacity>
-      <TouchableOpacity 
-        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} 
-        activeOpacity={0.7} 
-        onPress={() => navigation.navigate('Notifications')}
-        id="market-notif-btn"
-      >
-        <Feather name="bell" size={18} color={T.text} />
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <AppScaffold
       title="Market"
       activeTab="home"
-      rightElement={headerActions}
+      showSearch
+      onSearchPress={toggleSearch}
+      searchIcon={searchOpen ? 'x' : 'search'}
       contentStyle={{ backgroundColor: T.bg }}
     >
 

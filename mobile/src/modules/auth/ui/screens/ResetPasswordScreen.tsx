@@ -96,6 +96,7 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
       position: 'absolute', bottom: 0, left: -4, right: -4,
       height: 110, backgroundColor: T.green,
       borderTopLeftRadius: 9999, borderTopRightRadius: 9999,
+      zIndex: -1,
     },
   }), [T]);
 
@@ -234,6 +235,7 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
             error={errors.password}
             rightIcon={<Feather name={showPass ? 'eye-off' : 'eye'} size={20} color={T.textMuted} />}
             onRightIconPress={() => setShowPass((p) => !p)}
+            themeColors={T}
           />
           <AuthInput
             label={t('Confirm Password')}
@@ -244,6 +246,7 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
             error={errors.confirm}
             rightIcon={<Feather name={showConf ? 'eye-off' : 'eye'} size={20} color={T.textMuted} />}
             onRightIconPress={() => setShowConf((p) => !p)}
+            themeColors={T}
           />
 
           <Text style={styles.hint}>{t('Min 8 chars · one uppercase · one number')}</Text>

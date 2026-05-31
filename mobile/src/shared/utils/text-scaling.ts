@@ -1,5 +1,6 @@
 import { Text, TextInput, View, StatusBar, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { globalIsRTL } from '../context/language.context';
 
 let sizeMultiplier = 1.0;
 let darkModeEnabled = false;
@@ -47,7 +48,7 @@ const colorMap: Record<string, string> = {
   '#f2f2f2': '#121212',
   '#fafafa': '#1E1E1E',
   '#f5f5f5': '#121212',
-  
+
   // Texts
   '#2e2e2e': '#FFFFFF',
   '#000000': '#FFFFFF',
@@ -58,7 +59,7 @@ const colorMap: Record<string, string> = {
   'rgba(46,46,46,0.5)': 'rgba(255,255,255,0.6)',
   'rgba(46,46,46,0.4)': 'rgba(255,255,255,0.5)',
   'rgba(46,46,46,0.8)': 'rgba(255,255,255,0.85)',
-  
+
   // Borders & Dividers
   '#c4c4c4': '#333333',
   '#e0e0e0': '#2C2C2C',
@@ -135,6 +136,35 @@ export function transformStyles(style: any): any {
 
 let hasPatchedThemeScaling = false;
 
+function getScaledFontSize(baseSize: number): number {
+  const multiplier = sizeMultiplier;
+  if (multiplier === 1.0) return baseSize;
+
+  const isArabic = globalIsRTL;
+
+  if (multiplier > 1.0) {
+    // Large setting: scale body text, but progressively cap headers to prevent layout breakage
+    if (baseSize >= 24) {
+      // Arabic characters have tall ascenders/descenders, cap more strictly (+3% vs +5%)
+      return Math.round(baseSize * (isArabic ? 1.03 : 1.05));
+    }
+    if (baseSize >= 18) {
+      // Sub-headers: cap at +5% for Arabic vs +8% for English/French
+      return Math.round(baseSize * (isArabic ? 1.05 : 1.08));
+    }
+    // Body/button/input text: cap at +10% for Arabic to prevent vertical overlapping/clipping vs +15% Latin
+    const maxMultiplier = isArabic ? 1.10 : 1.15;
+    const safeMultiplier = Math.min(multiplier, maxMultiplier);
+    return Math.round(baseSize * safeMultiplier);
+  } else {
+    // Small setting
+    if (baseSize >= 18) {
+      return Math.round(baseSize * 0.95); // Don't shrink headings excessively
+    }
+    return Math.round(baseSize * multiplier);
+  }
+}
+
 export function initTextScaling() {
   if (hasPatchedThemeScaling) return;
 
@@ -162,8 +192,9 @@ export function initTextScaling() {
       let newProps = props || {};
       const flattened = newProps.style ? StyleSheet.flatten(newProps.style) : {};
       const baseSize = (flattened && typeof flattened.fontSize === 'number') ? flattened.fontSize : 14;
-      const multiplier = getTextMultiplier();
-      const scaledSize = Math.round(baseSize * multiplier);
+      
+      // Respect explicit opt-out of text scaling
+      const scaledSize = newProps.allowFontScaling === false ? baseSize : getScaledFontSize(baseSize);
 
       let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
       if (darkModeEnabled) {
@@ -186,8 +217,9 @@ export function initTextScaling() {
       let newProps = props || {};
       const flattened = newProps.style ? StyleSheet.flatten(newProps.style) : {};
       const baseSize = (flattened && typeof flattened.fontSize === 'number') ? flattened.fontSize : 14;
-      const multiplier = getTextMultiplier();
-      const scaledSize = Math.round(baseSize * multiplier);
+      
+      // Respect explicit opt-out of text scaling
+      const scaledSize = newProps.allowFontScaling === false ? baseSize : getScaledFontSize(baseSize);
 
       let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
       if (darkModeEnabled) {

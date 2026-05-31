@@ -619,12 +619,12 @@ export default function AddProductScreen({ navigation, route }: Props) {
       }
       e.preventDefault();
       Alert.alert(
-        'Discard draft?',
-        'You have unsaved changes. Are you sure you want to discard them and leave?',
+        t('Discard draft?'),
+        t('You have unsaved changes. Are you sure you want to discard them and leave?'),
         [
-          { text: 'Keep Editing', style: 'cancel', onPress: () => {} },
+          { text: t('Keep Editing'), style: 'cancel', onPress: () => {} },
           {
-            text: 'Discard',
+            text: t('Discard'),
             style: 'destructive',
             onPress: () => navigation.dispatch(e.data.action),
           },
@@ -655,11 +655,11 @@ export default function AddProductScreen({ navigation, route }: Props) {
       }
     } else {
       Alert.alert(
-        'Delete Product',
-        'Are you sure you want to delete this product from your menu?',
+        t('Delete Product'),
+        t('Are you sure you want to delete this product from your menu?'),
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: performDelete },
+          { text: t('Cancel'), style: 'cancel' },
+          { text: t('Delete'), style: 'destructive', onPress: performDelete },
         ]
       );
     }

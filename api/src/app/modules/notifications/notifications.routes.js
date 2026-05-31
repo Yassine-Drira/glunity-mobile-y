@@ -11,5 +11,7 @@ const router = Router();
 router.get('/', authMiddleware, controller.list);
 router.post('/read-all', authMiddleware, controller.markAllAsRead);
 router.post('/:id/read', authMiddleware, notificationIdSchema, validate, controller.markAsRead);
+router.delete('/', authMiddleware, controller.deleteAll);
+router.delete('/:id', authMiddleware, notificationIdSchema, validate, controller.delete);
 
 module.exports = router;

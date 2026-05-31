@@ -99,6 +99,36 @@ function getArticleIconConfig(icon: string) {
   return ARTICLE_ICON_CONFIG[icon] ?? { color: '#555555', bg: 'rgba(0,0,0,0.06)' };
 }
 
+// ── Icon resolver maps ───────────────────────────────────────────────────────
+const ICON_LIB_MAP: Record<string, 'mc' | 'ion' | 'feather'> = {
+  'heart-pulse':           'mc',
+  'food-fork-drink':       'mc',
+  'restaurant-outline':    'ion',
+  'shield-check-outline':  'mc',
+  'stethoscope':           'mc',
+  'sunny-outline':         'ion',
+  'information-outline':   'mc',
+};
+
+function DynamicIcon({
+  name,
+  size,
+  color,
+}: {
+  name: string;
+  size: number;
+  color: string;
+}) {
+  const lib = ICON_LIB_MAP[name] ?? 'mc';
+  if (lib === 'ion') {
+    return <Ionicons name={name as any} size={size} color={color} />;
+  }
+  if (lib === 'feather') {
+    return <Feather name={name as any} size={size} color={color} />;
+  }
+  return <MaterialCommunityIcons name={name as any} size={size} color={color} />;
+}
+
 // ── Icon resolver ───────────────────────────────────────────────────────────
 function ArticleIcon({
   iconName,
@@ -122,7 +152,7 @@ function ArticleIcon({
         justifyContent: 'center',
       }}
     >
-      <MaterialCommunityIcons name={iconName as any} size={size} color={color} />
+      <DynamicIcon name={iconName} size={size} color={color} />
     </View>
   );
 }
@@ -210,10 +240,12 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           flex: 1,
           backgroundColor: T.surface,
           borderRadius: 14,
-          paddingVertical: 14,
-          paddingHorizontal: 8,
+          paddingVertical: 12,
+          paddingHorizontal: 6,
           alignItems: 'center',
-          gap: 8,
+          justifyContent: 'center',
+          minHeight: 112,
+          gap: 6,
           borderWidth: 1.5,
           borderColor: 'transparent',
           shadowColor: '#000',
@@ -513,8 +545,8 @@ export default function PatientResourcesScreen({ navigation }: Props) {
               >
                 {/* Circle icon */}
                 <View style={s.featuredIconCircle}>
-                  <MaterialCommunityIcons
-                    name={featured.icon as any}
+                  <DynamicIcon
+                    name={featured.icon}
                     size={34}
                     color={T.red}
                   />

@@ -11,6 +11,13 @@ class ProductsController {
 
 			const product = await productsService.create(productData, userId);
 			
+			try {
+				const badgesService = require('../badges/badges.service');
+				await badgesService.awardPointsAndCheckBadges(userId, 15);
+			} catch (err) {
+				console.error('[gamification] Failed to award points for product:', err.message);
+			}
+
 			res.status(201).json({
 				success: true,
 				data: productsMapper.toPublic(product),

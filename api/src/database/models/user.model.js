@@ -67,6 +67,17 @@ const userSchema = new Schema(
       min: [0, 'streakDays cannot be negative'],
     },
 
+    points: {
+      type: Number,
+      default: 0,
+      min: [0, 'points cannot be negative'],
+    },
+
+    lastCheckInAt: {
+      type: Date,
+      default: null,
+    },
+
     badges: [
       {
         type: Types.ObjectId,
@@ -87,6 +98,16 @@ const userSchema = new Schema(
     darkMode: {
       type: Boolean,
       default: false,
+    },
+
+    pushEnabled: {
+      type: Boolean,
+      default: true,
+    },
+
+    emailEnabled: {
+      type: Boolean,
+      default: true,
     },
 
     pushToken: {
@@ -136,8 +157,9 @@ userSchema.statics.findByEmail = function (email) {
   return this.findOne({ email: email.toLowerCase().trim() });
 };
 
+// ─── Find active by ID and populate badges ────────────────────────────────────
 userSchema.statics.findActiveById = function (id) {
-  return this.findOne({ _id: id, isActive: true });
+  return this.findOne({ _id: id, isActive: true }).populate('badges');
 };
 
 // ─── Methods ──────────────────────────────────────────────────────────────────
@@ -153,9 +175,13 @@ userSchema.methods.toPublic = function () {
     profileType: this.profileType,
     avatarUrl: this.avatarUrl,
     streakDays: this.streakDays,
+    points: this.points,
+    lastCheckInAt: this.lastCheckInAt,
     badges: this.badges,
     language: this.language,
     darkMode: this.darkMode,
+    pushEnabled: this.pushEnabled,
+    emailEnabled: this.emailEnabled,
     emailVerified: this.emailVerified,
     isActive: this.isActive,
     createdAt: this.createdAt,

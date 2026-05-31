@@ -117,8 +117,8 @@ export default function SettingsScreen({ navigation }: Props) {
   const { language, setLanguage, t, isRTL } = useLanguage();
   
   // Notification preferences
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [pushEnabled, setPushEnabled] = useState(user?.pushEnabled ?? true);
+  const [emailEnabled, setEmailEnabled] = useState(user?.emailEnabled ?? true);
 
   // Text size preference modal visibility
   const [showTextSizeModal, setShowTextSizeModal] = useState(false);
@@ -147,9 +147,14 @@ export default function SettingsScreen({ navigation }: Props) {
   const [bugLoading, setBugLoading] = useState(false);
   const [bugSuccess, setBugSuccess] = useState(false);
 
-  // Load preferences from local storage on mount
+  // Load preferences from local storage or user model on mount
   useEffect(() => {
     async function loadPreferences() {
+      if (user) {
+        setPushEnabled(user.pushEnabled ?? true);
+        setEmailEnabled(user.emailEnabled ?? true);
+        return;
+      }
       try {
         const pushPref = await AsyncStorage.getItem('@pref_push');
         if (pushPref !== null) setPushEnabled(pushPref === 'true');
@@ -161,14 +166,17 @@ export default function SettingsScreen({ navigation }: Props) {
       }
     }
     loadPreferences();
-  }, []);
+  }, [user]);
 
   const handlePushToggle = async (val: boolean) => {
     setPushEnabled(val);
     try {
       await AsyncStorage.setItem('@pref_push', String(val));
+      if (user) {
+        await updateProfile({ pushEnabled: val });
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Error updating push settings:', e);
     }
   };
 
@@ -176,8 +184,11 @@ export default function SettingsScreen({ navigation }: Props) {
     setEmailEnabled(val);
     try {
       await AsyncStorage.setItem('@pref_email', String(val));
+      if (user) {
+        await updateProfile({ emailEnabled: val });
+      }
     } catch (e) {
-      console.error(e);
+      console.error('Error updating email settings:', e);
     }
   };
 

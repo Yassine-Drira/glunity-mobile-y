@@ -15,4 +15,7 @@ router.patch('/me', usersController.updateMe);
 /** POST /api/users/change-password — update user password */
 router.post('/change-password', usersController.changePassword);
 
+/** POST /api/users/check-in — daily check-in */
+router.post('/check-in', usersController.checkIn);
+
 module.exports = router;

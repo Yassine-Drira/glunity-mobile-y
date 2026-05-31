@@ -14,6 +14,7 @@ import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useLanguage } from '@/shared/context/language.context';
+import { useAuth } from '@/modules/auth/state/auth.context';
 import notificationsApi, { Notification } from '../../api/notifications.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Notifications'>;
@@ -59,7 +60,8 @@ function getRelativeTime(dateString: string, lang: 'en' | 'fr' | 'ar') {
 
 export default function NotificationsScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
-  const { language, isRTL } = useLanguage();
+  const { language, isRTL, t } = useLanguage();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,6 +111,12 @@ export default function NotificationsScreen({ navigation }: Props) {
       navigation.navigate('EventDetail', { eventId: meta.eventId });
     } else if (meta.productId) {
       navigation.navigate('ProductDetail', { productId: meta.productId });
+    } else if (item.type === 'achievement') {
+      if (user?.profileType === 'pro_commerce' || user?.profileType === 'pro_health') {
+        navigation.navigate('SellerProProfile');
+      } else {
+        navigation.navigate('Profile');
+      }
     }
   };
 
@@ -123,6 +131,28 @@ export default function NotificationsScreen({ navigation }: Props) {
     }
   };
 
+  const handleDelete = async (item: Notification) => {
+    // Optimistic UI update
+    setNotifications(prev => prev.filter(n => n.id !== item.id));
+
+    try {
+      await notificationsApi.remove(item.id);
+    } catch (err) {
+      console.warn('Failed to delete notification:', err);
+    }
+  };
+
+  const handleClearAll = async () => {
+    // Optimistic UI update
+    setNotifications([]);
+
+    try {
+      await notificationsApi.removeAll();
+    } catch (err) {
+      console.warn('Failed to clear all notifications:', err);
+    }
+  };
+
   const unreadCount = useMemo(() => {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
@@ -134,26 +164,37 @@ export default function NotificationsScreen({ navigation }: Props) {
 
   const getIconConfig = (type: string) => {
     switch (type) {
+      case 'achievement':
+        return {
+          lib: 'mci',
+          name: 'trophy-outline',
+          color: '#FFB300', // Deep Gold/Amber
+          bg: '#FFF8E1', // Light amber background
+        };
       case 'event':
         return {
+          lib: 'feather',
           name: 'calendar',
           color: '#8E24AA', // Purple
           bg: '#F3E5F5',
         };
       case 'product':
         return {
+          lib: 'feather',
           name: 'shopping-bag',
           color: '#43A047', // Green
           bg: '#E8F5E9',
         };
       case 'community':
         return {
+          lib: 'feather',
           name: 'users',
           color: '#E65100', // Orange
           bg: '#FFE0B2',
         };
       default:
         return {
+          lib: 'feather',
           name: 'bell',
           color: '#1E88E5', // Blue
           bg: '#E3F2FD',
@@ -167,6 +208,32 @@ export default function NotificationsScreen({ navigation }: Props) {
         container: {
           flex: 1,
           backgroundColor: T.bg,
+        },
+        actionBar: {
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          borderBottomWidth: 1,
+          borderBottomColor: T.border,
+          backgroundColor: T.surface,
+        },
+        actionButton: {
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          paddingVertical: 6,
+          paddingHorizontal: 12,
+          borderRadius: 8,
+          backgroundColor: T.surfaceAlt,
+        },
+        actionButtonText: {
+          fontSize: 12.5,
+          fontFamily: F.medium,
+          color: T.green,
+          fontWeight: '500',
+          marginLeft: isRTL ? 0 : 6,
+          marginRight: isRTL ? 6 : 0,
         },
         centered: {
           flex: 1,
@@ -194,7 +261,6 @@ export default function NotificationsScreen({ navigation }: Props) {
           alignItems: 'center',
           backgroundColor: T.surface,
           borderRadius: 16,
-          padding: 16,
           marginBottom: 12,
           borderWidth: 1,
           borderColor: T.border,
@@ -203,6 +269,22 @@ export default function NotificationsScreen({ navigation }: Props) {
           shadowOpacity: 0.04,
           shadowRadius: 6,
           elevation: 2,
+          overflow: 'hidden',
+        },
+        cardClickable: {
+          flex: 1,
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          padding: 14,
+        },
+        deleteBtn: {
+          paddingHorizontal: 14,
+          paddingVertical: 16,
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderLeftWidth: isRTL ? 0 : 1,
+          borderRightWidth: isRTL ? 1 : 0,
+          borderColor: T.border,
         },
         cardUnread: {
           backgroundColor: T.surface,
@@ -287,28 +369,55 @@ export default function NotificationsScreen({ navigation }: Props) {
     [T, isRTL]
   );
 
-  const rightElement = unreadCount > 0 ? (
-    <TouchableOpacity style={s.headerRight} onPress={handleMarkAllRead} activeOpacity={0.7}>
-      <Text style={s.markAllText}>Mark all</Text>
-    </TouchableOpacity>
-  ) : undefined;
 
   if (loading) {
     return (
-      <View style={s.centered}>
-        <ActivityIndicator size="large" color={T.green} />
-      </View>
+      <AppScaffold
+        title={t('Notifications')}
+        activeTab="profile"
+        onBack={() => navigation.goBack()}
+      >
+        <View style={s.container}>
+          <View style={s.listContent}>
+            {[1, 2, 3, 4, 5].map((key) => (
+              <View key={key} style={[s.card, { opacity: 0.5, borderColor: T.border }]}>
+                <View style={[s.iconBox, { backgroundColor: T.border, opacity: 0.3 }]} />
+                <View style={s.textBlock}>
+                  <View style={[s.rowTop, { marginBottom: 8 }]}>
+                    <View style={{ width: '45%', height: 14, backgroundColor: T.border, borderRadius: 4 }} />
+                    <View style={{ width: '20%', height: 10, backgroundColor: T.border, borderRadius: 4 }} />
+                  </View>
+                  <View style={{ width: '75%', height: 12, backgroundColor: T.border, borderRadius: 4 }} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </AppScaffold>
     );
   }
 
   return (
     <AppScaffold
-      title="Notifications"
+      title={t('Notifications')}
       activeTab="profile"
       onBack={() => navigation.goBack()}
-      rightElement={rightElement}
     >
       <View style={s.container}>
+        {notifications.length > 0 && (
+          <View style={s.actionBar}>
+            <TouchableOpacity style={s.actionButton} onPress={handleMarkAllRead} activeOpacity={0.7}>
+              <Feather name="check-square" size={14} color={T.green} />
+              <Text style={s.actionButtonText}>{t('Mark all read')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.actionButton} onPress={handleClearAll} activeOpacity={0.7}>
+              <Feather name="trash-2" size={14} color={T.red} />
+              <Text style={[s.actionButtonText, { color: T.red }]}>{t('Clear all')}</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <FlatList
           data={notifications}
           keyExtractor={item => item.id}
@@ -320,34 +429,48 @@ export default function NotificationsScreen({ navigation }: Props) {
           ListEmptyComponent={
             <View style={s.emptyBox}>
               <Feather name="bell-off" size={48} color={T.textMuted} />
-              <Text style={s.emptyTitle}>All caught up! 🌿</Text>
-              <Text style={s.emptySub}>No new notifications at the moment.</Text>
+              <Text style={s.emptyTitle}>{t('All caught up! 🌿')}</Text>
+              <Text style={s.emptySub}>{t('No new notifications at the moment.')}</Text>
             </View>
           }
           renderItem={({ item }) => {
             const iconConfig = getIconConfig(item.type);
             return (
-              <TouchableOpacity
-                style={[s.card, !item.isRead && s.cardUnread]}
-                onPress={() => handleMarkAsRead(item)}
-                activeOpacity={0.8}
-              >
-                <View style={[s.iconBox, { backgroundColor: iconConfig.bg }]}>
-                  <Feather name={iconConfig.name as any} size={20} color={iconConfig.color} />
-                </View>
-                <View style={s.textBlock}>
-                  <View style={s.rowTop}>
-                    <Text style={[s.title, !item.isRead && s.titleUnread]} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                    <Text style={s.time}>{getRelativeTime(item.createdAt, language)}</Text>
+              <View style={[s.card, !item.isRead && s.cardUnread]}>
+                <TouchableOpacity
+                  style={s.cardClickable}
+                  onPress={() => handleMarkAsRead(item)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[s.iconBox, { backgroundColor: iconConfig.bg }]}>
+                    {iconConfig.lib === 'mci' ? (
+                      <MaterialCommunityIcons name={iconConfig.name as any} size={22} color={iconConfig.color} />
+                    ) : (
+                      <Feather name={iconConfig.name as any} size={20} color={iconConfig.color} />
+                    )}
                   </View>
-                  <Text style={s.body} numberOfLines={2}>
-                    {item.body}
-                  </Text>
-                </View>
-                {!item.isRead && <View style={s.dot} />}
-              </TouchableOpacity>
+                  <View style={s.textBlock}>
+                    <View style={s.rowTop}>
+                      <Text style={[s.title, !item.isRead && s.titleUnread]} numberOfLines={1}>
+                        {t(item.title)}
+                      </Text>
+                      <Text style={s.time}>{getRelativeTime(item.createdAt, language)}</Text>
+                    </View>
+                    <Text style={s.body} numberOfLines={2}>
+                      {t(item.body)}
+                    </Text>
+                  </View>
+                  {!item.isRead && <View style={s.dot} />}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.deleteBtn}
+                  onPress={() => handleDelete(item)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="trash-2" size={16} color={T.textMuted} />
+                </TouchableOpacity>
+              </View>
             );
           }}
         />

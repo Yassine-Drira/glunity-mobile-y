@@ -11,6 +11,7 @@ import {
   StatusBar,
   Platform,
   Image,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/theme.context';
@@ -35,6 +36,12 @@ interface AppHeaderProps {
   onRightPress?: () => void;
   /** Pass a custom right element instead of an icon */
   rightElement?: React.ReactNode;
+  /** Show search button in main header */
+  showSearch?: boolean;
+  /** Handler for search button */
+  onSearchPress?: () => void;
+  /** Feather icon name for search button */
+  searchIcon?: string;
   /** Override subtitle below the title */
   subtitle?: string;
 }
@@ -46,34 +53,78 @@ export function AppHeader({
   rightIcon,
   onRightPress,
   rightElement,
+  showSearch,
+  onSearchPress,
+  searchIcon,
   subtitle,
 }: AppHeaderProps) {
   const { theme: C } = useTheme();
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const { isRTL, t } = useLanguage();
+  const isPro = user?.profileType?.startsWith('pro_');
+  const roleColor = isPro ? C.red : C.green;
+  const roleBadgeIcon = !isPro
+    ? 'leaf'
+    : user?.profileType === 'pro_health'
+    ? 'stethoscope'
+    : 'check-decagram';
+  const shouldShowSearch = showSearch ?? !!onSearchPress;
 
   const [unreadCount, setUnreadCount] = React.useState(0);
+  const prevUnreadCountRef = React.useRef(0);
 
-  // Fetch unread status
+  // Fetch unread status with polling
   React.useEffect(() => {
     if (!user) return;
     let mounted = true;
-    (async () => {
+    let isFirstLoad = true;
+
+    const checkUnread = async () => {
       try {
         const res = await notificationsApi.list();
         if (res.success && mounted) {
           const unread = res.data.filter((n: any) => !n.isRead).length;
+
+          // Alert on new notification if count went up
+          if (!isFirstLoad && unread > prevUnreadCountRef.current) {
+            const newNotifications = res.data.filter((n: any) => !n.isRead);
+            if (newNotifications.length > 0) {
+              const latestNotif = newNotifications[0];
+              Alert.alert(
+                t(latestNotif.title),
+                t(latestNotif.body),
+                [
+                  {
+                    text: t('View'),
+                    onPress: () => navigation.navigate('Notifications'),
+                  },
+                  {
+                    text: t('CLOSE'),
+                    style: 'cancel',
+                  },
+                ]
+              );
+            }
+          }
+
+          prevUnreadCountRef.current = unread;
           setUnreadCount(unread);
+          isFirstLoad = false;
         }
       } catch (err) {
         // Mute api check failures
       }
-    })();
+    };
+
+    checkUnread();
+    const interval = setInterval(checkUnread, 5000); // Check every 5 seconds
+
     return () => {
       mounted = false;
+      clearInterval(interval);
     };
-  }, [user]);
+  }, [user, navigation]);
 
   // Extract first name and default fallback avatar
   const firstName = user?.fullName ? user.fullName.split(' ')[0] : 'Yassmine';
@@ -85,14 +136,20 @@ export function AppHeader({
         wrap: {
           backgroundColor: C.bg,
           paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) + 6 : 6,
-          paddingBottom: 4,
+          paddingBottom: 6,
         },
         row: {
-          height: 72,
+          height: 68,
           flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: 20,
+          marginHorizontal: 0,
+          borderTopLeftRadius: 0,
+          borderTopRightRadius: 0,
+          borderBottomLeftRadius: 10,
+          borderBottomRightRadius: 10,
+          backgroundColor: C.bg,
         },
         // ── Main Tab Headers (Avatar + First Name left, Search + Bell right) ──
         mainLeft: {
@@ -103,6 +160,9 @@ export function AppHeader({
           position: 'relative',
           width: 44,
           height: 44,
+          borderRadius: 22,
+          alignItems: 'center',
+          justifyContent: 'center',
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.08,
@@ -113,9 +173,7 @@ export function AppHeader({
           width: 44,
           height: 44,
           borderRadius: 22,
-          borderWidth: 1.5,
-          borderColor: C.surface,
-          backgroundColor: C.surfaceAlt,
+          backgroundColor: 'transparent',
         },
         shieldBadge: {
           position: 'absolute',
@@ -124,7 +182,7 @@ export function AppHeader({
           width: 17,
           height: 17,
           borderRadius: 8.5,
-          backgroundColor: C.green, // Verification Badge Green
+          backgroundColor: roleColor,
           alignItems: 'center',
           justifyContent: 'center',
           borderWidth: 1.5,
@@ -158,19 +216,12 @@ export function AppHeader({
           gap: 10,
         },
         actionBtn: {
-          width: 40,
-          height: 40,
-          borderRadius: 20,
-          backgroundColor: C.surface,
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: C.border,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.04,
-          shadowRadius: 2,
-          elevation: 1,
         },
         badgeDot: {
           position: 'absolute',
@@ -245,7 +296,7 @@ export function AppHeader({
           elevation: 1,
         },
       }),
-    [C, user, isRTL]
+    [C, isRTL, roleColor]
   );
 
   return (
@@ -273,7 +324,12 @@ export function AppHeader({
                     onPress={onRightPress ?? (rightIcon.includes('bell') ? () => navigation.navigate('Notifications') : undefined)} 
                     activeOpacity={0.7}
                   >
-                    <MaterialCommunityIcons name={rightIcon as any} size={20} color={C.text} />
+                    <View style={{ position: 'relative' }}>
+                      <MaterialCommunityIcons name={rightIcon as any} size={20} color={C.text} />
+                      {rightIcon.includes('bell') && unreadCount > 0 && (
+                        <View style={[s.badgeDot, { top: -2, right: -2 }]} />
+                      )}
+                    </View>
                   </TouchableOpacity>
                 ) : null
               )}
@@ -286,11 +342,10 @@ export function AppHeader({
               <View style={s.avatarWrap}>
                 <Image source={{ uri: avatarUrl }} style={s.avatar} />
                 <View style={s.shieldBadge}>
-                  <MaterialCommunityIcons name="shield-check" size={10} color="#FFFFFF" />
+                  <MaterialCommunityIcons name={roleBadgeIcon} size={10} color="#FFFFFF" />
                 </View>
               </View>
               <View style={s.profileInfo}>
-                <Text style={s.greetingText}>{t('Welcome')}</Text>
                 <Text style={s.nameText}>{firstName}</Text>
               </View>
             </View>
@@ -298,6 +353,15 @@ export function AppHeader({
             <View style={s.mainRight}>
               {rightElement ?? (
                 <>
+                  {shouldShowSearch ? (
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={s.actionBtn}
+                      onPress={onSearchPress}
+                    >
+                      <Feather name={(searchIcon || 'search') as any} size={20} color={C.text} />
+                    </TouchableOpacity>
+                  ) : null}
                   <TouchableOpacity 
                     activeOpacity={0.7} 
                     style={s.actionBtn} 

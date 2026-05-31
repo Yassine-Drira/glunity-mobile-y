@@ -26,3 +26,9 @@ mobile/.expo-shared/
 Thumbs.db
 .vscode/
 .idea/
+
+# Temporary developer logs & reports
+tatus
+db-check-result.txt
+*.log
+*.txt.resolved

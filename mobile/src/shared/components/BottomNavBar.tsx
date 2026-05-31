@@ -128,7 +128,7 @@ export function BottomNavBar({
           <View style={getIconFrameStyle('home')}>
             <Feather name="home" size={22} color={getIconColor('home')} />
           </View>
-          <Text style={getLabelStyle('home')}>{t('Home')}</Text>
+          <Text style={getLabelStyle('home')} numberOfLines={1} allowFontScaling={false}>{t('Home')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -143,7 +143,7 @@ export function BottomNavBar({
           <View style={getIconFrameStyle('events')}>
             <Feather name="calendar" size={22} color={getIconColor('events')} />
           </View>
-          <Text style={getLabelStyle('events')}>{t('Events')}</Text>
+          <Text style={getLabelStyle('events')} numberOfLines={1} allowFontScaling={false}>{t('Events')}</Text>
         </TouchableOpacity>
 
         <View style={styles.navItem} />
@@ -160,7 +160,7 @@ export function BottomNavBar({
           <View style={getIconFrameStyle('reels')}>
             <MaterialCommunityIcons name="movie-play-outline" size={24} color={getIconColor('reels')} />
           </View>
-          <Text style={getLabelStyle('reels')}>{t('Reels')}</Text>
+          <Text style={getLabelStyle('reels')} numberOfLines={1} allowFontScaling={false}>{t('Reels')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -175,7 +175,7 @@ export function BottomNavBar({
           <View style={getIconFrameStyle('profile')}>
             <Feather name="user" size={22} color={getIconColor('profile')} />
           </View>
-          <Text style={getLabelStyle('profile')}>{t('Profile')}</Text>
+          <Text style={getLabelStyle('profile')} numberOfLines={1} allowFontScaling={false}>{t('Profile')}</Text>
         </TouchableOpacity>
       </View>
 

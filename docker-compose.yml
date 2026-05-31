@@ -6,15 +6,13 @@ services:
       context: ./api
       dockerfile: Dockerfile
     env_file:
-      - ./api/.env.example
+      - ./api/.env
     environment:
       NODE_ENV: production
       PORT: 5000
       MONGO_URI: mongodb://mongo:27017/glunity_mobile
-      REDIS_URL: redis://redis:6379
     depends_on:
       - mongo
-      - redis
     restart: unless-stopped
     networks:
       - glunity_net
@@ -41,19 +39,9 @@ services:
     networks:
       - glunity_net
 
-  redis:
-    image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    networks:
-      - glunity_net
-
 networks:
   glunity_net:
     driver: bridge
 
 volumes:
   mongo_data:
-  redis_data:
