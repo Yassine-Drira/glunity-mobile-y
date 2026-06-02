@@ -21,4 +21,7 @@ router.post('/change-password', usersController.changePassword);
 /** POST /api/users/check-in — daily check-in */
 router.post('/check-in', usersController.checkIn);
 
+/** GET /api/users/:id — get user profile by ID */
+router.get('/:id', usersController.getById);
+
 module.exports = router;

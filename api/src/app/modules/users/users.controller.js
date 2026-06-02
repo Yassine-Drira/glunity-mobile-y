@@ -368,6 +368,17 @@ const usersController = {
       }
     });
   }),
+
+  /** GET /api/users/:id — get user/seller profile by ID */
+  getById: asyncHandler(async (req, res) => {
+    const user = await User.findById(req.params.id);
+    if (!user) throw AppError.notFound('User');
+
+    res.status(200).json({
+      success: true,
+      data: user.toPublic(),
+    });
+  }),
 };
 
 module.exports = usersController;

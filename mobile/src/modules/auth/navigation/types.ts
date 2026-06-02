@@ -20,8 +20,8 @@ export type AppStackParamList = {
   Settings:        undefined;
   EditProfile:     undefined;
   EditStore:       undefined;
-  /** Pass sellerId + seller object when visiting another seller's profile */
-  SellerProfile:   { sellerId?: string; seller?: any } | undefined;
+  /** Pass sellerId when visiting another seller's profile */
+  SellerProfile:   { sellerId?: string } | undefined;
   SellerProProfile: undefined;
   AddProduct:      { product?: any } | undefined;
   SellerStats:     undefined;

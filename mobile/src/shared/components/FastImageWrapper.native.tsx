@@ -1,21 +1,36 @@
 import React from 'react';
 import { Image, ImageProps } from 'react-native';
 
+let FastImage: any;
+try {
+  FastImage = require('react-native-fast-image');
+} catch (e) {
+  // Fallback if import fails (e.g. standard Expo Go environment)
+}
+
 const resizeModeMap = {
-  contain: 'contain',
-  cover: 'cover',
-  stretch: 'stretch',
-  center: 'center',
+  contain: FastImage?.resizeMode?.contain || 'contain',
+  cover: FastImage?.resizeMode?.cover || 'cover',
+  stretch: FastImage?.resizeMode?.stretch || 'stretch',
+  center: FastImage?.resizeMode?.center || 'center',
 } as const;
 
 export const resizeMode = resizeModeMap;
 
 export function preload(sources: Array<{ uri: string }>) {
-  sources.forEach(src => {
-    if (src.uri) {
-      Image.prefetch(src.uri).catch(() => {});
+  if (FastImage) {
+    try {
+      FastImage.preload(sources);
+    } catch (e) {
+      // Safe fail
     }
-  });
+  } else {
+    sources.forEach(src => {
+      if (src.uri) {
+        Image.prefetch(src.uri).catch(() => {});
+      }
+    });
+  }
 }
 
 interface FastImageWrapperProps extends Omit<ImageProps, 'source' | 'resizeMode'> {
@@ -31,15 +46,11 @@ type FastImageWrapperComponent = React.ForwardRefExoticComponent<
 };
 
 const FastImageWrapper = React.forwardRef((props: any, ref: any) => {
-  const { source, resizeMode, ...rest } = props;
-  return (
-    <Image
-      ref={ref}
-      source={source}
-      resizeMode={resizeMode}
-      {...rest}
-    />
-  );
+  if (FastImage) {
+    const NativeFastImage = FastImage.default || FastImage;
+    return <NativeFastImage ref={ref} {...props} />;
+  }
+  return <Image ref={ref} {...props} />;
 }) as any as FastImageWrapperComponent;
 
 FastImageWrapper.resizeMode = resizeModeMap;

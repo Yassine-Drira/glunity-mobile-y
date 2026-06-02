@@ -18,6 +18,7 @@ import { Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
+import authApi, { AuthUser } from '@/modules/auth/api/auth.api';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
@@ -59,8 +60,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const screenWidth = Math.min(windowWidth, 600);
 
   const targetSellerId = route?.params?.sellerId;
-  const targetSeller = route?.params?.seller;
   const isOwnProfile = !targetSellerId || targetSellerId === user?._id;
+
+  const [sellerDetails, setSellerDetails] = useState<AuthUser | null>(null);
+  const [sellerLoading, setSellerLoading] = useState(false);
 
   // Sellers can only VIEW; non-sellers (celiac / proche / pro_health) can WRITE
   const isSeller = user?.profileType === 'pro_commerce';
@@ -636,6 +639,31 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     fetchReviews(products);
   }, [products, fetchReviews]);
 
+  // Fetch seller profile details dynamically
+  useEffect(() => {
+    if (!isOwnProfile && targetSellerId) {
+      let mounted = true;
+      (async () => {
+        try {
+          setSellerLoading(true);
+          const data = await authApi.getUserById(targetSellerId);
+          if (mounted) {
+            setSellerDetails(data);
+          }
+        } catch (error) {
+          console.error('Error fetching seller details:', error);
+        } finally {
+          if (mounted) {
+            setSellerLoading(false);
+          }
+        }
+      })();
+      return () => {
+        mounted = false;
+      };
+    }
+  }, [isOwnProfile, targetSellerId]);
+
   const handleSubmitReview = async () => {
     if (!reviewComment.trim() || submittingReview) return;
     try {
@@ -681,9 +709,23 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     return AVATAR_COLORS[idx];
   };
 
-  const currentSeller = isOwnProfile ? user : targetSeller;
+  const currentSeller = isOwnProfile ? user : sellerDetails;
   const displayName = currentSeller?.fullName || 'Pure Treats Bakery';
 
+  if (!isOwnProfile && sellerLoading && !sellerDetails) {
+    return (
+      <AppScaffold
+        title="Loading Profile..."
+        activeTab="home"
+        onBack={() => navigation.goBack()}
+        contentStyle={{ backgroundColor: T.bg }}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={T.green} />
+        </View>
+      </AppScaffold>
+    );
+  }
 
   return (
     <AppScaffold

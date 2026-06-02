@@ -472,9 +472,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
             style={[s.viewSellerBtn, { backgroundColor: T.green, shadowColor: T.green }]}
             activeOpacity={0.85}
             onPress={() => {
-              const sellerObj = typeof product.sellerId === 'object' ? product.sellerId : null;
               const sellerId = typeof product.sellerId === 'object' ? product.sellerId?._id : product.sellerId;
-              navigation.navigate('SellerProfile', { sellerId, seller: sellerObj });
+              navigation.navigate('SellerProfile', { sellerId });
             }}
             id="detail-view-seller-btn"
           >

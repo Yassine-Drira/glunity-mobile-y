@@ -173,6 +173,10 @@ const authApi = {
     const { data } = await http.post<{ success: boolean; data: { pointsEarned: number; streakDays: number; user: AuthUser } }>('/users/check-in');
     return data;
   },
+  async getUserById(id: string): Promise<AuthUser> {
+    const { data } = await http.get<{ success: boolean; data: AuthUser }>(`/users/${id}`);
+    return data.data;
+  },
 };
 
 export default authApi;
