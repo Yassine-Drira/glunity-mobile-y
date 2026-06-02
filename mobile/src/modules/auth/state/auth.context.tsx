@@ -84,6 +84,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // ── Handle global token expiration and auto-logout ────────────────────────
+  useEffect(() => {
+    const { setOnUnauthorized } = require('../../../core/network/http.client');
+    setOnUnauthorized(() => {
+      TokenStore.clearTokens().then(() => {
+        dispatch({ type: 'CLEAR_USER' });
+      });
+    });
+    return () => {
+      setOnUnauthorized(null);
+    };
+  }, []);
+
   const login = useCallback(async (dto: LoginDto) => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {

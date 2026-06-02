@@ -20,6 +20,11 @@ http.interceptors.request.use(async (config) => {
 // ── Queue and Refreshing state for token serialization ──────────────────────
 let isRefreshing = false;
 let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: any) => void }> = [];
+let onUnauthorizedCallback: (() => void) | null = null;
+
+export const setOnUnauthorized = (cb: (() => void) | null) => {
+  onUnauthorizedCallback = cb;
+};
 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
@@ -56,6 +61,15 @@ http.interceptors.response.use(
       return new Promise((resolve, reject) => {
         TokenStore.getRefreshToken()
           .then((refreshToken) => {
+            if (!refreshToken) {
+              TokenStore.clearTokens().then(() => {
+                if (onUnauthorizedCallback) {
+                  onUnauthorizedCallback();
+                }
+                reject(new Error('No refresh token'));
+              });
+              return;
+            }
             axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken })
               .then(({ data }) => {
                 const accessToken = data.data.accessToken;
@@ -75,7 +89,12 @@ http.interceptors.response.use(
               .catch((err) => {
                 processQueue(err, null);
                 TokenStore.clearTokens()
-                  .then(() => reject(err))
+                  .then(() => {
+                    if (onUnauthorizedCallback) {
+                      onUnauthorizedCallback();
+                    }
+                    reject(err);
+                  })
                   .catch(() => reject(err));
               });
           })
