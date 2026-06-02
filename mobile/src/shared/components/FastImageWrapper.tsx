@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Platform } from 'react-native';
+import { Image, ImageProps, Platform } from 'react-native';
 
 let FastImage: any;
 try {
@@ -16,7 +16,7 @@ const resizeModeMap = {
   cover: Platform.OS === 'web' ? 'cover' : FastImage?.resizeMode?.cover || 'cover',
   stretch: Platform.OS === 'web' ? 'stretch' : FastImage?.resizeMode?.stretch || 'stretch',
   center: Platform.OS === 'web' ? 'center' : FastImage?.resizeMode?.center || 'center',
-};
+} as const;
 
 export const resizeMode = resizeModeMap;
 
@@ -37,6 +37,18 @@ export function preload(sources: Array<{ uri: string }>) {
   }
 }
 
+interface FastImageWrapperProps extends Omit<ImageProps, 'source' | 'resizeMode'> {
+  source: any;
+  resizeMode?: 'contain' | 'cover' | 'stretch' | 'center' | any;
+}
+
+type FastImageWrapperComponent = React.ForwardRefExoticComponent<
+  FastImageWrapperProps & React.RefAttributes<any>
+> & {
+  resizeMode: typeof resizeModeMap;
+  preload: typeof preload;
+};
+
 // Create wrapper component
 const FastImageWrapper = React.forwardRef((props: any, ref: any) => {
   if (Platform.OS !== 'web' && FastImage) {
@@ -55,9 +67,9 @@ const FastImageWrapper = React.forwardRef((props: any, ref: any) => {
       {...rest}
     />
   );
-});
+}) as any as FastImageWrapperComponent;
 
-(FastImageWrapper as any).resizeMode = resizeModeMap;
-(FastImageWrapper as any).preload = preload;
+FastImageWrapper.resizeMode = resizeModeMap;
+FastImageWrapper.preload = preload;
 
 export default FastImageWrapper;

@@ -70,7 +70,9 @@ export default function EventCard({ event, onPress }: Props) {
 
         <View style={styles.metaRow}>
           <Ionicons name="location-outline" size={16} color={T.textSub} style={styles.metaIcon} />
-          <Text style={[styles.cardMeta, { color: T.textSub }]} numberOfLines={1}>{event.location}</Text>
+          <Text style={[styles.cardMeta, { color: T.textSub }]} numberOfLines={1}>
+            {typeof event.location === 'object' ? (event.location.name || event.location.address || '') : event.location}
+          </Text>
         </View>
 
         <View style={styles.cardFooter}>

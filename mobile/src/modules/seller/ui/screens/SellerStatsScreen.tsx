@@ -511,7 +511,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
 
           {/* X axis labels */}
           <View style={s.chartLegendRow}>
-            {(timeframe === '7d' ? xLabels7d : ['1', '', '5', '', '10', '', '15', '', '20', '', '25', '', '30']).map((lbl, i) => (
+            {(timeframe === '7d' ? xLabels7d : ['1', '', '5', '', '10', '', '15', '', '20', '', '25', '', '30']).map((lbl: string, i: number) => (
               <Text key={i} style={s.chartLegendLabel}>{lbl}</Text>
             ))}
           </View>

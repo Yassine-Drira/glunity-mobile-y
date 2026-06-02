@@ -341,7 +341,7 @@ export default function EditStoreScreen({ navigation }: Props) {
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           <View style={s.heroBanner}>
-            <View style={s.heroBannerTextCol}>
+            <View style={{ flex: 1 }}>
               <Text style={s.heroBannerTitle}>Store Information</Text>
               <Text style={s.heroBannerSub}>Keep your address, hours and{'\n'}contact details up to date.</Text>
             </View>

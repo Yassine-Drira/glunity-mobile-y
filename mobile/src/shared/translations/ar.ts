@@ -388,10 +388,6 @@ const ar = {
   'Try a different filter or check back later.': 'جرب تصفية مختلفة أو تحقق لاحقًا.',
 
   // Recipes Screen
-  'Gluten-Free Recipes': 'وصفات خالية من الغلوتين',
-  'Healthy and nutritious food recipes': 'وصفات طعام صحية ومغذية',
-  Popular: 'شائع',
-  recipes: 'الوصفات',
   Tunisian: 'تونسي',
   Easy: 'سهل',
   Quick: 'سريع',
@@ -419,9 +415,6 @@ const ar = {
 
   // BottomNavBar accessibility
   'Scan for gluten': 'فحص الغلوتين',
-
-  // Header greeting
-  Welcome: 'مرحباً',
 
   // Add Event extra fields
   'Event Type': 'نوع الفعالية',

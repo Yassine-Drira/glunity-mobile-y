@@ -17,12 +17,7 @@ import { AppScaffold } from '@/shared/components/AppScaffold';
 import { Radius } from '@/shared/utils/theme';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import type { AppStackParamList } from '@/navigation/types';
-<<<<<<< HEAD
-import type { Product } from '@/modules/seller/api/products.api';
-import productsApi from '@/modules/seller/api/products.api';
-=======
 import productsApi, { Product } from '@/modules/seller/api/products.api';
->>>>>>> main
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 

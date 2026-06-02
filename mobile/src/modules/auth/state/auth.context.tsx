@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await authApi.register(dto);
 
-      if (!res.data.user.emailVerified) {
+      if (!res.data.user || !res.data.user.emailVerified) {
         await TokenStore.clearTokens();
         dispatch({ type: 'CLEAR_USER' });
         dispatch({

@@ -22,6 +22,8 @@ export interface StoreInfo {
   address?: string;
   operatingHours?: string;
   phone?: string;
+  imageUrl?: string;
+  mapClicks?: number;
 }
 
 export interface AuthUser {
@@ -89,6 +91,7 @@ export interface SellerStats {
   // Charts
   chartData: number[];      // 7 days (Sun→Sat)
   chartData30d: number[];   // 30 days
+  chartLabels?: string[];
   // Account
   memberSince: string;
   accountAgeDays: number;

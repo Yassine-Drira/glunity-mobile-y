@@ -32,7 +32,9 @@ export default function HomeEventCard({ event, onPress }: Props) {
         <View style={styles.metaContainer}>
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={12} color={'#C8102E'} />
-            <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>{event.location}</Text>
+            <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>
+              {typeof event.location === 'object' ? (event.location.name || event.location.address || '') : event.location}
+            </Text>
           </View>
 
           <View style={styles.metaRow}>
