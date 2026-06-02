@@ -16,6 +16,23 @@ const authController = {
   /** POST /api/auth/login */
   login: asyncHandler(async (req, res) => {
     const result = await authService.login(req.body);
+    if (result.twoFactorRequired) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          twoFactorRequired: true,
+          userId: result.userId,
+        },
+      });
+    }
+    res.cookie(AUTH.COOKIE_NAME, result.tokens.refreshToken, AUTH.COOKIE_OPTIONS);
+    res.status(200).json(authMapper.toAuthResponse(result));
+  }),
+
+  /** POST /api/auth/verify-2fa */
+  verify2Fa: asyncHandler(async (req, res) => {
+    const { userId, code } = req.body;
+    const result = await authService.verify2Fa(userId, code);
     res.cookie(AUTH.COOKIE_NAME, result.tokens.refreshToken, AUTH.COOKIE_OPTIONS);
     res.status(200).json(authMapper.toAuthResponse(result));
   }),

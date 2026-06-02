@@ -11,6 +11,7 @@ const {
   resetPasswordSchema,
   verifyEmailSchema,
   resendVerificationSchema,
+  verify2FaSchema,
 } = require('./auth.schema');
 const validate       = require('../../common/middleware/validation.middleware');
 const authMiddleware = require('../../common/middleware/auth.middleware');
@@ -20,6 +21,7 @@ const router = Router();
 // ── Public routes ──────────────────────────────────────────────────────────────
 router.post('/register',              registerSchema,             validate, authController.register);
 router.post('/login',                 loginSchema,                validate, authController.login);
+router.post('/verify-2fa',            verify2FaSchema,            validate, authController.verify2Fa);
 router.post('/refresh',               refreshSchema,              validate, authController.refresh);
 router.post('/logout',                                                      authController.logout);
 

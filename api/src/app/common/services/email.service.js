@@ -77,4 +77,22 @@ async function sendVerificationEmail(email, verifyUrl) {
   });
 }
 
-module.exports = { sendMail, sendPasswordResetEmail, sendVerificationEmail };
+async function sendTwoFactorEmail(email, code) {
+  return sendMail({
+    to:      email,
+    subject: 'GlUnity — Two-Factor Verification Code',
+    html: `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+        <h2 style="color:#8BC34A">GlUnity — Security Code</h2>
+        <p>Your two-factor authentication verification code is:</p>
+        <div style="font-size:32px;font-weight:bold;color:#333;letter-spacing:6px;margin:20px 0;text-align:center;padding:12px;background:#f5f5f5;border-radius:8px">
+          ${code}
+        </div>
+        <p style="color:#999;font-size:13px">This code expires in <strong>5 minutes</strong>.</p>
+        <p style="color:#999;font-size:13px">If you did not request this code, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendMail, sendPasswordResetEmail, sendVerificationEmail, sendTwoFactorEmail };

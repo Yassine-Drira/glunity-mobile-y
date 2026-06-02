@@ -12,6 +12,7 @@ import recipesApi from '../modules/recipes/api/recipes.api';
 import { useAuth } from '../modules/auth/state/auth.context';
 import ProfileScreen     from '../modules/profile/ui/screens/ProfileScreen';
 import SettingsScreen    from '../modules/profile/ui/screens/SettingsScreen';
+import PrivacyScreen     from '../modules/profile/ui/screens/PrivacyScreen';
 import EditProfileScreen from '../modules/profile/ui/screens/EditProfileScreen';
 import EditStoreScreen from '../modules/seller/ui/screens/EditStoreScreen';
 import SellerProfileScreen    from '../modules/seller/ui/screens/SellerProfileScreen';
@@ -131,6 +132,7 @@ export function AppNavigator() {
       <Stack.Screen name="RecipeDetail"    component={RecipeDetailScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="Profile"         component={ProfileScreen}     options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="Settings"        component={SettingsScreen} />
+      <Stack.Screen name="Privacy"         component={PrivacyScreen}     options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
       <Stack.Screen name="EditStore"       component={EditStoreScreen} />
       <Stack.Screen name="SellerProfile"      component={SellerProfileScreen} />

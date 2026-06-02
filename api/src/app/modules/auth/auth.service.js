@@ -66,6 +66,42 @@ class AuthService {
       throw AppError.unauthorized('Please verify your email before logging in.', 'EMAIL_NOT_VERIFIED');
     }
 
+    if (user.twoFactorEnabled) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      user.twoFactorCode = code;
+      user.twoFactorCodeExpires = new Date(Date.now() + 5 * 60 * 1000); // 5 mins
+      await user.save();
+
+      emailService.sendTwoFactorEmail(user.email, code).catch((err) => {
+        console.error('[email] Failed to send two factor email:', err.message);
+      });
+
+      return { twoFactorRequired: true, userId: user._id.toString() };
+    }
+
+    const tokens = this._issueTokens(user);
+    return { user: user.toPublic(), tokens };
+  }
+
+  // ─── Verify Two Factor Code ───────────────────────────────────────────────
+  async verify2Fa(userId, code) {
+    const user = await authRepository.findByIdWith2Fa(userId);
+    if (!user || !user.isActive) {
+      throw AppError.unauthorized('Account not found or deactivated');
+    }
+
+    if (!user.twoFactorCode || user.twoFactorCode !== code) {
+      throw AppError.unauthorized('Invalid verification code');
+    }
+
+    if (user.twoFactorCodeExpires < new Date()) {
+      throw AppError.unauthorized('Verification code has expired. Please try logging in again.');
+    }
+
+    user.twoFactorCode = undefined;
+    user.twoFactorCodeExpires = undefined;
+    await user.save();
+
     const tokens = this._issueTokens(user);
     return { user: user.toPublic(), tokens };
   }

@@ -23,6 +23,21 @@ const notificationsService = {
 		return { success: true };
 	},
 
+	async delete(id, userId) {
+		const doc = await repository.delete(id, userId);
+		if (!doc) {
+			const error = new Error('Notification not found');
+			error.status = 404;
+			throw error;
+		}
+		return doc;
+	},
+
+	async deleteAll(userId) {
+		await repository.deleteAll(userId);
+		return { success: true };
+	},
+
 	async create(payload) {
 		return repository.create(payload);
 	},

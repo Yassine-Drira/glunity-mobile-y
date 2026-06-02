@@ -1,20 +1,35 @@
-name: CI
+name: Continuous Integration
 
 on:
-  pull_request:
   push:
+    branches: [main, develop]
+  pull_request:
     branches: [main, develop]
 
 jobs:
-  structure-check:
+  static-checks:
+    name: Global Code Integrity Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify docs exist
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Verify Documentation Structure
         run: |
-          test -f docs/01-architecture-overview.md
-          test -f docs/engineering-ddoc.md
-      - name: Verify api/mobile roots exist
-        run: |
-          test -d api
-          test -d mobile
+          test -d docs
+          test -f README.md
+
+      - name: Global Lint Check
+        run: npm run lint
+
+      - name: Mobile Type Check
+        run: npm run typecheck

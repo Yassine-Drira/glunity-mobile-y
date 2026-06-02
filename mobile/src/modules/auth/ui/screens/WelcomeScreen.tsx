@@ -111,7 +111,7 @@ export default function WelcomeScreen({ navigation }: Props) {
 
         {/* Heading */}
         <Text style={styles.title}>{t('Salut , Bienvenue!')}</Text>
-        <Text style={styles.subtitle}>{t('Connectez-vous\npour continuer')}</Text>
+        <Text style={styles.subtitle}>{t('Connectez-vous pour continuer')}</Text>
 
         {/* CTA Buttons */}
         <View style={styles.btnGroup}>

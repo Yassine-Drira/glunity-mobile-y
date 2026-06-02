@@ -7,9 +7,10 @@ import {
   Animated,
   Platform,
   Dimensions,
+  Image,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthStackParamList } from '../../../navigation/types';
+import type { AuthStackParamList } from '../../navigation/types';
 import { useLanguage } from '@/shared/context/language.context';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Splash'>;
@@ -20,8 +21,14 @@ export default function SplashScreen({ navigation }: Props) {
   const { t } = useLanguage();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const scaleAnim = useRef(new Animated.Value(0.85)).current;
+
+  // Heart animations
+  const heart1Anim = useRef(new Animated.Value(0)).current;
+  const heart2Anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Logo entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -33,58 +40,132 @@ export default function SplashScreen({ navigation }: Props) {
         duration: 800,
         useNativeDriver: Platform.OS !== 'web',
       }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: Platform.OS !== 'web',
+      }),
     ]).start();
+
+    // Infinite heart floating/pulsing loops
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(heart1Anim, {
+          toValue: 1,
+          duration: 1600,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(heart1Anim, {
+          toValue: 0,
+          duration: 1600,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(heart2Anim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+        Animated.timing(heart2Anim, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: Platform.OS !== 'web',
+        }),
+      ])
+    ).start();
 
     const timer = setTimeout(() => {
       navigation.replace('Intro');
-    }, 2500);
+    }, 2800);
     return () => clearTimeout(timer);
   }, []);
+
+  // Interpolations for hearts
+  const heart1Scale = heart1Anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.95, 1.15],
+  });
+  const heart1TranslateY = heart1Anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -8],
+  });
+
+  const heart2Scale = heart2Anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.9, 1.12],
+  });
+  const heart2TranslateY = heart2Anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -12],
+  });
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#8BC34A" />
 
-      {/* ═══════════════════════════════
-          CERCLE DÉCORATIF — bas gauche
-          Déborde hors écran en bas et à gauche
-      ════════════════════════════════ */}
+      {/* CERCLE DÉCORATIF — bas gauche */}
       <View style={styles.bgCircle} />
 
-      {/* ═══════════════════════════════
-          CONTENU CENTRAL
-          Légèrement sous le centre vertical
-      ════════════════════════════════ */}
+      {/* CONTENU CENTRAL */}
       <Animated.View
         style={[
           styles.centerContent,
           {
             opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ],
           },
         ]}
       >
-        {/* Titre principal */}
-        <Text style={styles.logoText}>{t('Glutenia logo')}</Text>
+        {/* Seamless circular container for Logo matching image background */}
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../../../../assets/Logo/image 1.png')}
+            style={styles.logoImage}
+          />
+        </View>
 
         {/* Sous-titre */}
         <Text style={styles.subtitle}>{t('Sans Gluten, Sans probleme')}</Text>
       </Animated.View>
 
-      {/* ═══════════════════════════════
-          CŒURS — bas gauche
-          Petit cœur (haut) + Grand cœur (bas)
-      ════════════════════════════════ */}
-
-      {/* Petit cœur — légèrement plus haut et à droite */}
-      <View style={styles.heartSmallWrap}>
+      {/* Petit cœur — animated floating/pulsing */}
+      <Animated.View 
+        style={[
+          styles.heartSmallWrap,
+          {
+            transform: [
+              { rotate: '-20deg' },
+              { scale: heart1Scale },
+              { translateY: heart1TranslateY }
+            ]
+          }
+        ]}
+      >
         <Text style={styles.heartSmall}>♥</Text>
-      </View>
+      </Animated.View>
 
-      {/* Grand cœur — plus bas, légèrement plus à gauche */}
-      <View style={styles.heartLargeWrap}>
+      {/* Grand cœur — animated floating/pulsing */}
+      <Animated.View 
+        style={[
+          styles.heartLargeWrap,
+          {
+            transform: [
+              { rotate: '15deg' },
+              { scale: heart2Scale },
+              { translateY: heart2TranslateY }
+            ]
+          }
+        ]}
+      >
         <Text style={styles.heartLarge}>♥</Text>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -92,77 +173,84 @@ export default function SplashScreen({ navigation }: Props) {
 const CIRCLE_SIZE = width * 0.88;
 
 const styles = StyleSheet.create({
-  /* ─── Conteneur principal ─── */
   container: {
     flex: 1,
     backgroundColor: '#8BC34A',
     alignItems: 'center',
     justifyContent: 'center',
   },
-
-  /* ─── Cercle décoratif bas-gauche ─── */
   bgCircle: {
     position: 'absolute',
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     borderRadius: CIRCLE_SIZE / 2,
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    // Déborde à gauche (~20%) et en bas (~10%)
     left: -(CIRCLE_SIZE * 0.22),
     bottom: -(CIRCLE_SIZE * 0.12),
   },
-
-  /* ─── Bloc textes centré, légèrement sous le centre ─── */
   centerContent: {
     alignItems: 'center',
     paddingHorizontal: 32,
-    marginTop: height * 0.06, // pousse légèrement vers le bas du centre
+    marginTop: -height * 0.08, // Elevated higher on the y-axis, centered horizontally
   },
-
-  /* ─── "Glutenia logo" ─── */
-  logoText: {
-    fontWeight: '700',
-    fontSize: 30,
-    lineHeight: 44,
-    textAlign: 'center',
-    color: '#FFFFFF',
-    marginBottom: 10,
-    letterSpacing: 0.2,
+  logoContainer: {
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: '#FAF8F5', // Matches the logo image background color exactly
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    marginBottom: 20,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    overflow: 'hidden',
   },
-
-  /* ─── "Sans Gluten, Sans probleme" ─── */
+  logoImage: {
+    width: '90%',
+    height: '90%',
+    resizeMode: 'contain',
+    backgroundColor: '#FAF8F5', // Ensures zero boundary mismatch
+  },
   subtitle: {
-    fontWeight: '500',
-    fontSize: 18,
+    fontWeight: '600',
+    fontSize: 19,
     lineHeight: 28,
     textAlign: 'center',
     color: '#FAFAFA',
-    letterSpacing: 0.1,
+    letterSpacing: 0.2,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
-
-  /* ─── Petit cœur (haut) ─── */
   heartSmallWrap: {
     position: 'absolute',
-    left: '13%',
-    bottom: '11%',
-    transform: [{ rotate: '-20deg' }],
+    left: '14%',
+    bottom: '12%',
   },
   heartSmall: {
-    fontSize: 16,
+    fontSize: 26,
     color: '#C8102E',
-    lineHeight: 20,
+    lineHeight: 30,
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2,
   },
-
-  /* ─── Grand cœur (bas) ─── */
   heartLargeWrap: {
     position: 'absolute',
-    left: '10%',
-    bottom: '4.5%',
-    transform: [{ rotate: '15deg' }],
+    left: '8%',
+    bottom: '4%',
   },
   heartLarge: {
-    fontSize: 28,
+    fontSize: 52,
     color: '#C8102E',
-    lineHeight: 34,
+    lineHeight: 58,
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
 });

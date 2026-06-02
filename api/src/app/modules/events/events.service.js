@@ -3,6 +3,9 @@
 const repo = require('./events.repository');
 const AppError = require('../../common/errors/app-error');
 
+const User = require('../../../database/models/user.model');
+const Notification = require('../../../database/models/notification.model');
+
 const eventsService = {
 	async list(query) {
 		const items = await repo.findMany(query);
@@ -18,7 +21,33 @@ const eventsService = {
 
 	async create(payload, userId) {
 		const doc = await repo.create({ ...payload, createdBy: userId || undefined });
-		return doc.toObject();
+		const eventObj = doc.toObject();
+
+		// Dispatch notification to other users in background
+		(async () => {
+			try {
+				const users = await User.find({ _id: { $ne: userId } }, '_id pushEnabled').lean();
+				if (users.length > 0) {
+					const notifs = users
+						.filter(u => u.pushEnabled !== false)
+						.map(u => ({
+							userId: u._id,
+							title: 'New Event Published! 📅',
+							body: `A new event was published: "${eventObj.title}". Tap to check details!`,
+							type: 'event',
+							isRead: false,
+							metadata: { eventId: String(eventObj._id) },
+						}));
+					if (notifs.length > 0) {
+						await Notification.insertMany(notifs);
+					}
+				}
+			} catch (err) {
+				console.error('Failed to dispatch new event notifications:', err);
+			}
+		})();
+
+		return eventObj;
 	},
 
 	async join(eventId, userId) {

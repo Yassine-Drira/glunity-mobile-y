@@ -3,7 +3,7 @@ export type AuthStackParamList = {
   Splash:         undefined;
   Intro:          undefined;
   Welcome:        undefined;
-  Login:          undefined;
+  Login:          { successMessage?: string } | undefined;
   Register:       undefined;
   ForgotPassword: { email?: string } | undefined;
   ResetPassword:  { token: string };
@@ -25,6 +25,13 @@ export type AppStackParamList = {
   SellerProProfile: undefined;
   AddProduct:      { product?: any } | undefined;
   SellerStats:     undefined;
-  ProductDetail:   { product: any };
+  ProductDetail:   { product?: any; productId?: string };
+  ProductsMarket:  undefined;
+  Events:          undefined;
+  EventDetail:     { eventId: string };
+  AddEvent:        undefined;
+  Notifications:   undefined;
+  PatientResources: undefined;
+  Privacy:         undefined;
 };
 

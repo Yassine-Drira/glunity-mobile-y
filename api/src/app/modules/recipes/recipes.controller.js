@@ -19,6 +19,12 @@ const recipesController = {
 
 	create: asyncHandler(async (req, res) => {
 		const recipe = await recipesService.createRecipe(req.body, req.user._id);
+		try {
+			const badgesService = require('../badges/badges.service');
+			await badgesService.awardPointsAndCheckBadges(req.user._id, 20);
+		} catch (err) {
+			console.error('[gamification] Failed to award points for recipe:', err.message);
+		}
 		res.status(201).json(recipesMapper.toItemResponse(recipe));
 	}),
 

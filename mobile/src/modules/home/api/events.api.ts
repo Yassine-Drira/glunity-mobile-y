@@ -13,6 +13,9 @@ interface ListResponse {
     startsAt?: string;
     attendeesCount?: number;
     maxCapacity?: number;
+    attendees?: string[];
+    locationLat?: number;
+    locationLng?: number;
   }>;
 }
 

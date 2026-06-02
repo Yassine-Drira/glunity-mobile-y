@@ -1,7 +1,8 @@
 import { Text, TextInput, View, StatusBar, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { globalIsRTL } from '../context/language.context';
 
-let sizeMultiplier = 1.0;
+let sizeMultiplier = 1.08;
 let darkModeEnabled = false;
 
 export function getTextMultiplier() {
@@ -10,11 +11,11 @@ export function getTextMultiplier() {
 
 export function setTextMultiplier(size: 'Small' | 'Medium' | 'Large') {
   if (size === 'Small') {
-    sizeMultiplier = 0.85;
+    sizeMultiplier = 0.95;
   } else if (size === 'Large') {
-    sizeMultiplier = 1.25;
+    sizeMultiplier = 1.20;
   } else {
-    sizeMultiplier = 1.0;
+    sizeMultiplier = 1.08;
   }
 }
 
@@ -31,9 +32,11 @@ export async function loadTextMultiplier() {
     const size = await AsyncStorage.getItem('@pref_text_size');
     if (size === 'Small' || size === 'Medium' || size === 'Large') {
       setTextMultiplier(size);
+    } else {
+      setTextMultiplier('Medium');
     }
   } catch (e) {
-    sizeMultiplier = 1.0;
+    sizeMultiplier = 1.08;
   }
 }
 
@@ -47,7 +50,7 @@ const colorMap: Record<string, string> = {
   '#f2f2f2': '#121212',
   '#fafafa': '#1E1E1E',
   '#f5f5f5': '#121212',
-  
+
   // Texts
   '#2e2e2e': '#FFFFFF',
   '#000000': '#FFFFFF',
@@ -58,7 +61,7 @@ const colorMap: Record<string, string> = {
   'rgba(46,46,46,0.5)': 'rgba(255,255,255,0.6)',
   'rgba(46,46,46,0.4)': 'rgba(255,255,255,0.5)',
   'rgba(46,46,46,0.8)': 'rgba(255,255,255,0.85)',
-  
+
   // Borders & Dividers
   '#c4c4c4': '#333333',
   '#e0e0e0': '#2C2C2C',
@@ -135,6 +138,32 @@ export function transformStyles(style: any): any {
 
 let hasPatchedThemeScaling = false;
 
+function getScaledFontSize(baseSize: number): number {
+  const multiplier = sizeMultiplier;
+  const isArabic = globalIsRTL;
+
+  if (multiplier > 1.0) {
+    // Progressive scaling for larger sizes to prevent layout breakages
+    if (baseSize >= 24) {
+      const factor = 1.0 + (multiplier - 1.0) * 0.4;
+      return Math.round(baseSize * factor);
+    }
+    if (baseSize >= 18) {
+      const factor = 1.0 + (multiplier - 1.0) * 0.6;
+      return Math.round(baseSize * factor);
+    }
+    const maxMultiplier = isArabic ? 1.12 : 1.20;
+    const safeMultiplier = Math.min(multiplier, maxMultiplier);
+    return Math.round(baseSize * safeMultiplier);
+  } else {
+    // Small setting (e.g. 0.95)
+    if (baseSize >= 18) {
+      return Math.round(baseSize * 0.98); // Don't shrink headings excessively
+    }
+    return Math.round(baseSize * multiplier);
+  }
+}
+
 export function initTextScaling() {
   if (hasPatchedThemeScaling) return;
 
@@ -162,8 +191,9 @@ export function initTextScaling() {
       let newProps = props || {};
       const flattened = newProps.style ? StyleSheet.flatten(newProps.style) : {};
       const baseSize = (flattened && typeof flattened.fontSize === 'number') ? flattened.fontSize : 14;
-      const multiplier = getTextMultiplier();
-      const scaledSize = Math.round(baseSize * multiplier);
+      
+      // Respect explicit opt-out of text scaling
+      const scaledSize = newProps.allowFontScaling === false ? baseSize : getScaledFontSize(baseSize);
 
       let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
       if (darkModeEnabled) {
@@ -186,8 +216,9 @@ export function initTextScaling() {
       let newProps = props || {};
       const flattened = newProps.style ? StyleSheet.flatten(newProps.style) : {};
       const baseSize = (flattened && typeof flattened.fontSize === 'number') ? flattened.fontSize : 14;
-      const multiplier = getTextMultiplier();
-      const scaledSize = Math.round(baseSize * multiplier);
+      
+      // Respect explicit opt-out of text scaling
+      const scaledSize = newProps.allowFontScaling === false ? baseSize : getScaledFontSize(baseSize);
 
       let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
       if (darkModeEnabled) {

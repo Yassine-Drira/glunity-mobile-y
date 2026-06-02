@@ -69,6 +69,20 @@ const notificationsController = {
 		await service.markAllAsRead(userId);
 		res.status(200).json({ success: true, message: 'All notifications marked as read' });
 	}),
+
+	// DELETE /api/notifications
+	deleteAll: asyncHandler(async (req, res) => {
+		const userId = req.user?._id;
+		await service.deleteAll(userId);
+		res.status(200).json({ success: true, message: 'All notifications deleted successfully' });
+	}),
+
+	// DELETE /api/notifications/:id
+	delete: asyncHandler(async (req, res) => {
+		const userId = req.user?._id;
+		const deleted = await service.delete(req.params.id, userId);
+		res.status(200).json({ success: true, data: mapper.toNotificationDto(deleted), message: 'Notification deleted successfully' });
+	}),
 };
 
 module.exports = notificationsController;

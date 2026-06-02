@@ -11,6 +11,9 @@ import {
   Platform,
   Image,
   Dimensions,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -27,8 +30,13 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation, route }: Props) {
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, verify2Fa, isLoading, error, clearError } = useAuth();
   const [success, setSuccess] = useState<string | null>(null);
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
+  const [twoFactorUserId, setTwoFactorUserId] = useState<string | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorError, setTwoFactorError] = useState<string | null>(null);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
   const { theme: T, isDark } = useTheme();
   const { t, isRTL } = useLanguage();
   const { width: screenWidth } = Dimensions.get('window');
@@ -40,7 +48,7 @@ export default function LoginScreen({ navigation, route }: Props) {
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 120,
+      paddingBottom: 40,
       paddingTop: 12,
     },
 
@@ -112,10 +120,7 @@ export default function LoginScreen({ navigation, route }: Props) {
 
     // Switch
     switchRow: {
-      position: 'absolute',
-      bottom: 56,
-      left: 0,
-      right: 0,
+      marginTop: 20,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
@@ -132,10 +137,35 @@ export default function LoginScreen({ navigation, route }: Props) {
       fontSize: 16,
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
-      color: '#343831',
+      color: isDark ? T.green : '#343831',
     },
 
     eyeIcon: { fontSize: 18 },
+    
+    // Modals
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' },
+    modalContent: {
+      width: '92%', backgroundColor: T.surface, borderRadius: 24, padding: 24,
+      shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.25, shadowRadius: 24, elevation: 16,
+    },
+    modalHeader:  { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    modalTitle:   { fontSize: 18, fontWeight: '700', color: T.text, fontFamily: 'Poppins_700Bold', textAlign: isRTL ? 'right' : 'left' },
+    modalErrorBanner: {
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, backgroundColor: T.errorLight,
+      borderColor: T.red, borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 14,
+    },
+    modalErrorText:   { flex: 1, fontSize: 13, color: T.red, fontFamily: 'Poppins_400Regular', textAlign: isRTL ? 'right' : 'left' },
+    modalDesc: { fontSize: 13, color: T.textMuted, marginBottom: 16, fontFamily: 'Poppins_400Regular', textAlign: isRTL ? 'right' : 'left', lineHeight: 20 },
+    modalForm:    { gap: 14 },
+    inputLabel:   { fontSize: 12, fontWeight: '600', color: T.textSub, fontFamily: 'Poppins_600SemiBold', textAlign: isRTL ? 'right' : 'left' },
+    modalInput:   {
+      borderWidth: 1.5, borderColor: T.inputBorder, borderRadius: 12,
+      paddingVertical: 12, paddingHorizontal: 14,
+      fontSize: 20, color: T.text, backgroundColor: T.inputBg, fontFamily: 'Poppins_600SemiBold',
+      textAlign: 'center', letterSpacing: 4,
+    },
+    modalBtn:     { backgroundColor: T.green, borderRadius: 14, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+    modalBtnText: { fontSize: 15, color: T.white, fontWeight: '700', fontFamily: 'Poppins_700Bold' },
   }), [T, isRTL]);
 
   useFocusEffect(
@@ -169,10 +199,33 @@ export default function LoginScreen({ navigation, route }: Props) {
     clearError();
     if (!validate()) return;
     try {
-      await login({ email: email.trim().toLowerCase(), password });
-      // Navigation handled by RootNavigator after auth state change
+      const res = await login({ email: email.trim().toLowerCase(), password });
+      if (res && res.twoFactorRequired) {
+        setTwoFactorUserId(res.userId);
+        setTwoFactorError(null);
+        setTwoFactorCode('');
+        setShowTwoFactorModal(true);
+      }
     } catch {
       // error already in context
+    }
+  }
+
+  async function handleVerify2Fa() {
+    if (!twoFactorCode.trim() || twoFactorCode.trim().length !== 6) {
+      setTwoFactorError(t('Verification code must be 6 digits'));
+      return;
+    }
+    setTwoFactorError(null);
+    setTwoFactorLoading(true);
+    try {
+      await verify2Fa(twoFactorUserId!, twoFactorCode.trim());
+      setShowTwoFactorModal(false);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || t('Verification failed. Please try again.');
+      setTwoFactorError(msg);
+    } finally {
+      setTwoFactorLoading(false);
     }
   }
 
@@ -225,6 +278,7 @@ export default function LoginScreen({ navigation, route }: Props) {
             value={email}
             onChangeText={setEmail}
             error={errors.email}
+            themeColors={T}
           />
           <AuthInput
             label={t('Password')}
@@ -235,6 +289,7 @@ export default function LoginScreen({ navigation, route }: Props) {
             error={errors.password}
             rightIcon={<Feather name={showPass ? 'eye-off' : 'eye'} size={20} color={T.textMuted} />}
             onRightIconPress={() => setShowPass((p) => !p)}
+            themeColors={T}
           />
 
           {/* Forgot password */}
@@ -259,22 +314,77 @@ export default function LoginScreen({ navigation, route }: Props) {
             />
           </View>
 
+          <View style={styles.switchRow}>
+            <Text style={styles.switchText}>{t('No Account? ')}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                clearError();
+                navigation.navigate('Register');
+              }}
+            >
+              <Text style={styles.switchLink}>{t('Register')}</Text>
+            </TouchableOpacity>
+          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={styles.switchRow}>
-        <Text style={styles.switchText}>{t('No Account? ')}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            clearError();
-            navigation.navigate('Register');
-          }}
-        >
-          <Text style={styles.switchLink}>{t('Register')}</Text>
-        </TouchableOpacity>
-      </View>
+      <WaveBackground color={isDark ? '#1E3516' : '#8BC34A'} />
 
-      <WaveBackground color={T.green} />
+      {/* Two-Factor Authentication Modal */}
+      <Modal
+        visible={showTwoFactorModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowTwoFactorModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{t('SECURITY_VERIFICATION')}</Text>
+              <TouchableOpacity onPress={() => setShowTwoFactorModal(false)}>
+                <MaterialCommunityIcons name="close" size={22} color={T.text} />
+              </TouchableOpacity>
+            </View>
+
+            {!!twoFactorError && (
+              <View style={styles.modalErrorBanner}>
+                <MaterialCommunityIcons name="alert-circle" size={16} color={T.red} />
+                <Text style={styles.modalErrorText}>{twoFactorError}</Text>
+              </View>
+            )}
+
+            <Text style={styles.modalDesc}>
+              {t('ENTER_2FA_CODE')}
+            </Text>
+
+            <View style={styles.modalForm}>
+              <Text style={styles.inputLabel}>{t('VERIFICATION_CODE')}</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="123456"
+                placeholderTextColor={T.textMuted}
+                value={twoFactorCode}
+                onChangeText={setTwoFactorCode}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+
+              <TouchableOpacity
+                style={[styles.modalBtn, twoFactorLoading && { opacity: 0.75 }]}
+                onPress={handleVerify2Fa}
+                disabled={twoFactorLoading}
+              >
+                {twoFactorLoading ? (
+                  <ActivityIndicator color={T.white} size="small" />
+                ) : (
+                  <Text style={styles.modalBtnText}>{t('VERIFY_CODE')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -8,6 +8,7 @@ import {
   StatusBar,
   useWindowDimensions,
   Animated,
+  Image,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '@/navigation/types';
@@ -246,7 +247,13 @@ function SlideView({ slide, screenWidth }: { slide: (typeof SLIDES)[0]; screenWi
       textAlign: 'center', letterSpacing: 0.11,
       color: T.text, textTransform: 'capitalize', marginBottom: 14,
     },
-    titleAccent: { color: T.green },
+    titleAccent: {
+      color: T.green,
+      fontWeight: '700',
+      fontSize: 22,
+      lineHeight: 33,
+      fontFamily: 'Poppins_700Bold',
+    },
     description: {
       fontWeight: '500', fontSize: 16, lineHeight: 24,
       fontFamily: 'Poppins_500Medium',
@@ -324,11 +331,37 @@ export default function IntroductionScreen({ navigation }: Props) {
       shadowColor: T.green, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12,
       elevation: 8,
     },
+    flagContainer: {
+      position: 'absolute',
+      top: 54,
+      left: 24,
+      zIndex: 10,
+      borderRadius: 14,
+      backgroundColor: 'transparent',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    flagImage: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      resizeMode: 'contain',
+    },
   }), [T, isRTL]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={T.bg} />
+
+      <View style={styles.flagContainer}>
+        <Image
+          source={require('../../../../../assets/Logo/tunisia.png')}
+          style={styles.flagImage}
+        />
+      </View>
 
       <Animated.FlatList
         ref={flatListRef}

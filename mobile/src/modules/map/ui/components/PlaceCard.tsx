@@ -18,6 +18,7 @@ const C = {
   text: '#2E2E2E',
   muted: '#6B6B6B',
   green: '#8BC34A',
+  greenDeep: '#689F38',
   star: '#E53935',
   badgeBg: '#8BC34A',
   shadow: '#000000',

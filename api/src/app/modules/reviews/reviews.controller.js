@@ -72,6 +72,13 @@ const reviewsController = {
       comment,
     });
 
+    try {
+      const badgesService = require('../badges/badges.service');
+      await badgesService.awardPointsAndCheckBadges(userId, 10);
+    } catch (err) {
+      console.error('[gamification] Failed to award points for review:', err.message);
+    }
+
     res.status(201).json({ success: true, data: mapper.toReviewResponse(review) });
   }),
 };

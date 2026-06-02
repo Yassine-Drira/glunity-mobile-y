@@ -21,11 +21,12 @@ export interface GlunityEvent {
   id: string;
   title: string;
   imageUrl: string;
-  location: string;
+  location: string | { name?: string; address?: string };
   date: string;
   onPress: () => void;
   // optional extended fields from API
   type?: string;
+  description?: string;
   startsAt?: string | null;
   attendeesCount?: number;
   attendees?: string[];

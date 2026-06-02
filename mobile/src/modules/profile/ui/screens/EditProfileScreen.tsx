@@ -18,6 +18,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import type { UpdateProfileDto } from '@/modules/auth/api/auth.api';
 
@@ -79,6 +80,7 @@ function Field({ label, value, onChangeText, placeholder, iconName, keyboardType
 export default function EditProfileScreen({ navigation }: Props) {
   const { user, updateProfile } = useAuth();
   const { theme: T, isDark } = useTheme();
+  const { t } = useLanguage();
 
   const [fullName, setFullName] = useState(user?.fullName ?? '');
   const [email,    setEmail]    = useState(user?.email ?? '');
@@ -247,7 +249,7 @@ export default function EditProfileScreen({ navigation }: Props) {
   async function pickImage() {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
-      Alert.alert("Permission Denied ❌", "You must allow photo library access to change your profile picture.");
+      Alert.alert(t('Permission Denied'), t('You must allow photo library access to change your profile picture.'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({

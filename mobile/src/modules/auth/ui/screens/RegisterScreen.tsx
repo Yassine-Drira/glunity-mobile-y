@@ -60,7 +60,7 @@ export default function RegisterScreen({ navigation }: Props) {
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 110,
+      paddingBottom: 40,
       paddingTop: 12,
     },
 
@@ -161,17 +161,14 @@ export default function RegisterScreen({ navigation }: Props) {
     btnGroup: { marginBottom: 24 },
 
     switchRow: {
-      position: 'absolute',
-      bottom: 56,
-      left: 0,
-      right: 0,
+      marginTop: 20,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 10,
     },
     switchText: { fontSize: 16, fontWeight: '500', fontFamily: 'Poppins_500Medium', color: '#FFFFFF' },
-    switchLink: { fontSize: 16, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: '#343831' },
+    switchLink: { fontSize: 16, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: isDark ? T.green : '#343831' },
 
     eye: { fontSize: 18 },
   }), [T, isRTL]);
@@ -289,6 +286,7 @@ export default function RegisterScreen({ navigation }: Props) {
             value={form.fullName}
             onChangeText={set('fullName')}
             error={errors.fullName}
+            themeColors={T}
           />
           <AuthInput
             label={t('Email')}
@@ -297,6 +295,7 @@ export default function RegisterScreen({ navigation }: Props) {
             value={form.email}
             onChangeText={set('email')}
             error={errors.email}
+            themeColors={T}
           />
           <AuthInput
             label={t('Password')}
@@ -307,6 +306,7 @@ export default function RegisterScreen({ navigation }: Props) {
             error={errors.password}
             rightIcon={<Feather name={showPass ? 'eye-off' : 'eye'} size={20} color={T.textMuted} />}
             onRightIconPress={() => setShowPass((p) => !p)}
+            themeColors={T}
           />
           <AuthInput
             label={t('Confirm Password')}
@@ -317,6 +317,7 @@ export default function RegisterScreen({ navigation }: Props) {
             error={errors.confirm}
             rightIcon={<Feather name={showConfirm ? 'eye-off' : 'eye'} size={20} color={T.textMuted} />}
             onRightIconPress={() => setShowConfirm((p) => !p)}
+            themeColors={T}
           />
 
           <Text style={styles.profileLabel}>{t('Profile Type')}</Text>
@@ -361,22 +362,22 @@ export default function RegisterScreen({ navigation }: Props) {
             />
           </View>
 
+          <View style={styles.switchRow}>
+            <Text style={styles.switchText}>{t('Already Account? ')}</Text>
+            <TouchableOpacity
+              onPress={() => {
+                clearError();
+                navigation.navigate('Login');
+              }}
+            >
+              <Text style={styles.switchLink}>{t('Login')}</Text>
+            </TouchableOpacity>
+          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <WaveBackground color={T.green} />
-
-      <View style={styles.switchRow}>
-        <Text style={styles.switchText}>{t('Already Account? ')}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            clearError();
-            navigation.navigate('Login');
-          }}
-        >
-          <Text style={styles.switchLink}>{t('Login')}</Text>
-        </TouchableOpacity>
-      </View>
+      <WaveBackground color={isDark ? '#1E3516' : '#8BC34A'} />
     </SafeAreaView>
   );
 }

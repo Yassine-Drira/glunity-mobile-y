@@ -3,7 +3,41 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../modules/auth/state/auth.context';
 
 // ── Palette ────────────────────────────────────────────────────────────────────
-export const LIGHT = {
+export interface Theme {
+  // Backgrounds
+  bg: string;
+  surface: string;
+  surfaceAlt: string;
+  surfaceElevated: string;
+  // Borders
+  border: string;
+  divider: string;
+  // Text
+  text: string;
+  dark: string;
+  textSub: string;
+  textMuted: string;
+  muted: string;
+  mutedLight: string;
+  // Brand
+  green: string;
+  greenLight: string;
+  greenBorder: string;
+  // Destructive
+  red: string;
+  redLight: string;
+  errorLight: string;
+  // Misc
+  white: string;
+  switchTrack: string;
+  inputBg: string;
+  inputBorder: string;
+  shadow: string;
+  statusBar: 'dark-content' | 'light-content';
+}
+
+// ── Palette ────────────────────────────────────────────────────────────────────
+export const LIGHT: Theme = {
   // Backgrounds
   bg:          '#F6F5F3',
   surface:     '#FFFFFF',
@@ -27,16 +61,17 @@ export const LIGHT = {
   // Destructive
   red:         '#C8102E',
   redLight:    'rgba(200,16,46,0.09)',
+  errorLight:  'rgba(200,16,46,0.09)',
   // Misc
   white:       '#FFFFFF',
   switchTrack: '#D1D1D6',
   inputBg:     '#F2F2F7',
   inputBorder: 'rgba(0,0,0,0.12)',
   shadow:      'rgba(0,0,0,0.07)',
-  statusBar:   'dark-content' as const,
-} as const;
+  statusBar:   'dark-content',
+};
 
-export const DARK = {
+export const DARK: Theme = {
   // ── Backgrounds ──────────────────────────────────────────────────────────────
   bg:          '#0D0D0F',   // near-black base — not pure black (avoids harsh edge)
   surface:     '#1A1A1D',   // card/modal surfaces
@@ -59,17 +94,15 @@ export const DARK = {
   // ── Destructive ──────────────────────────────────────────────────────────────
   red:         '#C8102E',   // brand red color C8102E
   redLight:    'rgba(200,16,46,0.15)',
+  errorLight:  'rgba(200,16,46,0.15)',
   // ── Misc ─────────────────────────────────────────────────────────────────────
   white:       '#FFFFFF',
   switchTrack: '#3A3A3E',
   inputBg:     '#252528',
   inputBorder: 'rgba(255,255,255,0.14)',
   shadow:      'rgba(0,0,0,0.6)',
-  statusBar:   'light-content' as const,
-} as const;
-
-
-export type Theme = typeof LIGHT;
+  statusBar:   'light-content',
+};
 
 interface ThemeContextValue {
   theme: Theme;

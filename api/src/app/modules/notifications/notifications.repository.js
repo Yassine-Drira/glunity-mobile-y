@@ -33,6 +33,14 @@ const notificationsRepository = {
 			{ $set: { isRead: true } }
 		);
 	},
+
+	delete(id, userId) {
+		return Notification.findOneAndDelete({ _id: id, userId });
+	},
+
+	deleteAll(userId) {
+		return Notification.deleteMany({ userId });
+	},
 };
 
 module.exports = notificationsRepository;

@@ -100,6 +100,19 @@ const resendVerificationSchema = [
     .normalizeEmail(),
 ];
 
+// ─── Verify 2FA ───────────────────────────────────────────────────────────────
+const verify2FaSchema = [
+  body('userId')
+    .trim()
+    .notEmpty().withMessage('User ID is required')
+    .isMongoId().withMessage('Invalid User ID'),
+
+  body('code')
+    .trim()
+    .notEmpty().withMessage('Verification code is required')
+    .isLength({ min: 6, max: 6 }).withMessage('Verification code must be 6 digits'),
+];
+
 module.exports = {
   registerSchema,
   loginSchema,
@@ -108,4 +121,5 @@ module.exports = {
   resetPasswordSchema,
   verifyEmailSchema,
   resendVerificationSchema,
+  verify2FaSchema,
 };

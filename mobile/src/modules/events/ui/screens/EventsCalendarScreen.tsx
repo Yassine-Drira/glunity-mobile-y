@@ -11,7 +11,12 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '@/shared/context/language.context';
 
-const FILTER_KEYS = ['All', 'Meetups', 'Classes', 'Markets'];
+const FILTER_KEYS = [
+  { key: 'All',       label: 'All',       icon: 'apps-outline'          as const },
+  { key: 'Meetups',   label: 'Meetups',   icon: 'people-outline'        as const },
+  { key: 'Classes',   label: 'Workshops', icon: 'school-outline'        as const },
+  { key: 'Markets',   label: 'Markets',   icon: 'storefront-outline'    as const },
+];
 
 export default function EventsCalendarScreen({ navigation }: any) {
   const { theme: T } = useTheme();
@@ -102,19 +107,21 @@ export default function EventsCalendarScreen({ navigation }: any) {
       paddingRight: isRTL ? 6 : 0,
     },
     filterPill: {
-      paddingHorizontal: 18,
+      paddingHorizontal: 14,
       paddingVertical: 8,
       minHeight: 36,
       borderRadius: 999,
-      backgroundColor: '#FFFFFF',
+      backgroundColor: T.surface,
       marginRight: isRTL ? 0 : 10,
       marginLeft: isRTL ? 10 : 0,
       borderWidth: 1,
-      borderColor: '#F3F4F6',
+      borderColor: T.border,
       alignItems: 'center',
       justifyContent: 'center',
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 6,
       shadowColor: '#000',
-      shadowOpacity: 0.03,
+      shadowOpacity: 0.04,
       shadowOffset: { width: 0, height: 2 },
       shadowRadius: 6,
       elevation: 1,
@@ -125,7 +132,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: T.green,
-      shadowOpacity: 0.28,
+      shadowOpacity: 0.32,
       shadowOffset: { width: 0, height: 6 },
       shadowRadius: 14,
       elevation: 8,
@@ -134,6 +141,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
       fontSize: 13,
       fontWeight: '600',
       color: T.textSub || '#374151',
+      fontFamily: 'Poppins_600SemiBold',
     },
     filterTextActive: {
       color: '#FFFFFF',
@@ -233,30 +241,13 @@ export default function EventsCalendarScreen({ navigation }: any) {
     },
   }), [T, insets, isRTL]);
 
-  const headerActions = (
-    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 16 }}>
-      <TouchableOpacity 
-        activeOpacity={0.8} 
-        style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-        onPress={toggleSearch}
-      > 
-        <Feather name={searchOpen ? "x" : "search"} size={20} color={T.text} />
-      </TouchableOpacity>
-      <TouchableOpacity 
-        activeOpacity={0.8} 
-        style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
-        onPress={() => navigation.navigate('Notifications')}
-      > 
-        <Feather name="bell" size={20} color={T.text} />
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
     <AppScaffold
       title="Events"
       activeTab="events"
-      rightElement={headerActions}
+      showSearch
+      onSearchPress={toggleSearch}
+      searchIcon={searchOpen ? 'x' : 'search'}
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[styles.root, { backgroundColor: T.bg }] }>
@@ -288,16 +279,24 @@ export default function EventsCalendarScreen({ navigation }: any) {
               </Animated.View>
 
               <ScrollView horizontal contentContainerStyle={styles.filterRow} showsHorizontalScrollIndicator={false}>
-                {FILTER_KEYS.map(f => (
-                  <TouchableOpacity
-                    key={f}
-                    onPress={() => setFilter(f)}
-                    activeOpacity={0.8}
-                    style={[styles.filterPill, filter === f && styles.filterPillActive]}
-                  >
-                    <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{t(f)}</Text>
-                  </TouchableOpacity>
-                ))}
+                {FILTER_KEYS.map(({ key, label, icon }) => {
+                  const isActive = filter === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      onPress={() => setFilter(key)}
+                      activeOpacity={0.8}
+                      style={[styles.filterPill, isActive && styles.filterPillActive]}
+                    >
+                      <Ionicons
+                        name={icon}
+                        size={14}
+                        color={isActive ? '#FFFFFF' : (T.textSub || '#374151')}
+                      />
+                      <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{t(label)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             </View>
           )}

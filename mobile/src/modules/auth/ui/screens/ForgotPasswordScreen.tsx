@@ -116,6 +116,11 @@ function EmailStep({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Image
+          source={require('../../../../../assets/Logo/Group 4.png')}
+          style={{ width: 180, height: 160, resizeMode: 'contain', marginBottom: 18 }}
+        />
+
         <Text style={styles.title}>{t('Forgot Password')}</Text>
 
         {/* Error */}
@@ -132,6 +137,7 @@ function EmailStep({
           autoComplete="off"
           value={email}
           onChangeText={setEmail}
+          themeColors={T}
         />
 
         <AuthButton

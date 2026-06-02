@@ -35,8 +35,22 @@ export interface AuthUser {
   avatarUrl: string | null;
   emailVerified: boolean;
   streakDays: number;
+  points: number;
+  lastCheckInAt?: string | null;
+  badges: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    pointsRequired: number;
+  }>;
   language: string;
   darkMode: boolean;
+  pushEnabled?: boolean;
+  emailEnabled?: boolean;
+  twoFactorEnabled?: boolean;
+  dataSharingEnabled?: boolean;
+  publicProfileEnabled?: boolean;
 }
 
 export interface UpdateProfileDto {
@@ -47,6 +61,11 @@ export interface UpdateProfileDto {
   avatarUrl?: string;
   darkMode?: boolean;
   language?: string;
+  pushEnabled?: boolean;
+  emailEnabled?: boolean;
+  twoFactorEnabled?: boolean;
+  dataSharingEnabled?: boolean;
+  publicProfileEnabled?: boolean;
 }
 
 export interface SellerStats {
@@ -78,17 +97,29 @@ export interface SellerStats {
 export interface AuthResponse {
   success: boolean;
   data: {
-    user: AuthUser;
-    accessToken: string;
-    refreshToken: string;
-    expiresIn: number;
+    user?: AuthUser;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresIn?: number;
+    twoFactorRequired?: boolean;
+    userId?: string;
   };
 }
 
 const authApi = {
   async login(dto: LoginDto): Promise<AuthResponse> {
     const { data } = await http.post<AuthResponse>('/auth/login', dto);
-    await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
+    if (data.data && data.data.accessToken && data.data.refreshToken) {
+      await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
+    }
+    return data;
+  },
+
+  async verify2Fa(userId: string, code: string): Promise<AuthResponse> {
+    const { data } = await http.post<AuthResponse>('/auth/verify-2fa', { userId, code });
+    if (data.data && data.data.accessToken && data.data.refreshToken) {
+      await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
+    }
     return data;
   },
 
@@ -133,6 +164,10 @@ const authApi = {
 
   async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
     const { data } = await http.post<{ success: boolean; message: string }>('/users/change-password', { currentPassword, newPassword });
+    return data;
+  },
+  async checkIn(): Promise<{ success: boolean; data: { pointsEarned: number; streakDays: number; user: AuthUser } }> {
+    const { data } = await http.post<{ success: boolean; data: { pointsEarned: number; streakDays: number; user: AuthUser } }>('/users/check-in');
     return data;
   },
 };

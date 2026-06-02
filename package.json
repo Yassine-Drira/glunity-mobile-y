@@ -10,6 +10,7 @@
     "dev:api": "npm --workspace api run dev",
     "dev:mobile": "npm --workspace mobile run start",
     "lint": "npm --workspace api run lint; npm --workspace mobile run lint",
-    "test": "npm --workspace api run test; npm --workspace mobile run test"
+    "test": "npm --workspace api run test; npm --workspace mobile run test",
+    "typecheck": "npm --workspace mobile run typecheck"
   }
 }

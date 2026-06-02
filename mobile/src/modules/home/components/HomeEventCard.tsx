@@ -29,14 +29,16 @@ export default function HomeEventCard({ event, onPress }: Props) {
       <View style={styles.body}>
         <Text style={[styles.title, { color: T.text }]} numberOfLines={2}>{event.title}</Text>
 
-        <View style={styles.metaRow}>
-          <Ionicons name="location-outline" size={12} color={'#C8102E'} />
-          <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>{event.location}</Text>
-        </View>
+        <View style={styles.metaContainer}>
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={12} color={'#C8102E'} />
+            <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>{event.location}</Text>
+          </View>
 
-        <View style={styles.metaRow}>
-          <Ionicons name="calendar-outline" size={12} color={'#C8102E'} />
-          <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>{formatEventDate(event.date || event.startsAt)}</Text>
+          <View style={styles.metaRow}>
+            <Ionicons name="calendar-outline" size={12} color={'#C8102E'} />
+            <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>{formatEventDate(event.date || event.startsAt)}</Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -48,6 +50,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     width: '100%',
+    minHeight: 230,
     ...Platform.select({
       web: {
         boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.06)',
@@ -69,6 +72,8 @@ const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 10,
     paddingVertical: 10,
+    flex: 1,
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 14,
@@ -85,5 +90,8 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 12,
     fontWeight: '500',
+  },
+  metaContainer: {
+    marginTop: 4,
   },
 });

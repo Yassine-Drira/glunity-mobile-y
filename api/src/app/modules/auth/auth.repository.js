@@ -9,7 +9,11 @@ const authRepository = {
   },
 
   findById(id) {
-    return User.findOne({ _id: id, isActive: true });
+    return User.findOne({ _id: id, isActive: true }).populate('badges');
+  },
+
+  findByIdWith2Fa(id) {
+    return User.findOne({ _id: id, isActive: true }).select('+twoFactorCode +twoFactorCodeExpires').populate('badges');
   },
 
   findByVerificationToken(hashedToken) {

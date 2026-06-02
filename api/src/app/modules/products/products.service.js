@@ -2,6 +2,8 @@
 
 const createHttpError = require('http-errors');
 const productsRepository = require('./products.repository');
+const User = require('../../../database/models/user.model');
+const Notification = require('../../../database/models/notification.model');
 
 class ProductsService {
 	async create(productData, userId) {
@@ -9,7 +11,34 @@ class ProductsService {
 			...productData,
 			sellerId: userId,
 		};
-		return productsRepository.create(newProduct);
+		const product = await productsRepository.create(newProduct);
+		const prodObj = product.toObject ? product.toObject() : product;
+
+		// Dispatch notification to other users in background
+		(async () => {
+			try {
+				const users = await User.find({ _id: { $ne: userId } }, '_id pushEnabled').lean();
+				if (users.length > 0) {
+					const notifs = users
+						.filter(u => u.pushEnabled !== false)
+						.map(u => ({
+							userId: u._id,
+							title: 'New Gluten-Free Product! 🍕',
+							body: `A new product "${prodObj.name}" is now available in the market. Tap to view!`,
+							type: 'product',
+							isRead: false,
+							metadata: { productId: String(prodObj._id) },
+						}));
+					if (notifs.length > 0) {
+						await Notification.insertMany(notifs);
+					}
+				}
+			} catch (err) {
+				console.error('Failed to dispatch new product notifications:', err);
+			}
+		})();
+
+		return product;
 	}
 
 	async getById(id) {

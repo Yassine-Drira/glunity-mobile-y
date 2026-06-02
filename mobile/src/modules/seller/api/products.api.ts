@@ -8,6 +8,7 @@ export interface ProductDto {
   certifiedGF: boolean;
   ingredients: string[];
   images: string[];
+  description?: string;
 }
 
 export interface Product {
@@ -20,6 +21,7 @@ export interface Product {
   ingredients: string[];
   images: string[];
   sellerId: string | { _id: string; fullName: string };
+  description?: string;
   createdAt?: string;
   updatedAt?: string;
 }

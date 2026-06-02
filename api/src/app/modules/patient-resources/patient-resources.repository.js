@@ -49,6 +49,15 @@ const patientResourcesRepository = {
   countVideos() {
     return ResourceVideo.countDocuments({ isPublished: true });
   },
+
+  clearAll() {
+    return PatientResource.deleteMany({});
+  },
+
+  async hasDetailedContent() {
+    const item = await PatientResource.findOne({ body: /Maladie cœliaque/ }).lean();
+    return !!item;
+  },
 };
 
 module.exports = patientResourcesRepository;

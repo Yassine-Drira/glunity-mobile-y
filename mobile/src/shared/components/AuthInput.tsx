@@ -7,7 +7,7 @@ import {
   TextInputProps,
   TouchableOpacity,
 } from 'react-native';
-import { Font, Radius, Spacing } from '../utils/theme';
+import { Colors, Font, Radius, Spacing } from '../utils/theme';
 import { useTheme } from '../context/theme.context';
 
 interface AuthInputProps extends TextInputProps {
@@ -16,6 +16,17 @@ interface AuthInputProps extends TextInputProps {
   rightIcon?: React.ReactNode;
   onRightIconPress?: () => void;
   hideLabel?: boolean;
+  /** Pass theme tokens to enable dark-mode support */
+  themeColors?: {
+    text: string;
+    textMuted: string;
+    inputBg: string;
+    inputBorder: string;
+    green: string;
+    greenLight: string;
+    red: string;
+    errorLight: string;
+  };
 }
 
 export function AuthInput({
@@ -25,6 +36,7 @@ export function AuthInput({
   onRightIconPress,
   style,
   hideLabel,
+  themeColors,
   ...rest
 }: AuthInputProps) {
   const [focused, setFocused] = useState(false);
@@ -78,19 +90,32 @@ export function AuthInput({
     },
   }), [T]);
 
+  // Merge theme-aware colors with static fallbacks
+  const tc = themeColors;
+  const inputBg     = tc?.inputBg     ?? Colors.inputBg;
+  const inputBorder = tc?.inputBorder ?? Colors.inputBorder;
+  const textColor   = tc?.text        ?? Colors.dark;
+  const labelColor  = tc?.textMuted   ?? Colors.muted;
+  const greenColor  = tc?.green       ?? '#8BC34A';
+  const greenLight  = tc?.greenLight  ?? 'rgba(139,195,74,0.12)';
+  const errorBg     = tc?.errorLight  ?? Colors.errorLight;
+
   return (
     <View style={styles.wrapper}>
-      {!hideLabel && <Text style={styles.label}>{label}</Text>}
+      {!hideLabel && (
+        <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
+      )}
       <View
         style={[
           styles.inputContainer,
-          focused && styles.inputFocused,
-          !!error && styles.inputError,
+          { backgroundColor: inputBg, borderColor: inputBorder },
+          focused && { borderColor: greenColor, backgroundColor: greenLight },
+          !!error && { borderColor: Colors.error, backgroundColor: errorBg },
         ]}
       >
         <TextInput
-          style={[styles.input, style]}
-          placeholderTextColor={T.textMuted}
+          style={[styles.input, { color: textColor || T.text }, style]}
+          placeholderTextColor={labelColor || T.textMuted}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           autoCapitalize="none"
@@ -107,3 +132,4 @@ export function AuthInput({
     </View>
   );
 }
+

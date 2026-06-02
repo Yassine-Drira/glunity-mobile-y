@@ -15,6 +15,9 @@ interface AppScaffoldProps {
   rightIcon?: string;
   onRightPress?: () => void;
   rightElement?: React.ReactNode;
+  showSearch?: boolean;
+  onSearchPress?: () => void;
+  searchIcon?: string;
   children: React.ReactNode;
   contentStyle?: ViewStyle;
   onPressHome?: () => void;
@@ -31,6 +34,9 @@ export function AppScaffold({
   rightIcon,
   onRightPress,
   rightElement,
+  showSearch,
+  onSearchPress,
+  searchIcon,
   children,
   contentStyle,
   onPressHome,
@@ -64,6 +70,9 @@ export function AppScaffold({
         rightIcon={rightIcon}
         onRightPress={onRightPress}
         rightElement={rightElement}
+        showSearch={showSearch}
+        onSearchPress={onSearchPress}
+        searchIcon={searchIcon}
       />
       <View style={[styles.content, { backgroundColor: C.bg }, contentStyle]}>
         {children}
