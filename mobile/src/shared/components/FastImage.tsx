@@ -14,16 +14,17 @@ try {
 type FastImageProps = {
   source: any;
   style?: any;
-  contentFit?: any;
+  contentFit?: 'contain' | 'cover' | 'stretch' | 'center' | 'fill' | 'none';
+  resizeMode?: 'contain' | 'cover' | 'stretch' | 'center';
   transition?: number;
-  cachePolicy?: any;
-  priority?: any;
+  cachePolicy?: 'none' | 'disk' | 'memory' | 'immutable';
+  priority?: 'low' | 'normal' | 'high';
   onLoad?: () => void;
   onError?: (e: any) => void;
 } & Partial<ImageProps>;
 
 export default function FastImage(props: FastImageProps) {
-  const { source, style, contentFit, transition, cachePolicy, priority, onLoad, onError } = props;
+  const { source, style, contentFit, resizeMode, transition, cachePolicy, priority, onLoad, onError, ...rest } = props;
 
   // Normalize source and guard against empty uri which causes RN warning: "source.uri should not be an empty string"
   function normalize(s: any) {
@@ -47,28 +48,58 @@ export default function FastImage(props: FastImageProps) {
   const src = normalize(source);
   if (!src) return null;
 
+  // Map resizeMode to contentFit for expo-image, or keep it for React Native Image
+  const fit = contentFit || resizeMode || 'cover';
+
   if (ExpoImage) {
     // If the uri is a data URI, use React Native Image which reliably handles data URIs.
     const uri = typeof src === 'object' && src.uri ? String(src.uri) : '';
     if (uri && uri.startsWith('data:')) {
-      return <Image source={src} style={style} onLoad={onLoad} onError={onError} />;
+      return <Image source={src} style={style} resizeMode={fit as any} onLoad={onLoad} onError={onError} {...rest} />;
     }
 
-    // @ts-ignore - forward props to expo-image
     return (
-      // @ts-ignore
       <ExpoImage
         source={src}
         style={style}
-        contentFit={contentFit}
-        transition={transition}
-        cachePolicy={cachePolicy}
-        priority={priority}
+        contentFit={fit}
+        transition={transition ?? 150}
+        cachePolicy={cachePolicy ?? 'disk'}
+        priority={priority ?? 'normal'}
         onLoad={onLoad}
         onError={onError}
+        {...rest}
       />
     );
   }
 
-  return <Image source={src} style={style} onLoad={onLoad} onError={onError} />;
+  return <Image source={src} style={style} resizeMode={fit as any} onLoad={onLoad} onError={onError} {...rest} />;
 }
+
+// Add static properties to match react-native-fast-image API
+FastImage.resizeMode = {
+  contain: 'contain',
+  cover: 'cover',
+  stretch: 'stretch',
+  center: 'center',
+};
+
+FastImage.preload = (sources: Array<{ uri: string }>) => {
+  if (ExpoImage && typeof ExpoImage.prefetch === 'function') {
+    sources.forEach(src => {
+      if (src.uri) {
+        try {
+          ExpoImage.prefetch(src.uri);
+        } catch (e) {
+          // ignore
+        }
+      }
+    });
+  } else {
+    sources.forEach(src => {
+      if (src.uri) {
+        Image.prefetch(src.uri).catch(() => {});
+      }
+    });
+  }
+};

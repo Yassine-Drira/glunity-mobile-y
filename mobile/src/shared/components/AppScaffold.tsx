@@ -1,6 +1,6 @@
 import React from 'react';
 import { StatusBar, StyleSheet, View, ViewStyle, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/theme.context';
 import { AppHeader } from './AppHeader';
 import { BottomNavBar } from './BottomNavBar';
@@ -49,6 +49,8 @@ export function AppScaffold({
   const { theme: C } = useTheme();
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = 60 + Math.max(insets.bottom, 12);
 
   const handleHome = onPressHome || (() => navigation.navigate('Home'));
   const handleEvents = onPressEvents || (() => navigation.navigate('Events'));
@@ -75,7 +77,7 @@ export function AppScaffold({
         onSearchPress={onSearchPress}
         searchIcon={searchIcon}
       />
-      <View style={[styles.content, { backgroundColor: C.bg }, contentStyle]}>
+      <View style={[styles.content, { backgroundColor: C.bg, paddingBottom: bottomPadding }, contentStyle]}>
         {children}
       </View>
       <BottomNavBar

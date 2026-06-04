@@ -53,6 +53,7 @@ const fr = {
   // General Actions & Dialogs
   LOGOUT: 'Se déconnecter',
   CLOSE: 'Fermer',
+  'Explore details': 'Voir les détails',
   CANCEL: 'Annuler',
   SUBMIT: 'Soumettre',
   SAVE: 'Enregistrer',

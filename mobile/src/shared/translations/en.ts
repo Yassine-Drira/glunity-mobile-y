@@ -53,6 +53,7 @@ const en = {
   // General Actions & Dialogs
   LOGOUT: 'Log Out',
   CLOSE: 'Close',
+  'Explore details': 'Explore details',
   CANCEL: 'Cancel',
   SUBMIT: 'Submit',
   SAVE: 'Save',

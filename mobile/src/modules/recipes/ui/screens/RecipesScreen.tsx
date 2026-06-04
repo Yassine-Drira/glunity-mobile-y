@@ -355,26 +355,24 @@ export default function RecipesScreen({ navigation }: Props) {
   }), [T, isRTL]);
 
   const [activeCategory, setActiveCategory] = useState<RecipeCategory>('tunisian');
-  const [items, setItems] = useState<Recipe[]>([]);
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   React.useEffect(() => {
     (async () => {
-      setLoaded(false);
       try {
-        const fromApi = await recipesApi.list({ category: activeCategory, limit: 30 });
-        setItems(fromApi || []);
-      } catch {
-        setItems([]);
+        const fromApi = await recipesApi.list({ limit: 100 });
+        setAllRecipes(fromApi || []);
+      } catch (err) {
+        setAllRecipes([]);
       } finally {
         setLoaded(true);
       }
     })();
-  }, [activeCategory]);
+  }, []);
 
   const filtered = useMemo(() => {
-    const source = items;
-    let list = source.filter((r) => r.category === activeCategory);
+    let list = allRecipes.filter((r) => r.category === activeCategory);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(r => 
@@ -384,13 +382,12 @@ export default function RecipesScreen({ navigation }: Props) {
       );
     }
     return list;
-  }, [activeCategory, items, searchQuery]);
+  }, [activeCategory, allRecipes, searchQuery]);
 
   const popular = useMemo(() => {
-    const source = items;
-    const salad = source.find(r => r.title.toLowerCase().includes('salad') || r.title.toLowerCase().includes('quinoa'));
-    return salad ? [salad] : (source.length > 2 ? source.slice(2, 3) : source.slice(0, 1));
-  }, [items]);
+    const salad = allRecipes.find(r => r.title.toLowerCase().includes('salad') || r.title.toLowerCase().includes('quinoa'));
+    return salad ? [salad] : (allRecipes.length > 2 ? allRecipes.slice(2, 3) : allRecipes.slice(0, 1));
+  }, [allRecipes]);
 
   return (
     <AppScaffold

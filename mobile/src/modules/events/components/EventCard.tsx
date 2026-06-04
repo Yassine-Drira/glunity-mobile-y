@@ -109,20 +109,19 @@ export default function EventCard({ event, onPress }: Props) {
       activeOpacity={0.85}
     >
       <View style={{ position: 'relative' }}>
-        {/* neutral placeholder rectangle (no logo) */}
-        <View style={styles.cardImage} />
         {optimizedSource ? (
           <FastImage
             source={optimizedSource}
-            style={[styles.cardImage, { position: 'absolute', left: 0, top: 0, opacity: loaded ? 1 : 0 }]}
+            style={styles.cardImage}
             contentFit="cover"
-            transition={200}
+            transition={150}
             cachePolicy="disk"
             priority="high"
-            onLoad={() => { setLoaded(true); }}
             onError={() => { /* ignore image error */ }}
           />
-        ) : null}
+        ) : (
+          <View style={styles.cardImage} />
+        )}
       </View>
       {event.type ? (
         <View style={[styles.typePill, { backgroundColor: T.surface }]}>

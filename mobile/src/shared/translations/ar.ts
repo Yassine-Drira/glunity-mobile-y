@@ -53,6 +53,7 @@ const ar = {
   // General Actions & Dialogs
   LOGOUT: 'تسجيل الخروج',
   CLOSE: 'إغلاق',
+  'Explore details': 'عرض التفاصيل',
   CANCEL: 'إلغاء',
   SUBMIT: 'إرسال',
   SAVE: 'حفظ',

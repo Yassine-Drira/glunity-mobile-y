@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -65,6 +67,12 @@ export default function NotificationsScreen({ navigation }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
+
+  const hasRedirect = (item: Notification) => {
+    const meta = item.metadata || {};
+    return !!(meta.eventId || meta.productId || item.type === 'achievement');
+  };
 
   const fetchNotifications = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setLoading(true);
@@ -86,9 +94,9 @@ export default function NotificationsScreen({ navigation }: Props) {
   }, [fetchNotifications]);
 
   const handleMarkAsRead = async (item: Notification) => {
+    setSelectedNotif(item);
+
     if (item.isRead) {
-      // If already read, let's just trigger target navigation if any
-      handleNavigation(item);
       return;
     }
     
@@ -99,7 +107,6 @@ export default function NotificationsScreen({ navigation }: Props) {
 
     try {
       await notificationsApi.markAsRead(item.id);
-      handleNavigation(item);
     } catch (err) {
       console.warn('Failed to mark notification as read:', err);
     }
@@ -369,6 +376,110 @@ export default function NotificationsScreen({ navigation }: Props) {
           textAlign: 'center',
           paddingHorizontal: 32,
         },
+        modalBackdrop: {
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        },
+        modalContainer: {
+          width: '100%',
+          maxWidth: 340,
+          backgroundColor: T.surface,
+          borderRadius: 24,
+          padding: 24,
+          alignItems: 'center',
+          borderWidth: 1,
+          borderColor: T.border,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.15,
+          shadowRadius: 18,
+          elevation: 10,
+          position: 'relative',
+        },
+        modalCloseIcon: {
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          zIndex: 10,
+        },
+        modalIconBox: {
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+        },
+        modalTitle: {
+          fontSize: 17,
+          fontFamily: F.bold,
+          fontWeight: '700',
+          color: T.text,
+          textAlign: 'center',
+          paddingHorizontal: 8,
+        },
+        modalTime: {
+          fontSize: 11,
+          color: T.textMuted,
+          fontFamily: F.regular,
+          marginTop: 4,
+          marginBottom: 16,
+        },
+        modalScroll: {
+          width: '100%',
+          maxHeight: 180,
+          marginBottom: 24,
+        },
+        modalBody: {
+          fontSize: 14,
+          color: T.textSub,
+          fontFamily: F.regular,
+          lineHeight: 20,
+          textAlign: 'center',
+        },
+        modalFooter: {
+          flexDirection: 'column',
+          width: '100%',
+          gap: 10,
+        },
+        modalPrimaryBtn: {
+          backgroundColor: T.green,
+          borderRadius: 14,
+          height: 46,
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          shadowColor: T.green,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 4,
+        },
+        modalPrimaryText: {
+          color: '#FFFFFF',
+          fontSize: 14,
+          fontFamily: F.semibold,
+          fontWeight: '600',
+        },
+        modalSecondaryBtn: {
+          backgroundColor: T.surfaceAlt,
+          borderRadius: 14,
+          height: 46,
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          borderWidth: 1,
+          borderColor: T.border,
+        },
+        modalSecondaryText: {
+          color: T.text,
+          fontSize: 14,
+          fontFamily: F.medium,
+          fontWeight: '500',
+        },
       }),
     [T, isRTL]
   );
@@ -478,6 +589,86 @@ export default function NotificationsScreen({ navigation }: Props) {
             );
           }}
         />
+
+        {selectedNotif && (
+          <Modal
+            visible={!!selectedNotif}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setSelectedNotif(null)}
+          >
+            <View style={s.modalBackdrop}>
+              <View style={s.modalContainer}>
+                <TouchableOpacity
+                  style={s.modalCloseIcon}
+                  onPress={() => setSelectedNotif(null)}
+                  activeOpacity={0.7}
+                >
+                  <Feather name="x" size={20} color={T.textMuted} />
+                </TouchableOpacity>
+
+                <View style={[s.modalIconBox, { backgroundColor: getIconConfig(selectedNotif.type).bg }]}>
+                  {getIconConfig(selectedNotif.type).lib === 'mci' ? (
+                    <MaterialCommunityIcons
+                      name={getIconConfig(selectedNotif.type).name as any}
+                      size={28}
+                      color={getIconConfig(selectedNotif.type).color}
+                    />
+                  ) : (
+                    <Feather
+                      name={getIconConfig(selectedNotif.type).name as any}
+                      size={26}
+                      color={getIconConfig(selectedNotif.type).color}
+                    />
+                  )}
+                </View>
+
+                <Text style={s.modalTitle}>{t(selectedNotif.title)}</Text>
+                <Text style={s.modalTime}>{getRelativeTime(selectedNotif.createdAt, language)}</Text>
+
+                <ScrollView style={s.modalScroll} showsVerticalScrollIndicator={true}>
+                  <Text style={s.modalBody}>{t(selectedNotif.body)}</Text>
+                </ScrollView>
+
+                <View style={s.modalFooter}>
+                  {hasRedirect(selectedNotif) ? (
+                    <>
+                      <TouchableOpacity
+                        style={s.modalPrimaryBtn}
+                        onPress={() => {
+                          const item = selectedNotif;
+                          setSelectedNotif(null);
+                          // Delay navigation slightly so the modal transition completes smoothly
+                          setTimeout(() => {
+                            handleNavigation(item);
+                          }, 150);
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={s.modalPrimaryText}>{t('Explore details')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={s.modalSecondaryBtn}
+                        onPress={() => setSelectedNotif(null)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={s.modalSecondaryText}>{t('CLOSE')}</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <TouchableOpacity
+                      style={s.modalPrimaryBtn}
+                      onPress={() => setSelectedNotif(null)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={s.modalPrimaryText}>{t('CLOSE')}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
       </View>
     </AppScaffold>
   );

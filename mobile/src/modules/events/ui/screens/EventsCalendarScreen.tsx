@@ -73,53 +73,24 @@ export default function EventsCalendarScreen({ navigation }: any) {
     (async () => {
       try {
         setIsLoading(true);
-        const apiType = TYPE_MAP[filter as keyof typeof TYPE_MAP];
-        const list = await eventsApi.list(apiType ? { type: apiType } : undefined);
+        const list = await eventsApi.list();
         if (!mounted) return;
-        setEvents(list);
-        // Prefetch top event images to improve perceived load speed
-        try {
-          const top = (list || []).slice(0, 8).map(i => i.imageUrl).filter((url): url is string => !!url);
-          // Prefetch with diagnostics (log success/failure and timings)
-          function optimizedUrl(url?: string | null, w = 800) {
-            if (!url) return url;
-            try {
-              const u = new URL(url);
-              if (u.hostname.includes('images.unsplash.com')) {
-                if (u.search) u.search += '&';
-                u.search += `w=${w}&auto=format&fit=crop&q=80`;
-                return u.toString();
-              }
-              return url;
-            } catch (e) { return url; }
-          }
-
-          top.forEach(async (url) => {
-            const start = Date.now();
-            try {
-              const u = optimizedUrl(url, 800) || '';
-              // wait up to 1500ms for prefetch, then give up
-              await Promise.race([
-                Image.prefetch(u),
-                new Promise((_, rej) => setTimeout(() => rej(new Error('prefetch-timeout')), 1500)),
-              ]);
-              // diagnostic logs removed
-            } catch (err) {
-              // diagnostic logs removed
-            }
-          });
-        } catch (e) { /* ignore prefetch errors */ }
+        setEvents(list || []);
       } catch (err) {
-        // ignore, keep empty
+        if (mounted) setEvents([]);
       } finally {
         if (mounted) setIsLoading(false);
       }
     })();
     return () => { mounted = false; };
-  }, [filter]);
+  }, []);
 
   const filtered = React.useMemo(() => {
     let list = events;
+    const apiType = TYPE_MAP[filter as keyof typeof TYPE_MAP];
+    if (apiType) {
+      list = list.filter(e => e.type?.toLowerCase() === apiType.toLowerCase());
+    }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter(e => 
@@ -130,7 +101,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
       );
     }
     return list;
-  }, [events, searchQuery]);
+  }, [events, filter, searchQuery]);
 
   const styles = React.useMemo(() => StyleSheet.create({
     root: { flex: 1, paddingHorizontal: 12 },

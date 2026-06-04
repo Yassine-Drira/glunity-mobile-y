@@ -25,6 +25,7 @@ import { Radius } from '@/shared/utils/theme';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import productsApi, { Product } from '@/modules/seller/api/products.api';
 import type { AppStackParamList } from '@/navigation/types';
+import FastImage from '@/shared/components/FastImage';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CARD_GAP = 12;
@@ -107,7 +108,7 @@ const ProductCard = React.memo(({ product, onPress, cardWidth }: { product: Prod
         id={`product-card-${product._id}`}
       >
         <View style={s.imageWrap}>
-          <Image source={{ uri: imageUri }} style={s.cardImage} resizeMode="cover" />
+          <FastImage source={{ uri: imageUri }} style={s.cardImage} resizeMode="cover" />
           {product.certifiedGF && (
             <View style={s.certBadge}>
               <Text style={s.certBadgeText}>GF</Text>
