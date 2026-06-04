@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   TextInput,
   Animated,
   Easing,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import FastImage from '@/shared/components/FastImageWrapper';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -20,6 +22,7 @@ import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 import recipesApi, { Recipe, RecipeCategory } from '../../api/recipes.api';
+import PaginationBar from '@/shared/components/PaginationBar';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Recipes'>;
 
@@ -355,39 +358,66 @@ export default function RecipesScreen({ navigation }: Props) {
   }), [T, isRTL]);
 
   const [activeCategory, setActiveCategory] = useState<RecipeCategory>('tunisian');
-  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
+  const LIMIT = 15;
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const fromApi = await recipesApi.list({ limit: 100 });
-        setAllRecipes(fromApi || []);
-      } catch (err) {
-        setAllRecipes([]);
-      } finally {
-        setLoaded(true);
-      }
-    })();
-  }, []);
+  // Debounced search setup
+  const [searchVal, setSearchVal] = useState('');
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchVal);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchVal]);
 
-  const filtered = useMemo(() => {
-    let list = allRecipes.filter((r) => r.category === activeCategory);
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(r => 
-        (r.title && r.title.toLowerCase().includes(q)) || 
-        (r.description && r.description.toLowerCase().includes(q)) || 
-        (r.ingredients && r.ingredients.some(ing => ing.toLowerCase().includes(q)))
-      );
+  const fetchRecipes = useCallback(async (pageNum: number, isRefresh = false) => {
+    if (pageNum === 1) {
+      if (!isRefresh) setLoaded(false);
+    } else {
+      setLoadingMore(true);
     }
-    return list;
-  }, [activeCategory, allRecipes, searchQuery]);
+
+    try {
+      const res = await recipesApi.list({
+        category: activeCategory,
+        search: searchQuery.trim() || undefined,
+        page: pageNum,
+        limit: LIMIT,
+      });
+
+      setRecipes(res.items || []);
+      setTotalPages(res.pagination?.totalPages || 1);
+    } catch (err) {
+      console.error('[RecipesScreen] fetch error:', err);
+    } finally {
+      setLoaded(true);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  }, [activeCategory, searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+    fetchRecipes(1);
+  }, [activeCategory, searchQuery, fetchRecipes]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setPage(1);
+    fetchRecipes(1, true);
+  }, [fetchRecipes]);
+
+  const filtered = useMemo(() => recipes, [recipes]);
 
   const popular = useMemo(() => {
-    const salad = allRecipes.find(r => r.title.toLowerCase().includes('salad') || r.title.toLowerCase().includes('quinoa'));
-    return salad ? [salad] : (allRecipes.length > 2 ? allRecipes.slice(2, 3) : allRecipes.slice(0, 1));
-  }, [allRecipes]);
+    const salad = recipes.find(r => r.title.toLowerCase().includes('salad') || r.title.toLowerCase().includes('quinoa'));
+    return salad ? [salad] : (recipes.length > 2 ? recipes.slice(2, 3) : recipes.slice(0, 1));
+  }, [recipes]);
 
   return (
     <AppScaffold
@@ -399,7 +429,18 @@ export default function RecipesScreen({ navigation }: Props) {
       contentStyle={{ backgroundColor: T.bg }}
     >
       <View style={[s.mainContainer, { backgroundColor: T.bg }]}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[T.green]}
+              tintColor={T.green}
+            />
+          }
+        >
           {/* Heading */}
           <Text style={[s.heroTitle, { color: T.text }]}>Gluten-Free Recipes</Text>
           <Text style={[s.heroSub, { color: T.red }]}>Healthy and nutritious food recipes</Text>
@@ -410,15 +451,15 @@ export default function RecipesScreen({ navigation }: Props) {
               <Feather name="search" size={16} color={T.textMuted} />
               <TextInput
                 ref={inputRef}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
+                value={searchVal}
+                onChangeText={setSearchVal}
                 placeholder="Search recipes..."
                 placeholderTextColor={T.textMuted}
                 underlineColorAndroid="transparent"
                 style={s.searchInput}
               />
-              {!!searchQuery && (
-                <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchQuery("")}>
+              {!!searchVal && (
+                <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchVal("")}>
                   <Ionicons name="close-circle" size={16} color={T.textMuted} />
                 </TouchableOpacity>
               )}
@@ -459,6 +500,13 @@ export default function RecipesScreen({ navigation }: Props) {
             keyExtractor={(item) => item._id}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={s.cardsRow}
+            ListFooterComponent={
+              loadingMore ? (
+                <View style={{ justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
+                  <ActivityIndicator size="small" color={T.green} />
+                </View>
+              ) : null
+            }
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[s.recipeCard, { backgroundColor: T.surface }]}
@@ -474,6 +522,17 @@ export default function RecipesScreen({ navigation }: Props) {
                 </View>
               </TouchableOpacity>
             )}
+          />
+
+          {/* Pagination */}
+          <PaginationBar
+            page={page}
+            totalPages={totalPages}
+            loading={loadingMore}
+            onPageChange={(p) => {
+              setPage(p);
+              fetchRecipes(p);
+            }}
           />
 
           {/* Popular Section */}

@@ -64,6 +64,10 @@ export default function NotificationsScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
   const { language, isRTL, t } = useLanguage();
   const { user } = useAuth();
+  const LIMIT = 15;
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,23 +78,37 @@ export default function NotificationsScreen({ navigation }: Props) {
     return !!(meta.eventId || meta.productId || item.type === 'achievement');
   };
 
-  const fetchNotifications = useCallback(async (isRefresh = false) => {
-    if (!isRefresh) setLoading(true);
+  const fetchNotifications = useCallback(async (currentSkip = 0, isRefresh = false) => {
+    if (currentSkip === 0) {
+      if (!isRefresh) setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     try {
-      const res = await notificationsApi.list();
+      const res = await notificationsApi.list({ limit: LIMIT, skip: currentSkip });
       if (res.success) {
-        setNotifications(res.data);
+        const newItems = res.data ?? [];
+        setNotifications(prev => {
+          if (currentSkip === 0) return newItems;
+          return [...prev, ...newItems];
+        });
+        if (newItems.length < LIMIT) {
+          setHasMore(false);
+        } else {
+          setHasMore(true);
+        }
       }
     } catch (err) {
       console.warn('Failed to fetch notifications:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
+    fetchNotifications(0);
   }, [fetchNotifications]);
 
   const handleMarkAsRead = async (item: Notification) => {
@@ -168,10 +186,20 @@ export default function NotificationsScreen({ navigation }: Props) {
     return notifications.filter(n => !n.isRead).length;
   }, [notifications]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchNotifications(true);
-  };
+    setSkip(0);
+    setHasMore(true);
+    fetchNotifications(0, true);
+  }, [fetchNotifications]);
+
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore && !loading) {
+      const nextSkip = skip + LIMIT;
+      setSkip(nextSkip);
+      fetchNotifications(nextSkip);
+    }
+  }, [loadingMore, hasMore, loading, skip, fetchNotifications]);
 
   const getIconConfig = (type: string) => {
     switch (type) {
@@ -538,6 +566,15 @@ export default function NotificationsScreen({ navigation }: Props) {
           keyExtractor={item => item.id}
           contentContainerStyle={s.listContent}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                <ActivityIndicator size="small" color={T.green} />
+              </View>
+            ) : null
+          }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[T.green]} />
           }

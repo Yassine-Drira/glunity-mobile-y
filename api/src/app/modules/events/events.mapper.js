@@ -3,6 +3,9 @@
 function toEventDto(doc) {
 	if (!doc) return null;
 	const id = doc._id ? String(doc._id) : doc.id;
+	const attendeesCount = typeof doc.attendeesCount === 'number'
+		? doc.attendeesCount
+		: (doc.attendees || []).length;
 	return {
 		id,
 		title: doc.title,
@@ -17,8 +20,10 @@ function toEventDto(doc) {
 		startsAt: doc.startsAt,
 		endsAt: doc.endsAt,
 		organizer: doc.organizer || {},
-		attendeesCount: (doc.attendees || []).length,
-		attendees: (doc.attendees || []).map(a => (a && a._id) ? String(a._id) : String(a)),
+		attendeesCount,
+		attendees: Array.isArray(doc.attendees)
+			? doc.attendees.map(a => (a && a._id) ? String(a._id) : String(a))
+			: [],
 		maxCapacity: doc.maxCapacity || 0,
 		price: doc.price || 0,
 		currency: doc.currency || 'TND',

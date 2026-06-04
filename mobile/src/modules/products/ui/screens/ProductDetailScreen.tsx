@@ -25,13 +25,13 @@ import { useLanguage } from '@/shared/context/language.context';
 const HERO_H = 210;  // fixed contained height matching the screenshot
 
 const CATEGORY_FALLBACKS: Record<string, string> = {
-  Bakery:           'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=800',
+  Bakery: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=800',
   'Pastry & Cakes': 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?q=80&w=800',
-  'Breads & Buns':  'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?q=80&w=800',
-  'Flour & Mixes':  'https://images.unsplash.com/photo-1574085733277-851d9d856a3a?q=80&w=800',
-  Snacks:           'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=800',
-  Desserts:         'https://images.unsplash.com/photo-1551024601-bec78aea704b?q=80&w=800',
-  homemade:         'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?q=80&w=800',
+  'Breads & Buns': 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?q=80&w=800',
+  'Flour & Mixes': 'https://images.unsplash.com/photo-1574085733277-851d9d856a3a?q=80&w=800',
+  Snacks: 'https://images.unsplash.com/photo-1499636136210-6f4ee915583e?q=80&w=800',
+  Desserts: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?q=80&w=800',
+  homemade: 'https://images.unsplash.com/photo-1586444248902-2f64eddc13df?q=80&w=800',
 };
 const DEFAULT_FALLBACK =
   'https://images.unsplash.com/photo-1555507036-ab1f4038808a?q=80&w=800';
@@ -76,10 +76,10 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   const { product: initialProduct, productId } = route.params as { product?: Product; productId?: string };
   const [product, setProduct] = React.useState<Product | null>(initialProduct || null);
   const [loading, setLoading] = React.useState(!initialProduct && !!productId);
-  const { user }    = useAuth();
+  const { user } = useAuth();
   const { theme: T } = useTheme();
-  const { t }       = useLanguage();
-  const insets      = useSafeAreaInsets();
+  const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
 
   React.useEffect(() => {
     if (initialProduct) {
@@ -107,7 +107,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
   React.useEffect(() => {
     // Silently track this product view on open (fire-and-forget)
     if (product?._id) {
-      productsApi.trackView(product._id).catch(() => {});
+      productsApi.trackView(product._id).catch(() => { });
     }
   }, [product?._id]);
 
@@ -174,7 +174,7 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       flex: 1,
     },
     scrollContent: {
-      paddingBottom: 8,
+      paddingBottom: 300,
     },
 
     // ── Hero image — contained block, full width, no border radius
@@ -294,7 +294,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 24,
-      paddingVertical: 14,
+      paddingTop: 14,
+      paddingBottom: 40,
       backgroundColor: T.surface,
       borderTopWidth: 1,
       borderTopColor: T.border,
@@ -334,8 +335,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     },
   }), [T]);
 
-  const imageUri    = useMemo(() => product ? getProductImage(product) : '', [product]);
-  const sellerName  = useMemo(() => product ? getSellerName(product.sellerId) : '', [product?.sellerId]);
+  const imageUri = useMemo(() => product ? getProductImage(product) : '', [product]);
+  const sellerName = useMemo(() => product ? getSellerName(product.sellerId) : '', [product?.sellerId]);
   const description = useMemo(
     () => (product && CATEGORY_DESCRIPTIONS[product.category]) ?? DEFAULT_DESCRIPTION,
     [product?.category],
@@ -379,8 +380,8 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       rightElement={headerActions}
       onPressHome={() => navigation.navigate('Home')}
       onPressEvents={() => navigation.navigate('Events')}
-      onPressCenter={() => {}}
-      onPressReels={() => {}}
+      onPressCenter={() => { }}
+      onPressReels={() => { }}
       onPressProfile={handleProfileNav}
       contentStyle={{ backgroundColor: T.bg }}
     >
@@ -455,32 +456,25 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         </View>
       </ScrollView>
 
-      {/*
-        ══ FOOTER ══
-        A fixed-height in-flow container that holds the price/CTA bar.
-        The global nav bar is rendered by AppScaffold.
-      */}
-      <View style={[s.footer, { paddingBottom: 96 + Math.max(insets.bottom, 8) }]}>
-        {/* Price + View Seller bar */}
-        <View style={[s.bottomBar, { backgroundColor: T.surface, borderTopColor: T.border }]}>
-          <View>
-            <Text style={[s.priceLabel, { color: T.textMuted }]}>{t('Price')}</Text>
-            <Text style={[s.priceValue, { color: T.green }]}>{product.price}TND</Text>
-          </View>
-
-          <TouchableOpacity
-            style={[s.viewSellerBtn, { backgroundColor: T.green, shadowColor: T.green }]}
-            activeOpacity={0.85}
-            onPress={() => {
-              const sellerId = typeof product.sellerId === 'object' ? product.sellerId?._id : product.sellerId;
-              navigation.navigate('SellerProfile', { sellerId });
-            }}
-            id="detail-view-seller-btn"
-          >
-            <Feather name="shopping-bag" size={16} color="#FFFFFF" />
-            <Text style={s.viewSellerText}>{t('View Seller')}</Text>
-          </TouchableOpacity>
+      {/* Price + View Seller bar */}
+      <View style={[s.bottomBar, { backgroundColor: T.surface, borderTopColor: T.border }]}>
+        <View>
+          <Text style={[s.priceLabel, { color: T.textMuted }]}>{t('Price')}</Text>
+          <Text style={[s.priceValue, { color: T.green }]}>{product.price}TND</Text>
         </View>
+
+        <TouchableOpacity
+          style={[s.viewSellerBtn, { backgroundColor: T.green, shadowColor: T.green }]}
+          activeOpacity={0.85}
+          onPress={() => {
+            const sellerId = typeof product.sellerId === 'object' ? product.sellerId?._id : product.sellerId;
+            navigation.navigate('SellerProfile', { sellerId });
+          }}
+          id="detail-view-seller-btn"
+        >
+          <Feather name="shopping-bag" size={16} color="#FFFFFF" />
+          <Text style={s.viewSellerText}>{t('View Seller')}</Text>
+        </TouchableOpacity>
       </View>
     </AppScaffold>
   );

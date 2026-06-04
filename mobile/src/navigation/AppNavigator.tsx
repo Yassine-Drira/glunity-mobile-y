@@ -63,9 +63,9 @@ function HomeScreenContainer() {
     (async () => {
       try {
         // Limit to exactly 3 recipes on the Home screen
-        const list = await recipesApi.list({ limit: 3 });
+        const res = await recipesApi.list({ limit: 3 });
         if (!mounted) return;
-        const withHandlers = list.map(recipe => ({
+        const withHandlers = res.items.map(recipe => ({
           id: recipe._id,
           title: recipe.title,
           imageUrl: (recipe.photos && recipe.photos.length > 0 && recipe.photos[0]) || 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400',
@@ -87,7 +87,7 @@ function HomeScreenContainer() {
     let mounted = true;
     (async () => {
       try {
-        const list = await eventsApi.list();
+        const { items: list } = await eventsApi.list();
         if (!mounted) return;
         const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
         setEvents(withHandlers);

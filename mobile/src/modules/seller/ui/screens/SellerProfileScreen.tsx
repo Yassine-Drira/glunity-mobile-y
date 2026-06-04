@@ -884,7 +884,11 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
         {/* ── Products Menu Header ───────────────────────────────────────────── */}
         <View style={s.sectionHeaderRow}>
           <Text style={s.sectionTitle}>{t('Bakery Menu')}</Text>
-          <TouchableOpacity activeOpacity={0.7}>
+          <TouchableOpacity 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('ProductsMarket', { sellerId: currentSeller?._id })}
+            id="seller-menu-see-all"
+          >
             <Text style={s.seeAllText}>{t('See all')}</Text>
           </TouchableOpacity>
         </View>
@@ -934,13 +938,9 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                   <View style={s.productPriceRow}>
                     <Text style={s.productPrice}>{prod.price} TND</Text>
                     {isOwnProfile && (
-                      <TouchableOpacity 
-                        style={s.editProductBtn} 
-                        activeOpacity={0.7}
-                        onPress={() => navigation.navigate('AddProduct', { product: prod })}
-                      >
+                      <View style={s.editProductBtn}>
                         <Feather name="edit-2" size={14} color={T.text} />
-                      </TouchableOpacity>
+                      </View>
                     )}
                   </View>
                 </View>

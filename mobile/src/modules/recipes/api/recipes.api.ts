@@ -41,9 +41,12 @@ export interface RecipesListResponse {
 }
 
 const recipesApi = {
-  async list(params?: { category?: RecipeCategory; search?: string; page?: number; limit?: number }) {
+  async list(params?: { category?: RecipeCategory; search?: string; page?: number; limit?: number }): Promise<{ items: Recipe[]; pagination: RecipesListResponse['data']['pagination'] }> {
     const { data } = await http.get<RecipesListResponse>('/recipes', { params });
-    return data.data.items;
+    return {
+      items: data.data.items || [],
+      pagination: data.data.pagination,
+    };
   },
 
   async getById(recipeId: string) {

@@ -13,6 +13,7 @@ const ar = {
   'Edit Profile': 'تعديل الملف الشخصي',
   'Add Event': 'إضافة حدث',
   Community: 'المجتمع',
+  Discover: 'اكتشف',
 
   // Section Labels
   ACCOUNT: 'الحساب',
@@ -688,6 +689,22 @@ const ar = {
   'Certified gluten-free products': 'منتجات معتمدة خالية من الغلوتين',
   'Member since': 'عضو منذ',
   'days on Glunity': 'يوماً على Glunity',
+
+  // Community Screens
+  'Welcome, ': 'أهلاً بك، ',
+  'warrior!': 'يا بطل!',
+  'You\'re not alone on this journey. Join a community of people living gluten-free, share your experiences, discover tips, and support each other.': 'لست وحدك في هذه الرحلة. انضم إلى مجتمع يعيش خاليًا من الغلوتين، وشارك تجاربك، واكتشف النصائح، وادعموا بعضكم البعض.',
+  'Together, we fight gluten': 'معاً، نحارب الغلوتين',
+  'Share tips': 'شارك النصائح',
+  'Help others with your experience': 'ساعد الآخرين بخبرتك',
+  'Ask questions': 'اطرح الأسئلة',
+  'Get advice from the community': 'احصل على مشورة من المجتمع',
+  'Find recipes and safe places': 'ابحث عن وصفات وأماكن آمنة',
+  'Join the community': 'انضم إلى المجتمع',
+  'Maybe later': 'ربما لاحقاً',
+  'Community Chat': 'دردشة المجتمع',
+  'Welcome to the community chat. Treat this as the group space for tips, questions and discovery.': 'مرحبًا بك في دردشة المجتمع. اعتبر هذه المساحة مخصصة لمشاركة النصائح والأسئلة والاكتشافات.',
+  'Leave community (dev)': 'مغادرة المجتمع (تطوير)',
 };
 
 export default ar;

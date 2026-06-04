@@ -26,6 +26,7 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import productsApi, { Product } from '@/modules/seller/api/products.api';
 import type { AppStackParamList } from '@/navigation/types';
 import FastImage from '@/shared/components/FastImage';
+import PaginationBar from '@/shared/components/PaginationBar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CARD_GAP = 12;
@@ -126,7 +127,7 @@ const ProductCard = React.memo(({ product, onPress, cardWidth }: { product: Prod
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
-export default function ProductsMarketScreen({ navigation }: Props) {
+export default function ProductsMarketScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
   const { t, isRTL } = useLanguage();
@@ -295,83 +296,124 @@ export default function ProductsMarketScreen({ navigation }: Props) {
       textAlign: 'center',
       paddingHorizontal: 40,
     },
+    paginationContainer: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 24,
+      width: '100%',
+    },
   }), [T, isRTL]);
 
   // All products fetched once from the API
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-
-  // Only true on the very first mount — never reset to true on filter change
+  const LIMIT = 20;
+  const [products, setProducts] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
-  const [refreshing,  setRefreshing]  = useState(false);
-
+  const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  // ── Fetch ALL products once; filtering is 100% client-side ──────────────────
-  const fetchProducts = useCallback(async () => {
+  // Debounced search setup
+  const [searchVal, setSearchVal] = useState('');
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchVal);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchVal]);
+
+  const fetchProducts = useCallback(async (pageNum: number, isRefresh = false) => {
+    if (pageNum === 1) {
+      if (!isRefresh) setInitialLoad(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const res = await productsApi.list();
-      setAllProducts(res.data ?? []);
+      let categoryParam: string | undefined = undefined;
+      if (activeFilter === 'Bakery') categoryParam = 'Bakery';
+      if (activeFilter === 'homemade') categoryParam = 'homemade';
+
+      const res = await productsApi.list({
+        page: pageNum,
+        limit: LIMIT,
+        search: searchQuery.trim() || undefined,
+        category: categoryParam,
+        sellerId: route?.params?.sellerId,
+      });
+
+      setProducts(res.data ?? []);
+
+      if (res.pagination) {
+        setTotalPages(res.pagination.pages || 1);
+      } else {
+        setTotalPages(1);
+      }
     } catch (err) {
       console.error('[ProductsMarket] fetch error:', err);
     } finally {
       setInitialLoad(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
-  }, []);
+  }, [activeFilter, searchQuery, route?.params?.sellerId]);
 
-  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+  useEffect(() => {
+    setPage(1);
+    fetchProducts(1);
+  }, [activeFilter, searchQuery, fetchProducts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchProducts();
+    setPage(1);
+    fetchProducts(1, true);
   }, [fetchProducts]);
 
-  // ── Client-side filter — instant, zero loading state needed ─────────────────
   const displayed = useMemo(() => {
-    let filtered = allProducts;
-    switch (activeFilter) {
-      case 'certified': 
-        filtered = allProducts.filter(p => p.certifiedGF);
-        break;
-      case 'homemade':  
-        filtered = allProducts.filter(p => p.category?.toLowerCase() === 'homemade');
-        break;
-      case 'Bakery':    
-        filtered = allProducts.filter(p => p.category === 'Bakery');
-        break;
+    if (activeFilter === 'certified') {
+      return products.filter(p => p.certifiedGF);
     }
+    return products;
+  }, [products, activeFilter]);
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        (p.name && p.name.toLowerCase().includes(q)) || 
-        (p.category && p.category.toLowerCase().includes(q)) || 
-        (p.description && p.description.toLowerCase().includes(q))
-      );
-    }
+  const ListFooter = useMemo(() => (
+    <View style={{ paddingBottom: 110 + insets.bottom }}>
+      <PaginationBar
+        page={page}
+        totalPages={totalPages}
+        loading={loadingMore}
+        onPageChange={(p) => {
+          setPage(p);
+          fetchProducts(p);
+        }}
+      />
+    </View>
+  ), [page, totalPages, loadingMore, fetchProducts, insets.bottom]);
 
-    return filtered;
-  }, [allProducts, activeFilter, searchQuery]);
+  const isFilteredBySeller = !!route?.params?.sellerId;
 
   // ── List header — memoised so it only re-renders when the active pill or search changes
   const ListHeader = useMemo(() => (
     <>
-      <Text style={s.pageTitle}>{t('Gluten free products')}</Text>
+      <Text style={s.pageTitle}>{isFilteredBySeller ? t("Seller's Products") : t('Gluten free products')}</Text>
       
       <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
         <View style={s.searchInner}>
           <Feather name="search" size={16} color={T.textMuted} />
           <TextInput
             ref={inputRef}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+            value={searchVal}
+            onChangeText={setSearchVal}
             placeholder={t('Search products...')}
             placeholderTextColor={T.textMuted}
             underlineColorAndroid="transparent"
             style={s.searchInput}
           />
-          {!!searchQuery && (
-            <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchQuery("")}>
+          {!!searchVal && (
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchVal("")}>
               <Ionicons name="close-circle" size={16} color={T.textMuted} />
             </TouchableOpacity>
           )}
@@ -394,7 +436,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
         ))}
       </View>
     </>
-  ), [activeFilter, searchHeight, searchOpacity, searchQuery, T, s]);
+  ), [activeFilter, searchHeight, searchOpacity, searchVal, T, s, t, isFilteredBySeller]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -404,6 +446,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
       showSearch
       onSearchPress={toggleSearch}
       searchIcon={searchOpen ? 'x' : 'search'}
+      onBack={isFilteredBySeller ? () => navigation.goBack() : undefined}
       contentStyle={{ backgroundColor: T.bg }}
     >
 
@@ -419,12 +462,10 @@ export default function ProductsMarketScreen({ navigation }: Props) {
           keyExtractor={item => item._id}
           numColumns={2}
           columnWrapperStyle={s.columnWrapper}
-          contentContainerStyle={[
-            s.listContent,
-            { paddingBottom: 110 + insets.bottom },
-          ]}
+          contentContainerStyle={s.listContent}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={ListHeader}
+          ListFooterComponent={ListFooter}
           ListEmptyComponent={
             !initialLoad ? (
             <View style={s.emptyWrap}>

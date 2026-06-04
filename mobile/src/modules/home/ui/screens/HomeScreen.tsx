@@ -395,7 +395,7 @@ export function HomeScreen({
     let mounted = true;
     (async () => {
       try {
-        const list = await eventsApi.list();
+        const { items: list } = await eventsApi.list();
         if (!mounted) return;
         const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
         setHomeEvents(withHandlers);

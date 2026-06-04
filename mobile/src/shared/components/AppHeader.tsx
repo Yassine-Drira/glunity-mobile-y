@@ -317,9 +317,9 @@ export function AppHeader({
 
             <View style={s.detailTitleWrap}>
               <Text style={s.detailTitle} numberOfLines={1}>
-                {title}
+                {t(title)}
               </Text>
-              {subtitle ? <Text style={s.detailSubtitle}>{subtitle}</Text> : null}
+              {subtitle ? <Text style={s.detailSubtitle}>{t(subtitle)}</Text> : null}
             </View>
 
             <View style={s.detailRightSlot}>

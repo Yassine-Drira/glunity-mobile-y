@@ -38,7 +38,7 @@ export interface ListProductsResponse {
 }
 
 const productsApi = {
-  async list(params?: { sellerId?: string; category?: string; search?: string }): Promise<ListProductsResponse> {
+  async list(params?: { sellerId?: string; category?: string; search?: string; page?: number; limit?: number }): Promise<ListProductsResponse> {
     const { data } = await http.get<ListProductsResponse>('/products', { params });
     return data;
   },

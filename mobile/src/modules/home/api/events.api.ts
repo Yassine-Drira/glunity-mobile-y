@@ -1,52 +1,64 @@
 import http from '../../../core/network/http.client';
 import type { GlunityEvent } from '../domain/home.types';
 
+interface RawEvent {
+  id: string;
+  title: string;
+  imageUrl?: string;
+  location?: string;
+  date?: string;
+  type?: string;
+  startsAt?: string;
+  price?: number;
+  currency?: string;
+  attendeesCount?: number;
+  maxCapacity?: number;
+  attendees?: string[];
+  locationLat?: number;
+  locationLng?: number;
+}
+
 interface ListResponse {
   success: boolean;
-  data: Array<{
-    id: string;
-    title: string;
-    imageUrl?: string;
-    location?: string;
-    date?: string;
-    type?: string;
-    startsAt?: string;
-    price?: number;
-    currency?: string;
-    attendeesCount?: number;
-    maxCapacity?: number;
-    attendees?: string[];
-    locationLat?: number;
-    locationLng?: number;
-  }>;
+  data: RawEvent[];
+  meta?: { total: number; count: number };
+}
+
+function mapEvent(it: RawEvent): GlunityEvent {
+  return {
+    id: it.id,
+    title: it.title,
+    imageUrl: it.imageUrl || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=400',
+    location: it.location || '',
+    date: it.date || it.startsAt || '',
+    type: it.type,
+    startsAt: it.startsAt,
+    price: it.price,
+    currency: it.currency,
+    attendeesCount: it.attendeesCount || 0,
+    attendees: it.attendees || [],
+    maxCapacity: it.maxCapacity || 0,
+    locationLat: it.locationLat,
+    locationLng: it.locationLng,
+    onPress: () => {},
+  } as any;
 }
 
 export const eventsApi = {
   // Note: http.baseURL already includes the `/api` suffix,
   // so route paths here must NOT be prefixed with /api.
-  async list(params?: { type?: string }): Promise<GlunityEvent[]> {
+  async list(params?: {
+    type?: string;
+    limit?: number;
+    skip?: number;
+    search?: string;
+  }): Promise<{ items: GlunityEvent[]; total: number }> {
     try {
       const res = await http.get<ListResponse>('/events', { params });
-      const items = res.data?.data ?? [];
-      return items.map((it) => ({
-        id: it.id,
-        title: it.title,
-        imageUrl: it.imageUrl || '',
-        location: it.location || '',
-        date: it.date || it.startsAt || '',
-        type: it.type,
-        startsAt: it.startsAt,
-        price: it.price,
-        currency: it.currency,
-        attendeesCount: it.attendeesCount || 0,
-        attendees: it.attendees || [],
-        maxCapacity: it.maxCapacity || 0,
-        locationLat: it.locationLat,
-        locationLng: it.locationLng,
-        onPress: () => {},
-      } as any));
+      const items = (res.data?.data ?? []).map(mapEvent);
+      const total = res.data?.meta?.total ?? items.length;
+      return { items, total };
     } catch (err) {
-      // Propagate error to caller to allow fallback to mocks
       throw err;
     }
   },

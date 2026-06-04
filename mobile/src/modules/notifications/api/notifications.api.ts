@@ -20,8 +20,8 @@ export interface ListNotificationsResponse {
 }
 
 const notificationsApi = {
-  async list(): Promise<ListNotificationsResponse> {
-    const { data } = await http.get<ListNotificationsResponse>('/notifications');
+  async list(params?: { limit?: number; skip?: number }): Promise<ListNotificationsResponse> {
+    const { data } = await http.get<ListNotificationsResponse>('/notifications', { params });
     return data;
   },
 

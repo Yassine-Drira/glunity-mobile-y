@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, ScrollView, TextInput, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, FlatList, ScrollView, TextInput, Animated, Easing, RefreshControl } from 'react-native';
 import { ActivityIndicator } from 'react-native';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
@@ -11,6 +11,7 @@ import EventCard from '../../components/EventCard';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '@/shared/context/language.context';
+import PaginationBar from '@/shared/components/PaginationBar';
 
 const FILTER_KEYS = [
   { key: 'All',       label: 'All',       icon: 'apps-outline'          as const },
@@ -68,40 +69,61 @@ export default function EventsCalendarScreen({ navigation }: any) {
     Markets: 'market',
   };
 
-  React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setIsLoading(true);
-        const list = await eventsApi.list();
-        if (!mounted) return;
-        setEvents(list || []);
-      } catch (err) {
-        if (mounted) setEvents([]);
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+  const LIMIT = 15;
+  const [page, setPage] = React.useState(1);
+  const [totalPages, setTotalPages] = React.useState(1);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  const filtered = React.useMemo(() => {
-    let list = events;
-    const apiType = TYPE_MAP[filter as keyof typeof TYPE_MAP];
-    if (apiType) {
-      list = list.filter(e => e.type?.toLowerCase() === apiType.toLowerCase());
+  // Debounced search setup
+  const [searchVal, setSearchVal] = React.useState('');
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchVal);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchVal]);
+
+  const fetchEvents = React.useCallback(async (pageNum = 1, isRefresh = false) => {
+    if (pageNum === 1) {
+      if (!isRefresh) setIsLoading(true);
+    } else {
+      setLoadingMore(true);
     }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(e => 
-        (e.title && e.title.toLowerCase().includes(q)) || 
-        (e.description && e.description.toLowerCase().includes(q)) || 
-        (e.location && typeof e.location === 'object' && e.location.name && e.location.name.toLowerCase().includes(q)) || 
-        (e.location && typeof e.location === 'object' && e.location.address && e.location.address.toLowerCase().includes(q))
-      );
+
+    try {
+      const apiType = TYPE_MAP[filter as keyof typeof TYPE_MAP];
+      const skip = (pageNum - 1) * LIMIT;
+      const { items, total } = await eventsApi.list({
+        type: apiType,
+        search: searchQuery.trim() || undefined,
+        limit: LIMIT,
+        skip,
+      });
+
+      setEvents(items);
+      setTotalPages(Math.max(1, Math.ceil(total / LIMIT)));
+    } catch (err) {
+      console.error('[EventsCalendar] fetch error:', err);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
     }
-    return list;
-  }, [events, filter, searchQuery]);
+  }, [filter, searchQuery]);
+
+  React.useEffect(() => {
+    setPage(1);
+    fetchEvents(1);
+  }, [filter, searchQuery, fetchEvents]);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    setPage(1);
+    fetchEvents(1, true);
+  }, [fetchEvents]);
+
+  const filtered = React.useMemo(() => events, [events]);
 
   const styles = React.useMemo(() => StyleSheet.create({
     root: { flex: 1, paddingHorizontal: 12 },
@@ -256,15 +278,15 @@ export default function EventsCalendarScreen({ navigation }: any) {
           <Feather name="search" size={16} color={T.textMuted} />
           <TextInput
             ref={inputRef}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+            value={searchVal}
+            onChangeText={setSearchVal}
             placeholder={t('Search events...')}
             placeholderTextColor={T.textMuted}
             underlineColorAndroid="transparent"
             style={styles.searchInput}
           />
-          {!!searchQuery && (
-            <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchQuery("")}>
+          {!!searchVal && (
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchVal("")}>
               <Ionicons name="close-circle" size={16} color={T.textMuted} />
             </TouchableOpacity>
           )}
@@ -292,7 +314,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
         })}
       </ScrollView>
     </View>
-  ), [filter, searchHeight, searchOpacity, searchQuery, T, styles, t]);
+  ), [filter, searchHeight, searchOpacity, searchVal, T, styles, t]);
 
   return (
     <AppScaffold
@@ -311,6 +333,14 @@ export default function EventsCalendarScreen({ navigation }: any) {
           keyExtractor={(it) => it.id}
           ListHeaderComponent={ListHeader}
           stickyHeaderIndices={[0]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[T.green]}
+              tintColor={T.green}
+            />
+          }
           ListEmptyComponent={() => (
             <View style={{ padding: 24, alignItems: 'center' }}>
               {isLoading ? (
@@ -325,13 +355,10 @@ export default function EventsCalendarScreen({ navigation }: any) {
               <EventCard
                 event={item}
                 onPress={async () => {
-                  // Try to prefetch the event image quickly before navigating to reduce UI flicker
                   try {
                     const url = item.imageUrl;
                     if (url) {
-                      const p = Image.prefetch(url);
-                      // don't wait more than 600ms for the prefetch – navigate anyway
-                      await Promise.race([p, new Promise((res) => setTimeout(res, 600))]);
+                      Image.prefetch(url).catch(() => {});
                     }
                   } catch (e) { /* ignore */ }
                   navigation.navigate('EventDetail', { eventId: item.id });
@@ -339,7 +366,24 @@ export default function EventsCalendarScreen({ navigation }: any) {
               />
           )}
           contentContainerStyle={styles.list}
-          ListFooterComponent={() => <View style={{ height: 116 + insets.bottom }} />}
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
+          ListFooterComponent={() => (
+            <View style={{ paddingBottom: 116 + insets.bottom }}>
+              <PaginationBar
+                page={page}
+                totalPages={totalPages}
+                loading={loadingMore}
+                onPageChange={(p) => {
+                  setPage(p);
+                  fetchEvents(p);
+                }}
+              />
+            </View>
+          )}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
         {user?.profileType === 'pro_commerce' && (

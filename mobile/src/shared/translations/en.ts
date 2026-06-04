@@ -680,7 +680,23 @@ const en = {
   'Peak interaction day': 'Peak interaction day',
   'Certified gluten-free products': 'Certified gluten-free products',
   'Member since': 'Member since',
-  'days on Glunity': 'days on Glunity',
+   'days on Glunity': 'days on Glunity',
+
+  // Community Screens
+  'Welcome, ': 'Welcome, ',
+  'warrior!': 'warrior!',
+  'You\'re not alone on this journey. Join a community of people living gluten-free, share your experiences, discover tips, and support each other.': 'You\'re not alone on this journey. Join a community of people living gluten-free, share your experiences, discover tips, and support each other.',
+  'Together, we fight gluten': 'Together, we fight gluten',
+  'Share tips': 'Share tips',
+  'Help others with your experience': 'Help others with your experience',
+  'Ask questions': 'Ask questions',
+  'Get advice from the community': 'Get advice from the community',
+  'Find recipes and safe places': 'Find recipes and safe places',
+  'Join the community': 'Join the community',
+  'Maybe later': 'Maybe later',
+  'Community Chat': 'Community Chat',
+  'Welcome to the community chat. Treat this as the group space for tips, questions and discovery.': 'Welcome to the community chat. Treat this as the group space for tips, questions and discovery.',
+  'Leave community (dev)': 'Leave community (dev)',
 };
 
 export default en;

@@ -214,3 +214,267 @@ const EVENTS = [
   { title: 'Rencontre GF Wellness Group Monastir', type: 'meetup', city: 'Monastir', price: 0, maxCap: 35, desc: 'Groupe de soutien mensuel réunissant patients cœliaques, proches et professionnels de santé de la région de Monastir.' },
 ];
 
+const RECIPES = [
+  { title: 'Bouillie de Sorgho (Droo)', cat: 'tunisian', cal: 320, carb: 62, prot: 8,  fat: 4,  ing: ['Sorgho', 'Lait', 'Miel', 'Cannelle'], steps: ['Délayer farine dans lait.', 'Chauffer reste du lait.', 'Mélanger et cuire 8 min.', 'Ajouter miel.'] },
+  { title: 'Bambalouni GF au Four',     cat: 'tunisian', cal: 285, carb: 48, prot: 6,  fat: 9,  ing: ['Mix SG', 'Levure', 'Sucre', 'Citron'], steps: ['Pétrir avec eau.', 'Lever 45 min.', 'Cuire 15 min à 180°C.'] },
+  { title: 'Couscous Agneau au Sorgho', cat: 'tunisian', cal: 520, carb: 58, prot: 32, fat: 16, ing: ['Sorgho', 'Agneau', 'Légumes', 'Épices'], steps: ['Cuire vapeur 3 fois.', 'Braiser agneau.', 'Dresser chaud.'] },
+  { title: 'Lablebi SG au Pain de Riz',  cat: 'tunisian', cal: 410, carb: 55, prot: 18, fat: 14, ing: ['Pois chiches', 'Pain riz', 'Œuf', 'Harissa'], steps: ['Émietter pain.', 'Verser pois chiches.', 'Servir chaud.'] },
+  { title: 'Tajine Tunisien au Thon',   cat: 'tunisian', cal: 380, carb: 12, prot: 28, fat: 22, ing: ['Thon', 'Œufs', 'Fromage SG', 'Persil'], steps: ['Mélanger ingrédients.', 'Cuire au four 30 min.'] },
+  { title: 'Ojja Merguez SG',            cat: 'tunisian', cal: 445, carb: 14, prot: 26, fat: 30, ing: ['Merguez SG', 'Œufs', 'Tomates'], steps: ['Griller merguez.', 'Ajouter sauce tomates.', 'Casser œufs.'] },
+  { title: 'Mloukhia Cœliaque SG',        cat: 'tunisian', cal: 360, carb: 8,  prot: 28, fat: 24, ing: ['Mloukhia', 'Agneau', 'Huile olive'], steps: ['Réhydrater 2h.', 'Mijoter à feu doux 6h.'] },
+  { title: 'Brik Sarrasin Thon & Œuf',   cat: 'tunisian', cal: 310, carb: 32, prot: 18, fat: 14, ing: ['Feuille sarrasin', 'Thon', 'Œuf'], steps: ['Garnir feuille.', 'Plier en triangle.', 'Frire 2 min.'] },
+  { title: 'Masfouf aux Dattes SG',      cat: 'tunisian', cal: 490, carb: 82, prot: 10, fat: 14, ing: ['Sorgho fin', 'Dattes', 'Raisins secs'], steps: ['Cuire vapeur.', 'Ajouter fruits.', 'Servir tiède.'] },
+  { title: 'Kafteji Légumes Frits SG',    cat: 'tunisian', cal: 340, carb: 35, prot: 8,  fat: 18, ing: ['Pommes de terre', 'Poivrons', 'Œufs'], steps: ['Frire légumes.', 'Mélanger et couper.', 'Servir.'] },
+  { title: 'Shakshuka Feta Épinards',    cat: 'easy',     cal: 295, carb: 18, prot: 16, fat: 18, ing: ['Œufs', 'Feta', 'Épinards', 'Tomate'], steps: ['Mijoter légumes.', 'Casser œufs.', 'Ajouter feta.'] },
+  { title: 'Salade Quinoa Grenade',      cat: 'easy',     cal: 340, carb: 52, prot: 12, fat: 10, ing: ['Quinoa cuit', 'Grenade', 'Menthe'], steps: ['Mélanger le tout.', 'Assaisonner citron-olive.'] },
+  { title: 'Frittata Chèvre & Épinards', cat: 'easy',     cal: 280, carb: 6,  prot: 20, fat: 20, ing: ['Œufs', 'Épinards', 'Fromage chèvre'], steps: ['Battre œufs.', 'Cuire 20 min à la poêle.'] },
+  { title: 'Curry Lentilles Coco SG',     cat: 'easy',     cal: 390, carb: 48, prot: 16, fat: 16, ing: ['Lentilles corail', 'Lait coco'], steps: ['Faire revenir ail.', 'Mijoter avec lait coco.'] },
+  { title: 'Saumon Aneth Citron SG',      cat: 'easy',     cal: 420, carb: 2,  prot: 42, fat: 26, ing: ['Pavé saumon', 'Citron', 'Aneth'], steps: ['Mariner saumon.', 'Cuire 15 min au four.'] },
+  { title: 'Soupe Potiron Gingembre',    cat: 'easy',     cal: 185, carb: 28, prot: 4,  fat: 7,  ing: ['Potiron', 'Gingembre', 'Crème coco'], steps: ['Cuire potiron.', 'Mixer avec crème coco.'] },
+  { title: 'Aubergines Farcies Agneau',  cat: 'easy',     cal: 310, carb: 22, prot: 16, fat: 18, ing: ['Aubergines', 'Agneau haché'], steps: ['Évider aubergines.', 'Garnir.', 'Cuire au four.'] },
+  { title: 'Velouté Lentilles Curcuma',  cat: 'easy',     cal: 220, carb: 32, prot: 12, fat: 6,  ing: ['Lentilles', 'Carottes', 'Curcuma'], steps: ['Cuire légumes.', 'Mixer finement.', 'Ajouter citron.'] },
+  { title: 'Gâteau Chocolat Amande SG',  cat: 'easy',     cal: 380, carb: 28, prot: 10, fat: 26, ing: ['Chocolat 70%', 'Beurre', 'Amande'], steps: ['Fondre chocolat.', 'Fouetter œufs.', 'Cuire 25 min.'] },
+  { title: 'Galette Champignons SG',     cat: 'easy',     cal: 265, carb: 34, prot: 10, fat: 10, ing: ['Sarrasin', 'Champignons', 'Crème'], steps: ['Cuire galettes.', 'Garnir champignons sautés.'] },
+  { title: 'Bowl Açaï Banane SG',         cat: 'quick',    cal: 320, carb: 48, prot: 8,  fat: 12, ing: ['Açaï surgelé', 'Banane', 'Lait amande'], steps: ['Mixer fruits et lait.', 'Garnir granola.'] },
+  { title: 'Toast Avocat Œuf Poché SG',   cat: 'quick',    cal: 310, carb: 22, prot: 14, fat: 18, ing: ['Pain SG', 'Avocat', 'Œufs'], steps: ['Griller pain.', 'Étaler avocat.', 'Ajouter œuf poché.'] },
+  { title: 'Mug Cake Chocolat Express',  cat: 'quick',    cal: 260, carb: 30, prot: 6,  fat: 12, ing: ['Farine amande', 'Cacao', 'Œuf'], steps: ['Mélanger dans mug.', 'Micro-ondes 90 sec.'] },
+  { title: 'Smoothie Vert Banane SG',    cat: 'quick',    cal: 210, carb: 32, prot: 12, fat: 4,  ing: ['Banane', 'Épinards', 'Lait amande'], steps: ['Mixer tous les ingrédients.'] },
+  { title: 'Pasta Pesto Basilic SG',     cat: 'quick',    cal: 460, carb: 72, prot: 14, fat: 14, ing: ['Pâtes riz SG', 'Basilic', 'Parmesan'], steps: ['Cuire pâtes.', 'Mélanger avec pesto frais.'] },
+  { title: 'Pancakes Banane-Avoine SG',  cat: 'quick',    cal: 240, carb: 38, prot: 8,  fat: 7,  ing: ['Banane', 'Avoine SG', 'Œufs'], steps: ['Écraser bananes.', 'Cuire à la poêle.'] },
+  { title: 'Tabbouleh Quinoa Persil',    cat: 'quick',    cal: 275, carb: 38, prot: 10, fat: 9,  ing: ['Quinoa cuit', 'Persil', 'Tomates'], steps: ['Hacher herbes.', 'Mélanger au quinoa.'] },
+  { title: 'Cookies Noisette & Sel SG',  cat: 'quick',    cal: 145, carb: 14, prot: 3,  fat: 9,  ing: ['Farine amande', 'Beurre', 'Noisettes'], steps: ['Former biscuits.', 'Cuire 10 min.'] },
+  { title: 'Soupe Miso Tofu & Wakamé',   cat: 'quick',    cal: 130, carb: 8,  prot: 10, fat: 5,  ing: ['Bouillon SG', 'Miso', 'Tofu'], steps: ['Chauffer bouillon.', 'Ajouter miso hors du feu.'] },
+  { title: 'Wrap Laitue Poulet Thaï',    cat: 'quick',    cal: 290, carb: 12, prot: 32, fat: 12, ing: ['Poulet', 'Laitue iceberg', 'Tamari'], steps: ['Sauter poulet.', 'Garnir les wraps.'] },
+  { title: 'Salade Niçoise au Thon SG',  cat: 'easy',     cal: 345, carb: 14, prot: 28, fat: 20, ing: ['Thon grillé', 'Haricots verts', 'Œufs'], steps: ['Disposer ingrédients.', 'Arroser vinaigrette.'] },
+  { title: 'Risotto Parmesan Champignons', cat: 'easy',    cal: 480, carb: 68, prot: 16, fat: 16, ing: ['Riz arborio', 'Champignons', 'Parmesan'], steps: ['Nacrer riz.', 'Mijoter avec bouillon.'] },
+  { title: 'Boulettes Agneau Harissa',   cat: 'easy',     cal: 390, carb: 8,  prot: 30, fat: 26, ing: ['Agneau haché', 'Œuf', 'Harissa'], steps: ['Former boulettes.', 'Mijoter dans sauce.'] },
+  { title: 'Mechouia Tunisienne SG',     cat: 'tunisian', cal: 155, carb: 18, prot: 4,  fat: 8,  ing: ['Tomates', 'Poivrons', 'Ail'], steps: ['Griller légumes.', 'Hacher grossièrement.'] },
+  { title: 'Ghraïba Coco Fleur d\'Oranger', cat: 'tunisian', cal: 130, carb: 16, prot: 2, fat: 7, ing: ['Coco râpée', 'Blancs d\'œufs', 'Oranger'], steps: ['Mélanger ingrédients.', 'Cuire 15 min.'] },
+  { title: 'Tarte Figues & Roquefort SG', cat: 'easy',     cal: 310, carb: 32, prot: 10, fat: 16, ing: ['Pâte brisée SG', 'Figues', 'Roquefort'], steps: ['Garnir pâte.', 'Cuire 20 min à 180°C.'] },
+  { title: 'Poulet Rôti Ail & Citron SG', cat: 'quick',    cal: 450, carb: 4,  prot: 46, fat: 28, ing: ['Poulet', 'Citron bio', 'Ail'], steps: ['Farcir et assaisonner.', 'Cuire 1h20.'] },
+  { title: 'Houmous Betterave Cumin SG',  cat: 'quick',    cal: 180, carb: 22, prot: 8,  fat: 8,  ing: ['Pois chiches', 'Betteraves', 'Tahini'], steps: ['Mixer avec ail.', 'Servir avec crackers SG.'] },
+  { title: 'Glace Mangue-Coco Minute',   cat: 'quick',    cal: 195, carb: 30, prot: 2,  fat: 8,  ing: ['Mangue surgelée', 'Lait coco'], steps: ['Mixer congelé.', 'Servir immédiatement.'] },
+  { title: 'Panna Cotta Coco & Mangue',  cat: 'quick',    cal: 210, carb: 24, prot: 3,  fat: 11, ing: ['Crème coco', 'Mangue', 'Agar-agar'], steps: ['Chauffer crème.', 'Ajouter agar-agar.', 'Réfrigérer.'] }
+];
+
+const REVIEW_COMMENTS = [
+  'Exceptionnel ! Je n\'aurais jamais cru qu\'un produit sans gluten puisse être aussi savoureux.',
+  'Très bonne qualité pour le prix. Le goût est authentique et la texture parfaite.',
+  'Parfait pour toute la famille, même les non-cœliaques ont adoré !',
+  'Bon produit dans l\'ensemble, mais la livraison était un peu longue.',
+  'Recette excellente, bien expliquée. Résultat bluffant pour un débutant.',
+  'La texture est exactement comme je m\'y attendais. Je recommande vivement.',
+  'Cet événement était très bien organisé. J\'ai appris énormément de choses.',
+  'Super ambiance au meetup ! Rencontre de gens formidables dans la même situation.',
+  'Ingrédients simples mais résultat vraiment impressionnant. Je refais la semaine prochaine.',
+  'Nutritif, équilibré et facile à préparer. Une valeur sûre dans ma cuisine SG.',
+  'Un peu cher pour la quantité mais la qualité justifie le prix.',
+  'Agréablement surpris par la richesse des saveurs. Rien à voir avec d\'autres SG.',
+  'Atelier très interactif. L\'animatrice connaît parfaitement son sujet.',
+  'Quelques points à améliorer mais globalement une bonne expérience.',
+  'La meilleure farine SG que j\'ai testée depuis mon diagnostic. Bravo !',
+  'Commande reçue en bon état, emballage soigné et conforme à la description.',
+  'Honnêtement un peu déçu, la texture était trop sèche à mon goût.',
+  'Cinq étoiles sans hésiter. Ce produit a changé mon quotidien de cœliaque.',
+  'Recette rapide et résultat bluffant. Idéale pour les soirs de semaine chargés.',
+  'Une belle découverte. Je n\'achète plus que chez ce producteur désormais.'
+];
+
+async function scaleFloodSeed() {
+  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/glunity';
+  console.log('Connecting to database:', mongoUri);
+  await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 5000 });
+
+  console.log('Cleaning up previous scale seed documents...');
+  const usersCleaned = await User.deleteMany({ email: /@scale\.com$/ });
+  const productsCleaned = await Product.deleteMany({});
+  const eventsCleaned = await Event.deleteMany({});
+  const recipesCleaned = await Recipe.deleteMany({});
+  const reviewsCleaned = await Review.deleteMany({});
+  console.log(`Cleanup complete:\n- Deleted ${usersCleaned.deletedCount} users\n- Deleted ${productsCleaned.deletedCount} products\n- Deleted ${eventsCleaned.deletedCount} events\n- Deleted ${recipesCleaned.deletedCount} recipes\n- Deleted ${reviewsCleaned.deletedCount} reviews`);
+
+  console.log('\n--- Generating 30 Fake Users ---');
+  const allUsers = [];
+
+  for (const template of CELIAC_USERS) {
+    const user = await User.create({
+      fullName: template.fullName,
+      email: template.email,
+      passwordHash: PWD,
+      profileType: PROFILE_TYPES.CELIAC,
+      points: template.points,
+      streakDays: template.streakDays,
+      avatar: { url: template.avatar },
+      isVerified: true
+    });
+    allUsers.push(user);
+  }
+
+  for (const template of PROCHE_USERS) {
+    const user = await User.create({
+      fullName: template.fullName,
+      email: template.email,
+      passwordHash: PWD,
+      profileType: PROFILE_TYPES.PROCHE,
+      points: template.points,
+      avatar: { url: template.avatar },
+      isVerified: true
+    });
+    allUsers.push(user);
+  }
+
+  for (const template of SELLER_USERS) {
+    const user = await User.create({
+      fullName: template.fullName,
+      email: template.email,
+      passwordHash: PWD,
+      profileType: PROFILE_TYPES.PRO_COMMERCE,
+      storeInfo: {
+        storeName: template.storeName,
+        description: `Your premier destination for gluten-free delights in ${template.city}.`,
+        address: `${template.street}, ${template.city}`,
+        operatingHours: template.hours,
+        phone: template.phone,
+        imageUrl: pick(FOOD_IMGS)
+      },
+      isVerified: true
+    });
+    allUsers.push(user);
+  }
+
+  for (const template of HEALTH_USERS) {
+    const user = await User.create({
+      fullName: template.fullName,
+      email: template.email,
+      passwordHash: PWD,
+      profileType: PROFILE_TYPES.PRO_HEALTH,
+      avatar: { url: template.avatar },
+      isVerified: true
+    });
+    allUsers.push(user);
+  }
+
+  console.log(`Successfully generated ${allUsers.length} users.`);
+
+  const sellers = allUsers.filter(u => u.profileType === PROFILE_TYPES.PRO_COMMERCE);
+  const nonSellers = allUsers.filter(u => u.profileType !== PROFILE_TYPES.PRO_COMMERCE);
+
+  console.log('\n--- Generating 50 Products ---');
+  const createdProducts = [];
+  for (let i = 0; i < PRODUCTS.length; i++) {
+    const template = PRODUCTS[i];
+    const seller = pick(sellers);
+    const product = await Product.create({
+      name: template.name,
+      category: template.cat,
+      price: template.price,
+      certifiedGF: template.cert,
+      ingredients: template.ing,
+      sellerId: seller._id,
+      images: [pick(FOOD_IMGS)],
+      isGlutenFree: true,
+      views: randInt(10, 300)
+    });
+    createdProducts.push(product);
+  }
+  console.log(`Successfully generated ${createdProducts.length} products.`);
+
+  console.log('\n--- Generating 45 Events ---');
+  const createdEvents = [];
+  const eventHosts = allUsers.filter(u => [PROFILE_TYPES.PRO_COMMERCE, PROFILE_TYPES.PRO_HEALTH].includes(u.profileType));
+
+  for (let i = 0; i < EVENTS.length; i++) {
+    const template = EVENTS[i];
+    const host = pick(eventHosts);
+    const startsAt = new Date();
+    startsAt.setDate(startsAt.getDate() + randInt(-30, 60));
+    startsAt.setHours(randInt(9, 19), 0, 0, 0);
+
+    const endsAt = new Date(startsAt);
+    endsAt.setHours(startsAt.getHours() + randInt(2, 4));
+
+    const numAttendees = randInt(2, Math.min(template.maxCap, 15));
+    const attendees = shuffle(nonSellers, numAttendees).map(u => u._id);
+
+    const event = await Event.create({
+      title: template.title,
+      type: template.type,
+      location: `${template.city}, Tunisia`,
+      startsAt,
+      endsAt,
+      price: template.price,
+      currency: 'TND',
+      maxCapacity: template.maxCap,
+      attendees,
+      attendeesCount: attendees.length,
+      images: [{ url: pick(EVENT_IMGS) }],
+      description: template.desc,
+      createdBy: host._id,
+      isPublished: true
+    });
+    createdEvents.push(event);
+  }
+  console.log(`Successfully generated ${createdEvents.length} events.`);
+
+  console.log('\n--- Generating 40 Recipes ---');
+  const createdRecipes = [];
+  for (let i = 0; i < RECIPES.length; i++) {
+    const template = RECIPES[i];
+    const author = pick(nonSellers);
+    const slug = template.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const recipe = await Recipe.create({
+      title: template.title,
+      slug,
+      category: template.cat,
+      description: `Delicious homemade ${template.title.toLowerCase()}. Easy to prepare and 100% gluten-free.`,
+      ingredients: template.ing,
+      steps: template.steps,
+      nutritionInfo: {
+        calories: template.cal,
+        carbs: template.carb,
+        protein: template.prot,
+        fat: template.fat
+      },
+      photos: [pick(FOOD_IMGS)],
+      authorId: author._id,
+      isPublished: true
+    });
+    createdRecipes.push(recipe);
+  }
+  console.log(`Successfully generated ${createdRecipes.length} recipes.`);
+
+  console.log('\n--- Generating 150 Reviews ---');
+  let reviewCount = 0;
+  for (let i = 0; i < 150; i++) {
+    const user = pick(nonSellers);
+    const isProduct = Math.random() > 0.4;
+    const target = isProduct ? pick(createdProducts) : pick(createdRecipes);
+
+    await Review.create({
+      userId: user._id,
+      targetId: target._id,
+      targetModel: isProduct ? 'Product' : 'Recipe',
+      rating: randInt(3, 5),
+      comment: pick(REVIEW_COMMENTS)
+    });
+    reviewCount++;
+  }
+  console.log(`Successfully generated ${reviewCount} reviews.`);
+
+  console.log('\n=========================================');
+  console.log('Scale Flood Seeding Completed Successfully!');
+  console.log('=========================================');
+}
+
+scaleFloodSeed()
+  .catch(err => {
+    console.error('Scale flood seed failed:', err);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await mongoose.connection.close();
+    console.log('Database connection closed.');
+  });
+
+

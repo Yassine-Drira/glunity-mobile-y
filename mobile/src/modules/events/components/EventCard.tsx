@@ -11,7 +11,7 @@ type Props = {
   onPress?: () => void;
 };
 
-export default function EventCard({ event, onPress }: Props) {
+function EventCard({ event, onPress }: Props) {
   const { theme: T } = useTheme();
   const { isRTL } = useLanguage();
 
@@ -28,14 +28,14 @@ export default function EventCard({ event, onPress }: Props) {
   }, [event.imageUrl]);
 
   // Optimize image URL (request a smaller width when possible) to speed load
-  function optimizedUrl(url?: string | null, w = 800) {
+  function optimizedUrl(url?: string | null, w = 600) {
     if (!url) return url;
     try {
       const u = new URL(url);
       // Unsplash supports width/format params
       if (u.hostname.includes('images.unsplash.com')) {
         if (u.search) u.search += '&';
-        u.search += `w=${w}&auto=format&fit=crop&q=80`;
+        u.search += `w=${w}&auto=format&fit=crop&q=75`;
         return u.toString();
       }
       // Fallback: return original
@@ -45,7 +45,7 @@ export default function EventCard({ event, onPress }: Props) {
     }
   }
 
-  const optimizedSource = event.imageUrl ? { uri: optimizedUrl(event.imageUrl, 800) || '' } : undefined;
+  const optimizedSource = event.imageUrl ? { uri: optimizedUrl(event.imageUrl, 600) || '' } : undefined;
 
   function formatDate(d?: string | null) {
     try {
@@ -77,7 +77,7 @@ export default function EventCard({ event, onPress }: Props) {
       shadowRadius: 12,
       elevation: 4,
     },
-    cardImage: { width: '100%', height: 140, backgroundColor: '#F3F4F6' },
+    cardImage: { width: '100%', height: 140, backgroundColor: T.surfaceAlt },
     typePill: {
       position: 'absolute',
       left: isRTL ? undefined : 12,
@@ -151,3 +151,5 @@ export default function EventCard({ event, onPress }: Props) {
     </TouchableOpacity>
   );
 }
+
+export default React.memo(EventCard);

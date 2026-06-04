@@ -13,6 +13,7 @@ const fr = {
   'Edit Profile': 'Modifier le profil',
   'Add Event': 'Ajouter un événement',
   Community: 'Communauté',
+  Discover: 'Découvrir',
 
   // Section Labels
   ACCOUNT: 'COMPTE',
@@ -681,6 +682,22 @@ const fr = {
   'Certified gluten-free products': 'Produits certifiés sans gluten',
   'Member since': 'Membre depuis',
   'days on Glunity': 'jours sur Glunity',
+
+  // Community Screens
+  'Welcome, ': 'Bienvenue, ',
+  'warrior!': 'guerrier !',
+  'You\'re not alone on this journey. Join a community of people living gluten-free, share your experiences, discover tips, and support each other.': 'Vous n\'êtes pas seul dans ce voyage. Rejoignez une communauté de personnes vivant sans gluten, partagez vos expériences, découvrez des conseils et soutenez-vous mutuellement.',
+  'Together, we fight gluten': 'Ensemble, nous combattons le gluten',
+  'Share tips': 'Partager des conseils',
+  'Help others with your experience': 'Aidez les autres avec votre expérience',
+  'Ask questions': 'Poser des questions',
+  'Get advice from the community': 'Obtenez des conseils de la communauté',
+  'Find recipes and safe places': 'Trouvez des recettes et des lieux sûrs',
+  'Join the community': 'Rejoindre la communauté',
+  'Maybe later': 'Peut-être plus tard',
+  'Community Chat': 'Discussion de communauté',
+  'Welcome to the community chat. Treat this as the group space for tips, questions and discovery.': 'Bienvenue dans la discussion communautaire. Utilisez cet espace pour les conseils, questions et découvertes.',
+  'Leave community (dev)': 'Quitter la communauté (dev)',
 };
 
 export default fr;

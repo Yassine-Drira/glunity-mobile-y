@@ -9,8 +9,17 @@ const eventsRepository = {
 		if (!includeUnpublished) query.isPublished = true;
 		if (search && String(search).trim()) query.$text = { $search: String(search).trim() };
 		if (type && String(type).trim()) query.type = String(type).trim().toLowerCase();
+		const pipeline = [
+			{ $match: query },
+			{ $sort: { startsAt: 1 } },
+			{ $skip: skip },
+			{ $limit: limit },
+			{ $addFields: { attendeesCount: { $size: { $ifNull: ['$attendees', []] } } } },
+			{ $project: { attendees: 0 } },
+		];
+
 		const [items, total] = await Promise.all([
-			Event.find(query).sort({ startsAt: 1 }).skip(skip).limit(limit).lean(),
+			Event.aggregate(pipeline),
 			Event.countDocuments(query),
 		]);
 		return { items, total };

@@ -55,6 +55,7 @@ const eventSchema = new Schema(
 );
 
 eventSchema.index({ title: 'text', 'location.name': 'text', 'description': 'text' });
+eventSchema.index({ isPublished: 1, startsAt: 1, type: 1 });
 
 const Event = model('Event', eventSchema);
 module.exports = Event;
