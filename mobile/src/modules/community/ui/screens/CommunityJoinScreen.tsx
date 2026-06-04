@@ -98,6 +98,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
     flexGrow: 1,
+    paddingBottom: 120,
   },
   header: { width: '100%', height: 56, justifyContent: 'center', alignItems: 'center', marginBottom: 6 },
   back: { position: 'absolute', left: 0, top: 14, padding: 12 },
