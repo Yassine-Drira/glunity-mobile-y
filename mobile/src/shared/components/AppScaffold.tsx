@@ -1,5 +1,6 @@
 import React from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, View, ViewStyle, Platform } from 'react-native';
+import { StatusBar, StyleSheet, View, ViewStyle, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/theme.context';
 import { AppHeader } from './AppHeader';
 import { BottomNavBar } from './BottomNavBar';
@@ -62,7 +63,7 @@ export function AppScaffold({
   });
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: C.bg }]}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: C.bg }]}>
       <StatusBar barStyle={C.statusBar} backgroundColor={C.bg} />
       <AppHeader
         title={title}

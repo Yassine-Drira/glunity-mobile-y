@@ -1,6 +1,7 @@
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
+import './src/shared/utils/text-scaling';
 import { AuthProvider } from './src/modules/auth/state/auth.context';
 import { LanguageProvider } from './src/shared/context/language.context';
 import { ThemeProvider } from './src/shared/context/theme.context';
@@ -15,9 +16,6 @@ import {
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
 
-import { initTextScaling } from './src/shared/utils/text-scaling';
-
-initTextScaling();
 
 // Deep-link / URL mapping
 const linking = {
@@ -41,12 +39,16 @@ const linking = {
 };
 
 export default function App() {
-  const [fontsLoaded] = useFonts({
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-  });
+  const [fontsLoaded] = useFonts(
+    Platform.OS === 'web'
+      ? {}
+      : {
+          Poppins_400Regular,
+          Poppins_500Medium,
+          Poppins_600SemiBold,
+          Poppins_700Bold,
+        }
+  );
 
   /**
    * Apply Poppins as the default font family for all Text and TextInput

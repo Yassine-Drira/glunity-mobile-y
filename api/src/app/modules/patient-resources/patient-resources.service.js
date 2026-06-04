@@ -81,25 +81,6 @@ const SEED_VIDEOS = [
 
 const patientResourcesService = {
   async getHomeData() {
-    const [resourceCount, videoCount, hasDetailed] = await Promise.all([
-      repository.countResources(),
-      repository.countVideos(),
-      repository.hasDetailedContent(),
-    ]);
-
-    // Auto-seed or update if DB resources is less than expected SEED_ARTICLES count or missing detailed content
-    if (resourceCount < SEED_ARTICLES.length || !hasDetailed) {
-      await repository.clearAll();
-      for (const seed of SEED_ARTICLES) {
-        await repository.create(seed);
-      }
-    }
-    if (videoCount === 0) {
-      for (const seed of SEED_VIDEOS) {
-        await repository.createVideo(seed);
-      }
-    }
-
     const [featured, articles, videos] = await Promise.all([
       repository.findFeatured(),
       repository.findMany({ limit: 20 }),
@@ -107,6 +88,32 @@ const patientResourcesService = {
     ]);
 
     return { featured, articles, videos };
+  },
+
+  async seedResourcesIfNeeded() {
+    try {
+      const [resourceCount, videoCount, hasDetailed] = await Promise.all([
+        repository.countResources(),
+        repository.countVideos(),
+        repository.hasDetailedContent(),
+      ]);
+
+      if (resourceCount < SEED_ARTICLES.length || !hasDetailed) {
+        await repository.clearAll();
+        for (const seed of SEED_ARTICLES) {
+          await repository.create(seed);
+        }
+      }
+
+      if (videoCount === 0) {
+        for (const seed of SEED_VIDEOS) {
+          await repository.createVideo(seed);
+        }
+      }
+    } catch (err) {
+      // Log seeding error but don't crash startup
+      console.error('Failed to seed patient resources:', err.message);
+    }
   },
 
   async listArticles({ category, limit = 50, skip = 0 } = {}) {

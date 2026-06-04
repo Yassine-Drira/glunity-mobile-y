@@ -28,12 +28,16 @@ async function boot() {
   // ── Graceful shutdown ────────────────────────────────────────────────────────
   const shutdown = (signal) => {
     logger.info(`${signal} received. Shutting down gracefully…`);
-    server.close(() => {
-      const mongoose = require('mongoose');
-      mongoose.connection.close(false, () => {
+    server.close(async () => {
+      try {
+        const mongoose = require('mongoose');
+        await mongoose.connection.close();
         logger.info('MongoDB connection closed.');
         process.exit(0);
-      });
+      } catch (err) {
+        logger.error('Error closing MongoDB connection', { err: err.message });
+        process.exit(1);
+      }
     });
   };
 

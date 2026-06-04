@@ -60,7 +60,7 @@ export default function RegisterScreen({ navigation }: Props) {
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 40,
+      paddingBottom: 160,
       paddingTop: 12,
     },
 
@@ -161,7 +161,10 @@ export default function RegisterScreen({ navigation }: Props) {
     btnGroup: { marginBottom: 24 },
 
     switchRow: {
-      marginTop: 20,
+      position: 'absolute',
+      bottom: 40,
+      left: 0,
+      right: 0,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
@@ -362,6 +365,12 @@ export default function RegisterScreen({ navigation }: Props) {
             />
           </View>
 
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {!keyboardOpen && (
+        <>
+          <WaveBackground color={isDark ? '#1E3516' : '#8BC34A'} />
           <View style={styles.switchRow}>
             <Text style={styles.switchText}>{t('Already Account? ')}</Text>
             <TouchableOpacity
@@ -373,11 +382,8 @@ export default function RegisterScreen({ navigation }: Props) {
               <Text style={styles.switchLink}>{t('Login')}</Text>
             </TouchableOpacity>
           </View>
-
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      <WaveBackground color={isDark ? '#1E3516' : '#8BC34A'} />
+        </>
+      )}
     </SafeAreaView>
   );
 }

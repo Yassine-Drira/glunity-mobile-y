@@ -118,7 +118,7 @@ export function AppHeader({
     };
 
     checkUnread();
-    const interval = setInterval(checkUnread, 5000); // Check every 5 seconds
+    const interval = setInterval(checkUnread, 15000); // Check every 15 seconds
 
     return () => {
       mounted = false;

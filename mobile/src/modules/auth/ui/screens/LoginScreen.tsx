@@ -14,6 +14,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Keyboard,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -48,7 +49,7 @@ export default function LoginScreen({ navigation, route }: Props) {
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 40,
+      paddingBottom: 160,
       paddingTop: 12,
     },
 
@@ -120,11 +121,14 @@ export default function LoginScreen({ navigation, route }: Props) {
 
     // Switch
     switchRow: {
-      marginTop: 20,
+      position: 'absolute',
+      bottom: 40,
+      left: 0,
+      right: 0,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 5,
+      zIndex: 10,
     },
 
     switchText: {
@@ -183,6 +187,16 @@ export default function LoginScreen({ navigation, route }: Props) {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass]  = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  React.useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
@@ -314,6 +328,12 @@ export default function LoginScreen({ navigation, route }: Props) {
             />
           </View>
 
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {!keyboardOpen && (
+        <>
+          <WaveBackground color={isDark ? '#1E3516' : '#8BC34A'} />
           <View style={styles.switchRow}>
             <Text style={styles.switchText}>{t('No Account? ')}</Text>
             <TouchableOpacity
@@ -325,11 +345,8 @@ export default function LoginScreen({ navigation, route }: Props) {
               <Text style={styles.switchLink}>{t('Register')}</Text>
             </TouchableOpacity>
           </View>
-
-        </ScrollView>
-      </KeyboardAvoidingView>
-
-      <WaveBackground color={isDark ? '#1E3516' : '#8BC34A'} />
+        </>
+      )}
 
       {/* Two-Factor Authentication Modal */}
       <Modal

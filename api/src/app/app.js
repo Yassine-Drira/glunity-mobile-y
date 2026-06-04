@@ -27,9 +27,17 @@ const app = express();
 
 // ── Global middleware ──────────────────────────────────────────────────────────
 app.use(requestId);
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info(`[API] ${req.method} ${req.originalUrl} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
 app.use(security);
-app.use(globalLimiter);
 app.use(cors(corsOptions));
+app.use(globalLimiter);
 app.use(cookieParser());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));

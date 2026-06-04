@@ -128,6 +128,7 @@ export default function SplashScreen({ navigation }: Props) {
           <Image
             source={require('../../../../../assets/Logo/image 1.png')}
             style={styles.logoImage}
+            resizeMode="contain"
           />
         </View>
 
@@ -200,20 +201,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAF8F5', // Matches the logo image background color exactly
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
     marginBottom: 20,
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.4)',
     overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 6px 12px rgba(0, 0, 0, 0.15)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 6,
+      },
+    }),
   },
   logoImage: {
     width: '90%',
     height: '90%',
-    resizeMode: 'contain',
     backgroundColor: '#FAF8F5', // Ensures zero boundary mismatch
   },
   subtitle: {
@@ -223,9 +230,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#FAFAFA',
     letterSpacing: 0.2,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: {
+        textShadow: '1px 1px 3px rgba(0, 0, 0, 0.1)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.1)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
   heartSmallWrap: {
     position: 'absolute',
@@ -236,9 +250,16 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: '#C8102E',
     lineHeight: 30,
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
+    ...Platform.select({
+      web: {
+        textShadow: '1px 1px 2px rgba(0, 0, 0, 0.15)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.15)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 2,
+      },
+    }),
   },
   heartLargeWrap: {
     position: 'absolute',
@@ -249,8 +270,15 @@ const styles = StyleSheet.create({
     fontSize: 52,
     color: '#C8102E',
     lineHeight: 58,
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
+    ...Platform.select({
+      web: {
+        textShadow: '1px 1px 3px rgba(0, 0, 0, 0.15)',
+      },
+      default: {
+        textShadowColor: 'rgba(0, 0, 0, 0.15)',
+        textShadowOffset: { width: 1, height: 1 },
+        textShadowRadius: 3,
+      },
+    }),
   },
 });

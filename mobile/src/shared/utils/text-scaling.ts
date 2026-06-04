@@ -1,4 +1,4 @@
-import { Text, TextInput, View, StatusBar, StyleSheet } from 'react-native';
+import { Text, TextInput, View, StatusBar, StyleSheet, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { globalIsRTL } from '../context/language.context';
 
@@ -7,16 +7,6 @@ let darkModeEnabled = false;
 
 export function getTextMultiplier() {
   return sizeMultiplier;
-}
-
-export function setTextMultiplier(size: 'Small' | 'Medium' | 'Large') {
-  if (size === 'Small') {
-    sizeMultiplier = 0.95;
-  } else if (size === 'Large') {
-    sizeMultiplier = 1.20;
-  } else {
-    sizeMultiplier = 1.08;
-  }
 }
 
 export function isDarkMode() {
@@ -138,34 +128,226 @@ export function transformStyles(style: any): any {
 
 let hasPatchedThemeScaling = false;
 
+const fontSizeCache = new Map<number, number>();
+
+export function setTextMultiplier(size: 'Small' | 'Medium' | 'Large') {
+  if (size === 'Small') {
+    sizeMultiplier = 0.95;
+  } else if (size === 'Large') {
+    sizeMultiplier = 1.20;
+  } else {
+    sizeMultiplier = 1.08;
+  }
+  fontSizeCache.clear();
+}
+
 function getScaledFontSize(baseSize: number): number {
+  const cacheKey = baseSize;
+  if (fontSizeCache.has(cacheKey)) {
+    return fontSizeCache.get(cacheKey)!;
+  }
+
   const multiplier = sizeMultiplier;
   const isArabic = globalIsRTL;
+  let result: number;
 
   if (multiplier > 1.0) {
     // Progressive scaling for larger sizes to prevent layout breakages
     if (baseSize >= 24) {
       const factor = 1.0 + (multiplier - 1.0) * 0.4;
-      return Math.round(baseSize * factor);
-    }
-    if (baseSize >= 18) {
+      result = Math.round(baseSize * factor);
+    } else if (baseSize >= 18) {
       const factor = 1.0 + (multiplier - 1.0) * 0.6;
-      return Math.round(baseSize * factor);
+      result = Math.round(baseSize * factor);
+    } else {
+      const maxMultiplier = isArabic ? 1.12 : 1.20;
+      const safeMultiplier = Math.min(multiplier, maxMultiplier);
+      result = Math.round(baseSize * safeMultiplier);
     }
-    const maxMultiplier = isArabic ? 1.12 : 1.20;
-    const safeMultiplier = Math.min(multiplier, maxMultiplier);
-    return Math.round(baseSize * safeMultiplier);
   } else {
     // Small setting (e.g. 0.95)
     if (baseSize >= 18) {
-      return Math.round(baseSize * 0.98); // Don't shrink headings excessively
+      result = Math.round(baseSize * 0.98); // Don't shrink headings excessively
+    } else {
+      result = Math.round(baseSize * multiplier);
     }
-    return Math.round(baseSize * multiplier);
   }
+
+  fontSizeCache.set(cacheKey, result);
+  return result;
+}
+
+function getFontSizeFromStyle(style: any): number {
+  if (!style) return 14;
+  if (typeof style === 'object' && !Array.isArray(style)) {
+    if (typeof style.fontSize === 'number') {
+      return style.fontSize;
+    }
+  }
+  const flattened = StyleSheet.flatten(style);
+  return flattened && typeof flattened.fontSize === 'number' ? flattened.fontSize : 14;
+}
+
+function cleanAndConvertStylesForWeb(style: any) {
+  if (!style) return style;
+  
+  const newStyle = { ...style };
+  let modified = false;
+  
+  if (style.shadowColor || style.shadowOffset || style.shadowOpacity !== undefined || style.shadowRadius !== undefined) {
+    const color = style.shadowColor || 'black';
+    const offset = style.shadowOffset || { width: 0, height: 0 };
+    const opacity = style.shadowOpacity !== undefined ? style.shadowOpacity : 1;
+    const radius = style.shadowRadius !== undefined ? style.shadowRadius : 0;
+    
+    delete newStyle.shadowColor;
+    delete newStyle.shadowOffset;
+    delete newStyle.shadowOpacity;
+    delete newStyle.shadowRadius;
+    
+    if (!newStyle.boxShadow) {
+      let rgbaColor = color;
+      if (typeof color === 'string' && color.startsWith('#')) {
+        const hex = color.replace('#', '');
+        let r = 0, g = 0, b = 0;
+        if (hex.length === 3) {
+          r = parseInt(hex[0] + hex[0], 16);
+          g = parseInt(hex[1] + hex[1], 16);
+          b = parseInt(hex[2] + hex[2], 16);
+        } else if (hex.length === 6) {
+          r = parseInt(hex.substring(0, 2), 16);
+          g = parseInt(hex.substring(2, 4), 16);
+          b = parseInt(hex.substring(4, 6), 16);
+        }
+        rgbaColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+      } else if (color === 'black' || color === '#000') {
+        rgbaColor = `rgba(0, 0, 0, ${opacity})`;
+      }
+      newStyle.boxShadow = `${offset.width}px ${offset.height}px ${radius * 1.5}px ${rgbaColor}`;
+    }
+    modified = true;
+  }
+
+  if (style.textShadowColor || style.textShadowOffset || style.textShadowRadius) {
+    const color = style.textShadowColor || 'black';
+    const offset = style.textShadowOffset || { width: 0, height: 0 };
+    const radius = style.textShadowRadius || 0;
+    
+    delete newStyle.textShadowColor;
+    delete newStyle.textShadowOffset;
+    delete newStyle.textShadowRadius;
+    
+    if (!newStyle.textShadow) {
+      newStyle.textShadow = `${offset.width}px ${offset.height}px ${radius}px ${color}`;
+    }
+    modified = true;
+  }
+
+  // Map React Native specific Poppins font-families to standard CSS family + fontWeight
+  if (style.fontFamily && typeof style.fontFamily === 'string') {
+    const family = style.fontFamily;
+    if (family.startsWith('Poppins_')) {
+      newStyle.fontFamily = 'Poppins, sans-serif';
+      
+      if (family.includes('Bold') || family.includes('700')) {
+        newStyle.fontWeight = '700';
+      } else if (family.includes('SemiBold') || family.includes('600')) {
+        newStyle.fontWeight = '600';
+      } else if (family.includes('Medium') || family.includes('500')) {
+        newStyle.fontWeight = '500';
+      } else {
+        newStyle.fontWeight = '400';
+      }
+      modified = true;
+    }
+  }
+
+  return modified ? newStyle : style;
+}
+
+function transformWebStyles(style: any): any {
+  if (!style) return style;
+  if (Array.isArray(style)) {
+    return style.map(s => transformWebStyles(s));
+  }
+  const resolved = typeof style === 'number' ? StyleSheet.flatten(style) : style;
+  return cleanAndConvertStylesForWeb(resolved);
 }
 
 export function initTextScaling() {
   if (hasPatchedThemeScaling) return;
+
+  // Inject Google Fonts CDN stylesheet on Web for high-performance font loading
+  if (Platform.OS === 'web') {
+    try {
+      if (!document.getElementById('glunity-google-fonts')) {
+        const preconnect1 = document.createElement('link');
+        preconnect1.rel = 'preconnect';
+        preconnect1.href = 'https://fonts.googleapis.com';
+        document.head.appendChild(preconnect1);
+
+        const preconnect2 = document.createElement('link');
+        preconnect2.rel = 'preconnect';
+        preconnect2.href = 'https://fonts.gstatic.com';
+        preconnect2.setAttribute('crossorigin', 'anonymous');
+        document.head.appendChild(preconnect2);
+
+        const fontLink = document.createElement('link');
+        fontLink.id = 'glunity-google-fonts';
+        fontLink.rel = 'stylesheet';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap';
+        document.head.appendChild(fontLink);
+      }
+
+      // Inject @expo/vector-icons CDN fonts to prevent slow local Metro network interventions
+      if (!document.getElementById('glunity-vector-icons')) {
+        // Preload the fonts to start downloading them instantly at high priority
+        const fontUrls = [
+          { id: 'preload-feather', url: 'https://unpkg.com/@expo/vector-icons@15.0.2/build/vendor/react-native-vector-icons/Fonts/Feather.ttf' },
+          { id: 'preload-mci', url: 'https://unpkg.com/@expo/vector-icons@15.0.2/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf' },
+          { id: 'preload-ionicons', url: 'https://unpkg.com/@expo/vector-icons@15.0.2/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf' }
+        ];
+
+        for (const item of fontUrls) {
+          if (!document.getElementById(item.id)) {
+            const preloadLink = document.createElement('link');
+            preloadLink.id = item.id;
+            preloadLink.rel = 'preload';
+            preloadLink.as = 'font';
+            preloadLink.type = 'font/ttf';
+            preloadLink.href = item.url;
+            preloadLink.setAttribute('crossorigin', 'anonymous');
+            document.head.appendChild(preloadLink);
+          }
+        }
+
+        // Define @font-face with font-display: block to prevent layout shifts or fallback character flashing
+        const styleTag = document.createElement('style');
+        styleTag.id = 'glunity-vector-icons';
+        styleTag.type = 'text/css';
+        styleTag.appendChild(document.createTextNode(`
+          @font-face {
+            font-family: "Feather";
+            src: url("https://unpkg.com/@expo/vector-icons@15.0.2/build/vendor/react-native-vector-icons/Fonts/Feather.ttf") format("truetype");
+            font-display: block;
+          }
+          @font-face {
+            font-family: "Material Community Icons";
+            src: url("https://unpkg.com/@expo/vector-icons@15.0.2/build/vendor/react-native-vector-icons/Fonts/MaterialCommunityIcons.ttf") format("truetype");
+            font-display: block;
+          }
+          @font-face {
+            font-family: "Ionicons";
+            src: url("https://unpkg.com/@expo/vector-icons@15.0.2/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf") format("truetype");
+            font-display: block;
+          }
+        `));
+        document.head.appendChild(styleTag);
+      }
+    } catch (e) {
+      console.warn('Failed to inject CDN assets', e);
+    }
+  }
 
   // 1. Patch React Native View.render to swap background & border colors in dark mode
   const viewAny = View as any;
@@ -173,13 +355,39 @@ export function initTextScaling() {
   if (originalViewRender) {
     viewAny.render = function (props: any, ref: any) {
       let newProps = props || {};
+      let modified = false;
+
+      // FAST PATH/CLEANUP: Clean pointerEvents prop warning on Web
+      if (Platform.OS === 'web' && newProps.pointerEvents) {
+        const { pointerEvents, ...rest } = newProps;
+        newProps = {
+          ...rest,
+          style: [newProps.style, { pointerEvents }],
+        };
+        modified = true;
+      }
+
+      // FAST PATH/CLEANUP: Convert legacy shadow prop warnings on Web
+      if (Platform.OS === 'web' && newProps.style) {
+        newProps = {
+          ...newProps,
+          style: transformWebStyles(newProps.style),
+        };
+        modified = true;
+      }
+
       if (darkModeEnabled && newProps.style) {
         newProps = {
           ...newProps,
           style: transformStyles(newProps.style),
         };
+        modified = true;
       }
-      return originalViewRender.call(this, newProps, ref);
+
+      if (modified) {
+        return originalViewRender.call(this, newProps, ref);
+      }
+      return originalViewRender.call(this, props, ref);
     };
   }
 
@@ -189,22 +397,37 @@ export function initTextScaling() {
   if (originalTextRender) {
     textAny.render = function (props: any, ref: any) {
       let newProps = props || {};
-      const flattened = newProps.style ? StyleSheet.flatten(newProps.style) : {};
-      const baseSize = (flattened && typeof flattened.fontSize === 'number') ? flattened.fontSize : 14;
+      let modified = false;
+
+      if (Platform.OS === 'web' && newProps.style) {
+        newProps = {
+          ...newProps,
+          style: transformWebStyles(newProps.style),
+        };
+        modified = true;
+      }
+
+      const baseSize = getFontSizeFromStyle(newProps.style);
       
       // Respect explicit opt-out of text scaling
       const scaledSize = newProps.allowFontScaling === false ? baseSize : getScaledFontSize(baseSize);
 
-      let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
-      if (darkModeEnabled) {
-        resolvedStyle = transformStyles(resolvedStyle);
+      if (scaledSize !== baseSize || darkModeEnabled) {
+        let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
+        if (darkModeEnabled) {
+          resolvedStyle = transformStyles(resolvedStyle);
+        }
+        newProps = {
+          ...newProps,
+          style: resolvedStyle,
+        };
+        modified = true;
       }
 
-      newProps = {
-        ...newProps,
-        style: resolvedStyle,
-      };
-      return originalTextRender.call(this, newProps, ref);
+      if (modified) {
+        return originalTextRender.call(this, newProps, ref);
+      }
+      return originalTextRender.call(this, props, ref);
     };
   }
 
@@ -214,22 +437,37 @@ export function initTextScaling() {
   if (originalTextInputRender) {
     textInputAny.render = function (props: any, ref: any) {
       let newProps = props || {};
-      const flattened = newProps.style ? StyleSheet.flatten(newProps.style) : {};
-      const baseSize = (flattened && typeof flattened.fontSize === 'number') ? flattened.fontSize : 14;
+      let modified = false;
+
+      if (Platform.OS === 'web' && newProps.style) {
+        newProps = {
+          ...newProps,
+          style: transformWebStyles(newProps.style),
+        };
+        modified = true;
+      }
+
+      const baseSize = getFontSizeFromStyle(newProps.style);
       
       // Respect explicit opt-out of text scaling
       const scaledSize = newProps.allowFontScaling === false ? baseSize : getScaledFontSize(baseSize);
 
-      let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
-      if (darkModeEnabled) {
-        resolvedStyle = transformStyles(resolvedStyle);
+      if (scaledSize !== baseSize || darkModeEnabled) {
+        let resolvedStyle = [newProps.style, { fontSize: scaledSize }];
+        if (darkModeEnabled) {
+          resolvedStyle = transformStyles(resolvedStyle);
+        }
+        newProps = {
+          ...newProps,
+          style: resolvedStyle,
+        };
+        modified = true;
       }
 
-      newProps = {
-        ...newProps,
-        style: resolvedStyle,
-      };
-      return originalTextInputRender.call(this, newProps, ref);
+      if (modified) {
+        return originalTextInputRender.call(this, newProps, ref);
+      }
+      return originalTextInputRender.call(this, props, ref);
     };
   }
 
@@ -255,6 +493,24 @@ export function initTextScaling() {
       return originalStatusBarRender.call(this, newProps, ref);
     };
   }
+  // 5. Patch React Native StyleSheet.create to clean deprecated props on Web at definition time
+  const stylesheetAny = StyleSheet as any;
+  const originalCreate = stylesheetAny.create;
+  if (originalCreate) {
+    stylesheetAny.create = function (styles: any) {
+      if (Platform.OS === 'web' && styles) {
+        const cleanedStyles = {} as any;
+        for (const key of Object.keys(styles)) {
+          cleanedStyles[key] = transformWebStyles(styles[key]);
+        }
+        return originalCreate.call(this, cleanedStyles);
+      }
+      return originalCreate.call(this, styles);
+    };
+  }
 
   hasPatchedThemeScaling = true;
 }
+
+// Auto-run on module import to ensure patches are applied immediately
+initTextScaling();
