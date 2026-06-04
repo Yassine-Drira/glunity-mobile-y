@@ -70,7 +70,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const screenWidth = Math.min(windowWidth, 600);
-  const { t } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const [timeframe, setTimeframe] = useState<'7d' | '30d'>('7d');
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
 
@@ -100,6 +100,47 @@ export default function SellerStatsScreen({ navigation }: Props) {
     safe: { flex: 1, backgroundColor: T.bg },
     flex: { flex: 1 },
     content: { paddingHorizontal: 20, paddingTop: 16 },
+    viewProfileBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: T.surface,
+      borderRadius: 16,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: T.border,
+      marginBottom: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.04,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    viewProfileLeft: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    storeIconCircle: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: T.greenLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    viewProfileTitle: {
+      fontSize: 13.6,
+      fontWeight: '700',
+      fontFamily: 'Poppins_700Bold',
+      color: T.text,
+    },
+    viewProfileSubtitle: {
+      fontSize: 10.5,
+      color: T.textMuted,
+      fontFamily: 'Poppins_400Regular',
+      marginTop: 2,
+    },
 
     // ── Stats Grid ──────────────────────────────────────────────────────────
     statsGrid: {
@@ -483,6 +524,23 @@ export default function SellerStatsScreen({ navigation }: Props) {
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
+        <TouchableOpacity
+          style={s.viewProfileBtn}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('SellerProfile', { sellerId: user?._id })}
+          id="btn-stats-view-profile"
+        >
+          <View style={s.viewProfileLeft}>
+            <View style={s.storeIconCircle}>
+              <Feather name="shopping-bag" size={16} color={T.green} />
+            </View>
+            <View>
+              <Text style={s.viewProfileTitle}>{t('View Details')}</Text>
+              <Text style={s.viewProfileSubtitle}>{t('See how customers view your profile')}</Text>
+            </View>
+          </View>
+          <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={18} color={T.textMuted} />
+        </TouchableOpacity>
 
         {/* ── KPI Cards ─────────────────────────────────────────────────── */}
         <View style={s.statsGrid}>

@@ -603,7 +603,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
 
       setTimeout(() => {
         setSuccessModalVisible(false);
-        navigation.navigate('SellerProProfile');
+        navigation.goBack();
       }, 1800);
     } catch (err: any) {
       console.error('Error saving product:', err);
@@ -642,7 +642,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
         if (productToEdit?._id) {
           await productsApi.remove(productToEdit._id);
           alert('Product deleted successfully');
-          navigation.navigate('SellerProProfile');
+          navigation.goBack();
         }
       } catch (err: any) {
         console.error('Error deleting product:', err);

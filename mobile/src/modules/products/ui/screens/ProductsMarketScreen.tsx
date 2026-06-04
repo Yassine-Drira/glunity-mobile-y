@@ -68,7 +68,7 @@ function getSellerName(sellerId: Product['sellerId']): string {
 type Props = NativeStackScreenProps<AppStackParamList, 'ProductsMarket'>;
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
-const ProductCard = React.memo(({ product, onPress, cardWidth }: { product: Product; onPress: () => void; cardWidth: number }) => {
+const ProductCard = React.memo(({ product, onPress, cardWidth, isOwnProducts }: { product: Product; onPress: () => void; cardWidth: number; isOwnProducts?: boolean }) => {
   const { theme: T } = useTheme();
   const scaleAnim  = useRef(new Animated.Value(1)).current;
   const imageUri   = useMemo(() => getProductImage(product), [product]);
@@ -119,7 +119,14 @@ const ProductCard = React.memo(({ product, onPress, cardWidth }: { product: Prod
         <View style={s.cardBody}>
           <Text style={s.productName} numberOfLines={2}>{product.name}</Text>
           <Text style={s.sellerName}  numberOfLines={1}>{sellerName}</Text>
-          <Text style={s.price}>{product.price}DT</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+            <Text style={s.price}>{product.price}DT</Text>
+            {isOwnProducts && (
+              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: T.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="edit-2" size={11} color={T.text} />
+              </View>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -136,6 +143,8 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
 
   const screenWidth = Math.min(windowWidth, 600);
   const cardWidth = (screenWidth - H_PAD * 2 - CARD_GAP) / 2;
+
+  const isOwnProducts = !!(route?.params?.sellerId && user?._id && route.params.sellerId === user._id);
 
   // Search State
   const [searchOpen, setSearchOpen] = useState(false);
@@ -304,7 +313,24 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
       paddingVertical: 24,
       width: '100%',
     },
-  }), [T, isRTL]);
+    fab: {
+      position: 'absolute',
+      bottom: insets.bottom + 90,
+      right: 20,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: T.green,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: T.green,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 8,
+      zIndex: 99,
+    },
+  }), [T, isRTL, insets.bottom]);
 
   // All products fetched once from the API
   const LIMIT = 20;
@@ -366,6 +392,14 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
     fetchProducts(1);
   }, [activeFilter, searchQuery, fetchProducts]);
 
+  // Refresh on screen focus to pick up edits/deletions/creations
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchProducts(1);
+    });
+    return unsubscribe;
+  }, [navigation, fetchProducts]);
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setPage(1);
@@ -398,7 +432,13 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
   // ── List header — memoised so it only re-renders when the active pill or search changes
   const ListHeader = useMemo(() => (
     <>
-      <Text style={s.pageTitle}>{isFilteredBySeller ? t("Seller's Products") : t('Gluten free products')}</Text>
+      <Text style={s.pageTitle}>
+        {isOwnProducts
+          ? t('My Products')
+          : isFilteredBySeller
+          ? t("Seller's Products")
+          : t('Gluten free products')}
+      </Text>
       
       <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
         <View style={s.searchInner}>
@@ -487,10 +527,28 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
             <ProductCard
               product={item}
               cardWidth={cardWidth}
-              onPress={() => navigation.navigate('ProductDetail', { product: item })}
+              isOwnProducts={isOwnProducts}
+              onPress={() => {
+                if (isOwnProducts) {
+                  navigation.navigate('AddProduct', { product: item });
+                } else {
+                  navigation.navigate('ProductDetail', { product: item });
+                }
+              }}
             />
           )}
         />
+
+        {isOwnProducts && (
+          <TouchableOpacity
+            style={s.fab}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('AddProduct')}
+            id="btn-market-add-product"
+          >
+            <Feather name="plus" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        )}
 
         {/*
           Absolute overlay spinner — rendered on top of the list area.
