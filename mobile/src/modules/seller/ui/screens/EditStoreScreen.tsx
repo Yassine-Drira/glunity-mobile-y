@@ -21,6 +21,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
+import { useLanguage } from '@/shared/context/language.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import type { UpdateProfileDto } from '@/modules/auth/api/auth.api';
 import { MapWebView } from '@/modules/map/ui/components/MapWebView';
@@ -58,6 +59,7 @@ function InputCard({
   rightElement,
 }: InputCardProps) {
   const { theme: T } = useTheme();
+  const { t, isRTL } = useLanguage();
   const [focused, setFocused] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
 
@@ -81,8 +83,9 @@ function InputCard({
         fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold',
         color: focused ? (iconColor ?? T.green) : T.textMuted,
         marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase',
+        textAlign: isRTL ? 'right' : 'left', width: '100%',
       }}>
-        {label}
+        {t(label)}
       </Text>
       <Animated.View style={{
         borderWidth: 1.5, borderColor, borderRadius: 16, backgroundColor: T.surface,
@@ -92,20 +95,22 @@ function InputCard({
         shadowOpacity: focused ? 0.15 : 0.04, shadowRadius: focused ? 8 : 3, elevation: focused ? 4 : 1,
       }}>
         <View style={{
-          flexDirection: 'row', alignItems: multiline ? 'flex-start' : 'center',
+          flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: multiline ? 'flex-start' : 'center',
           paddingHorizontal: 16, paddingVertical: multiline ? 14 : 0, minHeight: multiline ? 100 : 54,
         }}>
           <View style={{
             width: 36, height: 36, borderRadius: 10,
             backgroundColor: focused ? (iconColor ? `${iconColor}22` : `${T.green}22`) : T.surfaceAlt,
-            alignItems: 'center', justifyContent: 'center', marginRight: 12,
+            alignItems: 'center', justifyContent: 'center',
+            marginRight: isRTL ? 0 : 12,
+            marginLeft: isRTL ? 12 : 0,
           }}>
             <Feather name={icon as any} size={17} color={focused ? (iconColor ?? T.green) : T.textMuted} />
           </View>
           <TextInput
             value={value}
             onChangeText={onChangeText}
-            placeholder={placeholder}
+            placeholder={placeholder ? t(placeholder) : ''}
             placeholderTextColor={T.textMuted}
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}
@@ -114,21 +119,31 @@ function InputCard({
             onBlur={onBlur}
             style={{
               flex: 1, fontSize: 15, color: T.text, fontFamily: 'Poppins_400Regular',
+              textAlign: isRTL ? 'right' : 'left',
               textAlignVertical: multiline ? 'top' : 'center',
               paddingVertical: multiline ? 0 : 16, lineHeight: multiline ? 22 : undefined,
             }}
           />
           {suffix && !multiline && (
-            <Text style={{ fontSize: 12, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginLeft: 4 }}>
-              {suffix}
+            <Text style={{
+              fontSize: 12, color: T.textMuted, fontFamily: 'Poppins_400Regular',
+              marginLeft: isRTL ? 0 : 4,
+              marginRight: isRTL ? 4 : 0,
+            }}>
+              {t(suffix)}
             </Text>
           )}
           {rightElement}
         </View>
       </Animated.View>
       {hint && (
-        <Text style={{ fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 5, marginLeft: 4 }}>
-          {hint}
+        <Text style={{
+          fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 5,
+          marginLeft: isRTL ? 0 : 4,
+          marginRight: isRTL ? 4 : 0,
+          textAlign: isRTL ? 'right' : 'left',
+        }}>
+          {t(hint)}
         </Text>
       )}
     </View>
@@ -137,17 +152,23 @@ function InputCard({
 
 function SectionHeader({ icon, title, subtitle, color }: { icon: string; title: string; subtitle?: string; color: string }) {
   const { theme: T } = useTheme();
+  const { t, isRTL } = useLanguage();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18, marginTop: 8 }}>
+    <View style={{
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center', marginBottom: 18, marginTop: 8,
+    }}>
       <View style={{
         width: 42, height: 42, borderRadius: 13, backgroundColor: `${color}20`,
-        alignItems: 'center', justifyContent: 'center', marginRight: 12,
+        alignItems: 'center', justifyContent: 'center',
+        marginRight: isRTL ? 0 : 12,
+        marginLeft: isRTL ? 12 : 0,
       }}>
         <Feather name={icon as any} size={20} color={color} />
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 15, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text }}>{title}</Text>
-        {subtitle && <Text style={{ fontSize: 11, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 1 }}>{subtitle}</Text>}
+      <View style={{ flex: 1, alignItems: isRTL ? 'flex-end' : 'flex-start' }}>
+        <Text style={{ fontSize: 15, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, textAlign: isRTL ? 'right' : 'left' }}>{t(title)}</Text>
+        {subtitle && <Text style={{ fontSize: 11, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 1, textAlign: isRTL ? 'right' : 'left' }}>{t(subtitle)}</Text>}
       </View>
     </View>
   );
@@ -192,10 +213,26 @@ function serializeSchedule(sched: WeekSchedule): string {
 
 
 // ── EditStoreScreen ─────────────────────────────────────────────────────────────
-export default function EditStoreScreen({ navigation }: Props) {
+export default function EditStoreScreen({ navigation, route }: Props) {
   const { user, updateProfile } = useAuth();
   const { theme: T } = useTheme();
+  const { language, setLanguage, t, isRTL } = useLanguage();
   const isSeller = user?.profileType === 'pro_commerce';
+
+  // Support changing the page language via route params
+  useEffect(() => {
+    const l = route.params?.lang;
+    if (l) {
+      const cleanLang = String(l).toLowerCase();
+      if (cleanLang === 'fr' && language !== 'fr') {
+        setLanguage('fr');
+      } else if ((cleanLang === 'ar' || cleanLang === 'arab') && language !== 'ar') {
+        setLanguage('ar');
+      } else if ((cleanLang === 'en' || cleanLang === 'eng') && language !== 'en') {
+        setLanguage('en');
+      }
+    }
+  }, [route.params?.lang, language]);
 
   const storeInfo = user?.storeInfo || {};
   const [storeName, setStoreName] = useState(storeInfo.storeName ?? '');
@@ -216,7 +253,7 @@ export default function EditStoreScreen({ navigation }: Props) {
   async function pickImage() {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
-      Alert.alert("Permission Denied ❌", "You must allow photo library access to upload a cover photo.");
+      Alert.alert(t("Permission Denied ❌"), t("You must allow photo library access to upload a cover photo."));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -278,7 +315,7 @@ export default function EditStoreScreen({ navigation }: Props) {
       await updateProfile(dto);
       openSuccess();
     } catch {
-      setError('Failed to save store info. Please try again.');
+      setError(t('Failed to save store info. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -288,31 +325,31 @@ export default function EditStoreScreen({ navigation }: Props) {
     scroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
     heroBanner: {
       borderRadius: 20, backgroundColor: T.green, padding: 20,
-      flexDirection: 'row', alignItems: 'center', marginBottom: 28, marginTop: 8,
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 28, marginTop: 8,
     },
-    heroBannerTitle: { fontSize: 18, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: '#FFFFFF', marginBottom: 4 },
-    heroBannerSub: { fontSize: 12, fontFamily: 'Poppins_400Regular', color: 'rgba(255,255,255,0.82)', lineHeight: 17 },
-    heroBannerIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginLeft: 12 },
+    heroBannerTitle: { fontSize: 18, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: '#FFFFFF', marginBottom: 4, textAlign: isRTL ? 'right' : 'left' },
+    heroBannerSub: { fontSize: 12, fontFamily: 'Poppins_400Regular', color: 'rgba(255,255,255,0.82)', lineHeight: 17, textAlign: isRTL ? 'right' : 'left' },
+    heroBannerIcon: { width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 },
     divider: { height: 1, backgroundColor: T.border, marginBottom: 28, marginTop: 8 },
-    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: T.redLight, borderWidth: 1, borderColor: T.red, borderRadius: 12, padding: 14, marginBottom: 20 },
-    errorText: { flex: 1, fontSize: 13, color: T.red, fontFamily: 'Poppins_500Medium' },
+    errorBox: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, backgroundColor: T.redLight, borderWidth: 1, borderColor: T.red, borderRadius: 12, padding: 14, marginBottom: 20 },
+    errorText: { flex: 1, fontSize: 13, color: T.red, fontFamily: 'Poppins_500Medium', textAlign: isRTL ? 'right' : 'left' },
     
     // Pickers
     mapModalContainer: { flex: 1, backgroundColor: T.bg },
-    mapModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: T.border, paddingTop: 50 },
+    mapModalHeader: { flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: T.border, paddingTop: 50 },
     mapModalTitle: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: T.text },
     mapModalConfirmBtn: { backgroundColor: T.green, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
     mapModalConfirmText: { color: '#FFF', fontFamily: 'Poppins_600SemiBold', fontSize: 13 },
 
     schedModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     schedModalBody: { backgroundColor: T.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '80%' },
-    schedRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: T.border },
-    schedDayText: { flex: 1, fontSize: 15, fontFamily: 'Poppins_600SemiBold', color: T.text },
+    schedRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: T.border },
+    schedDayText: { flex: 1, fontSize: 15, fontFamily: 'Poppins_600SemiBold', color: T.text, textAlign: isRTL ? 'right' : 'left' },
     schedTimeBox: { backgroundColor: T.surfaceAlt, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: T.border, minWidth: 64, alignItems: 'center' },
     schedTimeText: { fontSize: 13, fontFamily: 'Poppins_500Medium', color: T.text },
 
     saveBtn: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+      flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
       backgroundColor: T.green, borderRadius: 18, paddingVertical: 17,
       shadowColor: T.green, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
     },
@@ -323,27 +360,27 @@ export default function EditStoreScreen({ navigation }: Props) {
     successIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: T.greenLight, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
     successTitle: { fontSize: 20, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, textAlign: 'center', marginBottom: 8 },
     successSub: { fontSize: 13, color: T.textMuted, fontFamily: 'Poppins_400Regular', textAlign: 'center', lineHeight: 19 },
-  }), [T]);
+  }), [T, isRTL]);
 
   if (!isSeller) {
     return (
-      <AppScaffold title="Error" activeTab="profile" onBack={() => navigation.goBack()} contentStyle={{ backgroundColor: T.bg }}>
+      <AppScaffold title={t("Error")} activeTab="profile" onBack={() => navigation.goBack()} contentStyle={{ backgroundColor: T.bg }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: T.text }}>You are not authorized to view this page.</Text>
+          <Text style={{ color: T.text }}>{t("You are not authorized to view this page.")}</Text>
         </View>
       </AppScaffold>
     );
   }
 
   return (
-    <AppScaffold title="Edit Store Info" activeTab="profile" onBack={() => navigation.goBack()} contentStyle={{ backgroundColor: T.bg }}>
+    <AppScaffold title={t("Edit Store Info")} activeTab="profile" onBack={() => navigation.goBack()} contentStyle={{ backgroundColor: T.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           <View style={s.heroBanner}>
             <View style={{ flex: 1 }}>
-              <Text style={s.heroBannerTitle}>Store Information</Text>
-              <Text style={s.heroBannerSub}>Keep your address, hours and{'\n'}contact details up to date.</Text>
+              <Text style={s.heroBannerTitle}>{t("Store Information")}</Text>
+              <Text style={s.heroBannerSub}>{t("Keep your address, hours and\ncontact details up to date.")}</Text>
             </View>
             <View style={s.heroBannerIcon}>
               <Feather name="home" size={24} color="#FFFFFF" />
@@ -375,7 +412,7 @@ export default function EditStoreScreen({ navigation }: Props) {
             placeholder="e.g. 125 Rue Casablanca, Tunis" multiline 
             hint="Enter your full street address including city"
             rightElement={
-              <TouchableOpacity onPress={() => setShowMapPicker(true)} style={{ position: 'absolute', right: 12, top: 12, backgroundColor: '#EF444420', padding: 8, borderRadius: 8 }}>
+              <TouchableOpacity onPress={() => setShowMapPicker(true)} style={{ position: 'absolute', left: isRTL ? 12 : undefined, right: isRTL ? undefined : 12, top: 12, backgroundColor: '#EF444420', padding: 8, borderRadius: 8 }}>
                 <Feather name="map" size={16} color="#EF4444" />
               </TouchableOpacity>
             }
@@ -384,9 +421,10 @@ export default function EditStoreScreen({ navigation }: Props) {
           <View style={{ marginBottom: 20 }}>
             <Text style={{
               fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold',
-              color: T.textMuted, marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase'
+              color: T.textMuted, marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase',
+              textAlign: isRTL ? 'right' : 'left', width: '100%'
             }}>
-              Store Cover Image
+              {t("Store Cover Image")}
             </Text>
             {imageUrl ? (
               <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, borderWidth: 1.5, borderColor: T.border, position: 'relative' }}>
@@ -394,13 +432,16 @@ export default function EditStoreScreen({ navigation }: Props) {
                 <TouchableOpacity 
                   onPress={pickImage} 
                   style={{
-                    position: 'absolute', right: 12, bottom: 12, 
+                    position: 'absolute', 
+                    left: isRTL ? 12 : undefined,
+                    right: isRTL ? undefined : 12, 
+                    bottom: 12, 
                     backgroundColor: 'rgba(0,0,0,0.75)', paddingVertical: 8, paddingHorizontal: 12, 
-                    borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 6
+                    borderRadius: 10, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 6
                   }}
                 >
                   <Feather name="camera" size={13} color="#FFFFFF" />
-                  <Text style={{ color: '#FFFFFF', fontSize: 11, fontFamily: 'Poppins_600SemiBold' }}>Change Photo</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 11, fontFamily: 'Poppins_600SemiBold' }}>{t("Change Photo")}</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -413,8 +454,8 @@ export default function EditStoreScreen({ navigation }: Props) {
                 }}
               >
                 <Feather name="image" size={24} color={T.textMuted} style={{ marginBottom: 2 }} />
-                <Text style={{ fontSize: 13, color: T.textSub, fontFamily: 'Poppins_600SemiBold' }}>Upload Store Cover Image</Text>
-                <Text style={{ fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular' }}>Tap to browse device photo library</Text>
+                <Text style={{ fontSize: 13, color: T.textSub, fontFamily: 'Poppins_600SemiBold' }}>{t("Upload Store Cover Image")}</Text>
+                <Text style={{ fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular' }}>{t("Tap to browse device photo library")}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -426,21 +467,54 @@ export default function EditStoreScreen({ navigation }: Props) {
           />
 
           <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.textMuted, marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase' }}>Working Hours</Text>
+            <Text style={{ fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.textMuted, marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase', textAlign: isRTL ? 'right' : 'left', width: '100%' }}>{t("Working Hours")}</Text>
             <View style={{ borderWidth: 1.5, borderColor: T.border, borderRadius: 16, backgroundColor: T.surface, overflow: 'hidden' }}>
-              <TextInput value={operatingHours} onChangeText={setOperatingHours} placeholder="e.g. Open today • 08:00 - 19:00" placeholderTextColor={T.textMuted} autoCapitalize="none" style={{ fontSize: 15, color: T.text, fontFamily: 'Poppins_400Regular', paddingHorizontal: 16, paddingVertical: 16, paddingRight: 120 }} />
-              <TouchableOpacity onPress={() => setShowTimePicker(true)} style={{ position: 'absolute', right: 8, top: 8, bottom: 8, backgroundColor: `#F59E0B22`, borderRadius: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 4 }}>
+              <TextInput 
+                value={operatingHours} 
+                onChangeText={setOperatingHours} 
+                placeholder={t("e.g. Open today • 08:00 - 19:00")} 
+                placeholderTextColor={T.textMuted} 
+                autoCapitalize="none" 
+                style={{ 
+                  fontSize: 15, color: T.text, fontFamily: 'Poppins_400Regular', 
+                  paddingHorizontal: 16, 
+                  paddingLeft: isRTL ? 120 : 16, 
+                  paddingRight: isRTL ? 16 : 120,
+                  textAlign: isRTL ? 'right' : 'left',
+                  paddingVertical: 16 
+                }} 
+              />
+              <TouchableOpacity 
+                onPress={() => setShowTimePicker(true)} 
+                style={{ 
+                  position: 'absolute', 
+                  left: isRTL ? 8 : undefined, 
+                  right: isRTL ? undefined : 8, 
+                  top: 8, bottom: 8, 
+                  backgroundColor: `#F59E0B22`, 
+                  borderRadius: 10, paddingHorizontal: 12, 
+                  alignItems: 'center', justifyContent: 'center', 
+                  flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4 
+                }}
+              >
                 <Feather name="calendar" size={13} color="#F59E0B" />
-                <Text style={{ fontSize: 11, color: '#F59E0B', fontFamily: 'Poppins_600SemiBold', fontWeight: '600' }}>Builder</Text>
+                <Text style={{ fontSize: 11, color: '#F59E0B', fontFamily: 'Poppins_600SemiBold', fontWeight: '600' }}>{t('Builder')}</Text>
               </TouchableOpacity>
             </View>
-            <Text style={{ fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 5, marginLeft: 4 }}>Tap "Builder" to flexibly select your days and hours</Text>
+            <Text style={{ fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 5, marginLeft: 4, textAlign: isRTL ? 'right' : 'left' }}>{t("Tap \"Builder\" to flexibly select your days and hours")}</Text>
           </View>
 
           <View style={{ height: 16 }} />
 
           <TouchableOpacity id="edit-save-btn" style={[s.saveBtn, saving && { opacity: 0.65 }]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
-            {saving ? <MaterialCommunityIcons name="loading" size={22} color="#FFFFFF" /> : <><Feather name="check" size={20} color="#FFFFFF" /><Text style={s.saveBtnText}>Save Store Details</Text></>}
+            {saving ? (
+              <MaterialCommunityIcons name="loading" size={22} color="#FFFFFF" />
+            ) : (
+              <>
+                <Feather name={isRTL ? "arrow-left" : "check"} size={20} color="#FFFFFF" />
+                <Text style={s.saveBtnText}>{t("Save Store Details")}</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={{ height: 80 }} />
@@ -454,7 +528,7 @@ export default function EditStoreScreen({ navigation }: Props) {
             <TouchableOpacity onPress={() => setShowMapPicker(false)}>
               <Feather name="x" size={24} color={T.text} />
             </TouchableOpacity>
-            <Text style={s.mapModalTitle}>Tap on the map</Text>
+            <Text style={s.mapModalTitle}>{t("Tap on the map")}</Text>
             <TouchableOpacity 
               style={[s.mapModalConfirmBtn, !pickedLocation && { opacity: 0.5 }]} 
               disabled={!pickedLocation}
@@ -465,7 +539,7 @@ export default function EditStoreScreen({ navigation }: Props) {
                 setShowMapPicker(false);
               }}
             >
-              <Text style={s.mapModalConfirmText}>Confirm</Text>
+              <Text style={s.mapModalConfirmText}>{t("Confirm")}</Text>
             </TouchableOpacity>
           </View>
           <View style={{ flex: 1, backgroundColor: '#F6F5F3' }}>
@@ -482,21 +556,21 @@ export default function EditStoreScreen({ navigation }: Props) {
       <Modal visible={showTimePicker} transparent animationType="slide" onRequestClose={() => setShowTimePicker(false)}>
         <View style={s.schedModalOverlay}>
           <View style={s.schedModalBody}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 18, fontFamily: 'Poppins_700Bold', color: T.text }}>Schedule Builder</Text>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ fontSize: 18, fontFamily: 'Poppins_700Bold', color: T.text }}>{t("Schedule Builder")}</Text>
               <TouchableOpacity onPress={() => setShowTimePicker(false)}><Feather name="x" size={24} color={T.textMuted} /></TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator={false}>
               {DAYS.map(day => (
                 <View key={day} style={s.schedRow}>
-                  <Text style={s.schedDayText}>{day}</Text>
+                  <Text style={s.schedDayText}>{t(day)}</Text>
                   <Switch 
                     value={schedule[day].active} 
                     onValueChange={v => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], active: v } }))} 
                     trackColor={{ false: T.border, true: T.green }}
                   />
                   {schedule[day].active && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 16 }}>
+                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginLeft: isRTL ? 0 : 16, marginRight: isRTL ? 16 : 0 }}>
                       <TextInput 
                         style={s.schedTimeBox} 
                         value={schedule[day].open} 
@@ -524,7 +598,7 @@ export default function EditStoreScreen({ navigation }: Props) {
                 setShowTimePicker(false);
               }}
             >
-              <Text style={s.saveBtnText}>Apply Schedule</Text>
+              <Text style={s.saveBtnText}>{t("Apply Schedule")}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -537,8 +611,8 @@ export default function EditStoreScreen({ navigation }: Props) {
             <View style={s.successIconCircle}>
               <Feather name="check" size={36} color={T.green} />
             </View>
-            <Text style={s.successTitle}>Store updated! 🏪</Text>
-            <Text style={s.successSub}>Your store details have been updated and are now visible to customers.</Text>
+            <Text style={s.successTitle}>{t("Store updated! 🏪")}</Text>
+            <Text style={s.successSub}>{t("Your store details have been updated and are now visible to customers.")}</Text>
           </Animated.View>
         </View>
       </Modal>

@@ -669,7 +669,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
 
   return (
     <AppScaffold
-      title={isEditing ? 'Edit product' : 'Add a product'}
+      title={t(isEditing ? 'Edit product' : 'Add a product')}
       activeTab="profile"
       onBack={() => navigation.goBack()}
       onPressHome={() => navigation.navigate('Home')}
@@ -691,8 +691,8 @@ export default function AddProductScreen({ navigation, route }: Props) {
             <View style={s.successCircle}>
               <Feather name="check" size={32} color="#FFFFFF" />
             </View>
-            <Text style={s.modalTitle}>Success!</Text>
-            <Text style={s.modalSub}>"{productName}" has been successfully {isEditing ? 'updated' : 'added to your bakery menu'}.</Text>
+            <Text style={s.modalTitle}>{t('Success!')}</Text>
+            <Text style={s.modalSub}>"{productName}" {t(isEditing ? 'updated' : 'added to your bakery menu')}.</Text>
           </View>
         </View>
       </Modal>
@@ -705,7 +705,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
       >
 
         {/* ── Product Image Upload ───────────────────────────────────────────── */}
-        <Text style={s.label}>Product Image</Text>
+        <Text style={s.label}>{t('Product Image')}</Text>
         <TouchableOpacity
           style={[s.imageUploadContainer, productImage ? s.imageUploadedBorder : null]}
           activeOpacity={0.8}
@@ -717,7 +717,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
               <Image source={{ uri: productImage }} style={s.imagePreview} />
               <View style={s.changePhotoBadge}>
                 <Feather name="camera" size={12} color="#FFFFFF" />
-                <Text style={s.changePhotoText}>Change</Text>
+                <Text style={s.changePhotoText}>{t('Change')}</Text>
               </View>
             </View>
           ) : (
@@ -725,17 +725,17 @@ export default function AddProductScreen({ navigation, route }: Props) {
               <View style={s.uploadIconBox}>
                 <Feather name="image" size={24} color={T.textMuted} />
               </View>
-              <Text style={s.uploadText}>Tap to upload photo</Text>
+              <Text style={s.uploadText}>{t('Tap to upload photo')}</Text>
             </View>
           )}
         </TouchableOpacity>
 
         {/* ── Product Name Input ────────────────────────────────────────────── */}
         <View style={s.inputGroup}>
-          <Text style={s.label}>Product Name</Text>
+          <Text style={s.label}>{t('Product Name')}</Text>
           <TextInput
             style={[s.input, nameError ? s.inputError : null]}
-            placeholder="e.g. Almond Croissant"
+            placeholder={t('e.g. Almond Croissant')}
             placeholderTextColor={T.textMuted}
             value={productName}
             onChangeText={(txt) => {
@@ -744,12 +744,12 @@ export default function AddProductScreen({ navigation, route }: Props) {
             }}
             id="input-product-name"
           />
-          {nameError && <Text style={s.errorText}>Please enter a product name</Text>}
+          {nameError && <Text style={s.errorText}>{t('Please enter a product name')}</Text>}
         </View>
 
         {/* ── Category Dropdown ──────────────────────────────────────────────── */}
         <View style={s.inputGroup}>
-          <Text style={s.label}>Category</Text>
+          <Text style={s.label}>{t('Category')}</Text>
           <TouchableOpacity
             style={s.selectTrigger}
             activeOpacity={0.85}
@@ -757,7 +757,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
             id="btn-category-select"
           >
             <Text style={[s.selectText, !category ? s.placeholderText : null]}>
-              {category || 'Select category'}
+              {category ? t(category) : t('Select category')}
             </Text>
             <Feather
               name={showCategoryDropdown ? 'chevron-up' : 'chevron-down'}
@@ -778,7 +778,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
                   }}
                 >
                   <Text style={[s.dropdownItemText, category === cat ? s.dropdownItemTextSelected : null]}>
-                    {cat}
+                    {t(cat)}
                   </Text>
                   {category === cat && <Feather name="check" size={14} color={T.green} />}
                 </TouchableOpacity>
@@ -793,8 +793,8 @@ export default function AddProductScreen({ navigation, route }: Props) {
             <MaterialCommunityIcons name="shield-check" size={20} color="#FFFFFF" />
           </View>
           <View style={s.toggleTexts}>
-            <Text style={s.toggleTitle}>Certified gluten-free</Text>
-            <Text style={s.toggleSub}>Has official certification</Text>
+            <Text style={s.toggleTitle}>{t('Certified gluten-free')}</Text>
+            <Text style={s.toggleSub}>{t('Has official certification')}</Text>
           </View>
           <Switch
             value={isGlutenFree}
@@ -808,10 +808,10 @@ export default function AddProductScreen({ navigation, route }: Props) {
 
         {/* ── Description Input ──────────────────────────────────────────────── */}
         <View style={s.inputGroup}>
-          <Text style={s.label}>Description</Text>
+          <Text style={s.label}>{t('Description')}</Text>
           <TextInput
             style={[s.input, s.textArea]}
-            placeholder="Describe the product..."
+            placeholder={t('Describe the product...')}
             placeholderTextColor={T.textMuted}
             multiline={true}
             numberOfLines={4}
@@ -824,12 +824,12 @@ export default function AddProductScreen({ navigation, route }: Props) {
         {/* ── Ingredients (Optional) Input ───────────────────────────────────── */}
         <View style={s.inputGroup}>
           <View style={s.rowLabel}>
-            <Text style={s.label}>Ingredients</Text>
-            <Text style={s.optionalSub}>(Optional)</Text>
+            <Text style={s.label}>{t('Ingredients')}</Text>
+            <Text style={s.optionalSub}>{t('(Optional)')}</Text>
           </View>
           <TextInput
             style={s.input}
-            placeholder="e.g. Almond flour, eggs, sugar..."
+            placeholder={t('e.g. Almond flour, eggs, sugar...')}
             placeholderTextColor={T.textMuted}
             value={ingredients}
             onChangeText={setIngredients}
@@ -839,10 +839,10 @@ export default function AddProductScreen({ navigation, route }: Props) {
 
         {/* ── Price Input ────────────────────────────────────────────────────── */}
         <View style={s.inputGroup}>
-          <Text style={s.label}>Price (TND)</Text>
+          <Text style={s.label}>{t('Price (TND)')}</Text>
           <TextInput
             style={s.input}
-            placeholder="e.g. 15.00"
+            placeholder={t('e.g. 15.00')}
             placeholderTextColor={T.textMuted}
             value={price}
             onChangeText={setPrice}
@@ -860,7 +860,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
           id="btn-submit-product"
         >
           <Text style={s.submitBtnText}>
-            {isSubmitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Submit Product'}
+            {isSubmitting ? t('Saving...') : t(isEditing ? 'Save Changes' : 'Submit Product')}
           </Text>
         </TouchableOpacity>
 
@@ -872,7 +872,7 @@ export default function AddProductScreen({ navigation, route }: Props) {
             id="btn-delete-product"
           >
             <Feather name="trash-2" size={16} color={T.red} />
-            <Text style={s.deleteBtnText}>Delete Product from Menu</Text>
+            <Text style={s.deleteBtnText}>{t('Delete Product from Menu')}</Text>
           </TouchableOpacity>
         )}
 

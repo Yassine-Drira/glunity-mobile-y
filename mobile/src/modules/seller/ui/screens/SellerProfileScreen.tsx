@@ -55,7 +55,7 @@ const getProductImage = (images?: string[], category?: string) => {
 export default function SellerProfileScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
-  const { isRTL } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const { width: windowWidth } = useWindowDimensions();
   const screenWidth = Math.min(windowWidth, 600);
 
@@ -715,7 +715,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   if (!isOwnProfile && sellerLoading && !sellerDetails) {
     return (
       <AppScaffold
-        title="Loading Profile..."
+        title={t('Loading Profile...')}
         activeTab="home"
         onBack={() => navigation.goBack()}
         contentStyle={{ backgroundColor: T.bg }}
@@ -776,8 +776,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             <Feather name="check" size={20} color="#FFFFFF" />
           </View>
           <View style={s.recommendedTexts}>
-            <Text style={s.recommendedTitle}>Recommended by Glutenia</Text>
-            <Text style={s.recommendedSub}>Verified safe establishment</Text>
+            <Text style={s.recommendedTitle}>{t('Recommended by Glutenia')}</Text>
+            <Text style={s.recommendedSub}>{t('Verified safe establishment')}</Text>
           </View>
         </View>
 
@@ -790,7 +790,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
              </View>
              <View style={s.detailsTextBox}>
                <Text style={s.detailsText}>{currentSeller?.storeInfo?.address || '125 Rue Casablanca, Tunis'}</Text>
-               <Text style={s.detailsDistance}>2.4 km away</Text>
+               <Text style={s.detailsDistance}>{t('2.4 km away')}</Text>
              </View>
            </View>
  
@@ -824,7 +824,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               id="seller-follow-btn"
             >
               <Feather name="plus" size={16} color="#FFFFFF" />
-              <Text style={s.customerFollowText}>Follow</Text>
+              <Text style={s.customerFollowText}>{t('Follow')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[s.customerActionBtn, s.customerMessageBtn]}
@@ -832,7 +832,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               id="seller-message-btn"
             >
               <Feather name="message-square" size={16} color={T.green} />
-              <Text style={s.customerMessageText}>Message</Text>
+              <Text style={s.customerMessageText}>{t('Message')}</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -847,7 +847,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               <View style={s.actionIconContainer}>
                 <Feather name="edit-2" size={20} color={T.text} />
               </View>
-              <Text style={[s.actionText, { color: T.text }]}>Edit Info</Text>
+              <Text style={[s.actionText, { color: T.text }]}>{t('Edit Info')}</Text>
             </TouchableOpacity>
 
             {/* Add Product Button */}
@@ -861,8 +861,8 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                 <Feather name="plus" size={20} color="#FFFFFF" />
               </View>
               <View style={s.actionMultiLineText}>
-                <Text style={[s.actionText, s.whiteText, { fontSize: 10.2 }]}>Add</Text>
-                <Text style={[s.actionText, s.whiteText, { fontSize: 10.2 }]}>Product</Text>
+                <Text style={[s.actionText, s.whiteText, { fontSize: 10.2 }]}>{t('Add')}</Text>
+                <Text style={[s.actionText, s.whiteText, { fontSize: 10.2 }]}>{t('Product')}</Text>
               </View>
             </TouchableOpacity>
 
@@ -876,16 +876,16 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               <View style={s.actionIconContainer}>
                 <Feather name="bar-chart-2" size={20} color={T.text} />
               </View>
-              <Text style={[s.actionText, { color: T.text }]}>Dashboard</Text>
+              <Text style={[s.actionText, { color: T.text }]}>{t('Dashboard')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {/* ── Products Menu Header ───────────────────────────────────────────── */}
         <View style={s.sectionHeaderRow}>
-          <Text style={s.sectionTitle}>Bakery Menu</Text>
+          <Text style={s.sectionTitle}>{t('Bakery Menu')}</Text>
           <TouchableOpacity activeOpacity={0.7}>
-            <Text style={s.seeAllText}>See all</Text>
+            <Text style={s.seeAllText}>{t('See all')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -901,7 +901,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             </View>
           ) : products.length === 0 ? (
             <View style={{ paddingVertical: 20, paddingHorizontal: 12 }}>
-              <Text style={{ color: T.textMuted, fontSize: 13.6, fontFamily: 'Poppins_500Medium' }}>No products in the menu yet.</Text>
+              <Text style={{ color: T.textMuted, fontSize: 13.6, fontFamily: 'Poppins_500Medium' }}>{t('No products in the menu yet.')}</Text>
             </View>
           ) : (
             products.map((prod) => (
@@ -951,7 +951,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
 
         {/* ── Recent Reviews Header ─────────────────────────────────────────── */}
         <View style={s.reviewsHeaderRow}>
-          <Text style={s.sectionTitle}>Recent Reviews</Text>
+          <Text style={s.sectionTitle}>{t('Recent Reviews')}</Text>
           {avgRating ? (
             <View style={s.reviewSummaryBadge}>
               <FontAwesome name="star" size={12} color="#F59E0B" />
@@ -998,10 +998,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: T.green, fontFamily: 'Poppins_600SemiBold', fontSize: 14, fontWeight: '600' }}>
-                Write a Review
+                {t('Write a Review')}
               </Text>
               <Text style={{ color: T.textMuted, fontFamily: 'Poppins_400Regular', fontSize: 11, marginTop: 1 }}>
-                Share your experience
+                {t('Share your experience')}
               </Text>
             </View>
             <Feather name="chevron-right" size={16} color={T.green} />
@@ -1029,10 +1029,10 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                 <FontAwesome name="star-o" size={24} color={T.textMuted} />
               </View>
               <Text style={{ fontSize: 14, fontWeight: '600', fontFamily: 'Poppins_600SemiBold', color: T.text, marginBottom: 4 }}>
-                No reviews yet
+                {t('No reviews yet')}
               </Text>
               <Text style={{ fontSize: 12, color: T.textMuted, fontFamily: 'Poppins_400Regular' }}>
-                {canWriteReview ? 'Be the first to leave a review!' : 'Customer reviews will appear here.'}
+                {canWriteReview ? t('Be the first to leave a review!') : t('Customer reviews will appear here.')}
               </Text>
             </View>
           ) : (
@@ -1121,14 +1121,14 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: T.border, alignSelf: 'center', marginBottom: 20 }} />
 
               <Text style={{ fontSize: 17, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, marginBottom: 4 }}>
-                Write a Review
+                {t('Write a Review')}
               </Text>
               <Text style={{ fontSize: 12, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginBottom: 20 }}>
-                Share your experience with {displayName}
+                {t('Share your experience')} {displayName}
               </Text>
 
               {/* Star picker */}
-              <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontFamily: 'Poppins_500Medium' }}>Your rating</Text>
+              <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontFamily: 'Poppins_500Medium' }}>{t('Your rating')}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
                 {[1, 2, 3, 4, 5].map(star => (
                   <TouchableOpacity key={star} onPress={() => setReviewRating(star)} id={`star-${star}`}>
@@ -1142,12 +1142,12 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               </View>
 
               {/* Comment input */}
-              <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontFamily: 'Poppins_500Medium' }}>Your comment</Text>
+              <Text style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontFamily: 'Poppins_500Medium' }}>{t('Your comment')}</Text>
               <TextInput
                 id="review-comment-input"
                 value={reviewComment}
                 onChangeText={setReviewComment}
-                placeholder="Tell others about your experience..."
+                placeholder={t('Tell others about your experience...')}
                 placeholderTextColor={T.textMuted}
                 multiline
                 numberOfLines={4}
@@ -1176,7 +1176,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                   }}
                   onPress={() => { setShowReviewModal(false); setReviewComment(''); setReviewRating(5); }}
                 >
-                  <Text style={{ color: T.textMuted, fontFamily: 'Poppins_500Medium', fontSize: 14 }}>Cancel</Text>
+                  <Text style={{ color: T.textMuted, fontFamily: 'Poppins_500Medium', fontSize: 14 }}>{t('Cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   id="btn-submit-review"
@@ -1192,7 +1192,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                   {submittingReview ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 14, fontWeight: '600' }}>Submit Review</Text>
+                    <Text style={{ color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 14, fontWeight: '600' }}>{t('Submit Review')}</Text>
                   )}
                 </TouchableOpacity>
               </View>

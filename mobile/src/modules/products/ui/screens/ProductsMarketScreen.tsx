@@ -129,7 +129,7 @@ const ProductCard = React.memo(({ product, onPress, cardWidth }: { product: Prod
 export default function ProductsMarketScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
-  const { isRTL } = useLanguage();
+  const { t, isRTL } = useLanguage();
   const insets   = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
 
@@ -356,7 +356,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
   // ── List header — memoised so it only re-renders when the active pill or search changes
   const ListHeader = useMemo(() => (
     <>
-      <Text style={s.pageTitle}>Gluten free products</Text>
+      <Text style={s.pageTitle}>{t('Gluten free products')}</Text>
       
       <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
         <View style={s.searchInner}>
@@ -365,7 +365,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
             ref={inputRef}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search products..."
+            placeholder={t('Search products...')}
             placeholderTextColor={T.textMuted}
             underlineColorAndroid="transparent"
             style={s.searchInput}
@@ -388,7 +388,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
             id={`filter-${f.key}`}
           >
             <Text style={[s.filterText, activeFilter === f.key && s.filterTextActive]}>
-              {f.label}
+              {t(f.label)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -399,7 +399,7 @@ export default function ProductsMarketScreen({ navigation }: Props) {
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <AppScaffold
-      title="Market"
+      title={t('Market')}
       activeTab="home"
       showSearch
       onSearchPress={toggleSearch}
@@ -429,8 +429,8 @@ export default function ProductsMarketScreen({ navigation }: Props) {
             !initialLoad ? (
             <View style={s.emptyWrap}>
                 <Feather name="package" size={48} color={T.textMuted} />
-                <Text style={[s.emptyText, { color: T.text }]}>No products found</Text>
-                <Text style={[s.emptySubText, { color: T.textSub }]}>Try a different filter or check back later.</Text>
+                <Text style={[s.emptyText, { color: T.text }]}>{t('No products found')}</Text>
+                <Text style={[s.emptySubText, { color: T.textSub }]}>{t('Try a different filter or check back later.')}</Text>
               </View>
             ) : null
           }
