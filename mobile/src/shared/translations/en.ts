@@ -659,6 +659,28 @@ const en = {
   '125 Rue Casablanca, Tunis': '125 Rue Casablanca, Tunis',
   '2.4 km away from store': '2.4 km away from store',
   'Loading Profile...': 'Loading Profile...',
+
+  // ── Seller Stats Screen ─────────────────────────────────────────────────
+  'Your visibility': 'Your visibility',
+  Views: 'Views',
+  'Last 7 days': 'Last 7 days',
+  'Last 30 days': 'Last 30 days',
+  'Map Clicks': 'Map Clicks',
+  'Visits generated': 'Visits generated',
+  'certified GF': 'certified GF',
+  'Avg Price': 'Avg Price',
+  'Per product': 'Per product',
+  'Views over time': 'Views over time',
+  'Customer reviews': 'Customer reviews',
+  total: 'total',
+  reviews: 'reviews',
+  'Product categories': 'Product categories',
+  Insights: 'Insights',
+  'Most reviewed product': 'Most reviewed product',
+  'Peak interaction day': 'Peak interaction day',
+  'Certified gluten-free products': 'Certified gluten-free products',
+  'Member since': 'Member since',
+  'days on Glunity': 'days on Glunity',
 };
 
 export default en;

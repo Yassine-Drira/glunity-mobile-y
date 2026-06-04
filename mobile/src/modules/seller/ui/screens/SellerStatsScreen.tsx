@@ -17,6 +17,7 @@ import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useFocusEffect } from '@react-navigation/native';
 import authApi, { SellerStats } from '../../../auth/api/auth.api';
+import { useLanguage } from '@/shared/context/language.context';
 
 // SVG components import
 import Svg, {
@@ -69,6 +70,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const screenWidth = Math.min(windowWidth, 600);
+  const { t } = useLanguage();
   const [timeframe, setTimeframe] = useState<'7d' | '30d'>('7d');
   const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
 
@@ -419,40 +421,40 @@ export default function SellerStatsScreen({ navigation }: Props) {
 
   const statCards = [
     {
-      title: 'Views',
+      title: t('Views'),
       value: loading ? '...' : viewsShown.toLocaleString(),
-      meta: timeframe === '7d' ? 'Last 7 days' : 'Last 30 days',
+      meta: timeframe === '7d' ? t('Last 7 days') : t('Last 30 days'),
       icon: 'eye',
       color: T.green,
       bg: T.greenLight,
     },
     {
-      title: 'Map Clicks',
+      title: t('Map Clicks'),
       value: loading ? '...' : mapClicksShown.toLocaleString(),
-      meta: 'Visits generated',
+      meta: t('Visits generated'),
       icon: 'map-pin',
       color: '#3B82F6',
       bg: 'rgba(59, 130, 246, 0.12)',
     },
     {
-      title: 'Products',
+      title: t('Products'),
       value: loading ? '...' : (statsData?.productsCount ?? 0).toString(),
-      meta: `${statsData?.certifiedGFCount ?? 0} certified GF`,
+      meta: `${statsData?.certifiedGFCount ?? 0} ${t('certified GF')}`,
       icon: 'package',
       color: '#F59E0B',
       bg: 'rgba(245, 158, 11, 0.12)',
     },
     {
-      title: 'Avg Price',
+      title: t('Avg Price'),
       value: loading ? '...' : `${(statsData?.avgPrice ?? 0).toFixed(1)} TND`,
-      meta: 'Per product',
+      meta: t('Per product'),
       icon: 'tag',
       color: '#8B5CF6',
       bg: 'rgba(139, 92, 246, 0.12)',
     },
   ];
 
-  const timeframeLabel = timeframe === '7d' ? 'Last 7 days' : 'Last 30 days';
+  const timeframeLabel = timeframe === '7d' ? t('Last 7 days') : t('Last 30 days');
   const xLabels7d = statsData?.chartLabels ?? DAY_LABELS_7;
   const xLabels = timeframe === '7d'
     ? xLabels7d
@@ -501,7 +503,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
 
         {/* ── Chart ──────────────────────────────────────────────────────── */}
         <View style={s.sectionRow}>
-          <Text style={s.sectionTitle}>Views over time</Text>
+          <Text style={s.sectionTitle}>{t('Views over time')}</Text>
           <View style={s.dropdownContainer}>
             <TouchableOpacity
               id="btn-timeframe-dropdown"
@@ -514,7 +516,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
             </TouchableOpacity>
             {showTimeframeDropdown && (
               <View style={s.dropdownBox}>
-                {([['7d', 'Last 7 days'], ['30d', 'Last 30 days']] as const).map(([key, label]) => (
+                {(([['7d', t('Last 7 days')], ['30d', t('Last 30 days')]] as const)).map(([key, label]) => (
                   <TouchableOpacity
                     key={key}
                     style={s.dropdownItem}
@@ -650,9 +652,9 @@ export default function SellerStatsScreen({ navigation }: Props) {
         {(statsData?.totalReviews ?? 0) > 0 && (
           <>
             <View style={s.sectionRow}>
-              <Text style={s.sectionTitle}>Customer reviews</Text>
+              <Text style={s.sectionTitle}>{t('Customer reviews')}</Text>
               <Text style={{ fontSize: 11, color: T.textMuted, fontFamily: 'Poppins_500Medium' }}>
-                {statsData?.totalReviews} total
+                {statsData?.totalReviews} {t('total')}
               </Text>
             </View>
             <View style={[s.statCardWide, { marginBottom: 24 }]}>
@@ -672,7 +674,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                       />
                     ))}
                   </View>
-                  <Text style={{ fontSize: 8, color: T.textMuted, marginTop: 2 }}>{statsData?.totalReviews} reviews</Text>
+                  <Text style={{ fontSize: 8, color: T.textMuted, marginTop: 2 }}>{statsData?.totalReviews} {t('reviews')}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   {[5, 4, 3, 2, 1].map(star => {
@@ -697,13 +699,13 @@ export default function SellerStatsScreen({ navigation }: Props) {
         {/* ── Categories Breakdown ─────────────────────────────────────────── */}
         {(statsData?.topCategories?.length ?? 0) > 0 && (
           <>
-            <Text style={[s.sectionTitle, { marginBottom: 12 }]}>Product categories</Text>
+            <Text style={[s.sectionTitle, { marginBottom: 12 }]}>{t('Product categories')}</Text>
             <View style={[s.statCardWide, { marginBottom: 24 }]}>
               {statsData?.topCategories?.map((cat, i) => (
                 <View key={i} style={s.catRow}>
                   <View style={[s.catBullet, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
                   <Text style={s.catName}>{cat.name}</Text>
-                  <Text style={s.catCount}>{cat.count} products</Text>
+                  <Text style={s.catCount}>{cat.count} {t('products')}</Text>
                 </View>
               ))}
             </View>
@@ -711,7 +713,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
         )}
 
         {/* ── Insights ────────────────────────────────────────────────────── */}
-        <Text style={[s.sectionTitle, { marginBottom: 12 }]}>Insights</Text>
+        <Text style={[s.sectionTitle, { marginBottom: 12 }]}>{t('Insights')}</Text>
         <View style={s.insightsList}>
 
           {/* Most reviewed product */}
@@ -720,7 +722,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
               <Feather name="trending-up" size={17} color={T.green} />
             </View>
             <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>Most reviewed product</Text>
+              <Text style={s.insightLabel}>{t('Most reviewed product')}</Text>
               <Text style={s.insightValue}>{loading ? '...' : (statsData?.mostViewedProduct ?? '—')}</Text>
             </View>
           </View>
@@ -731,7 +733,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
               <Feather name="calendar" size={17} color={T.green} />
             </View>
             <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>Peak interaction day</Text>
+              <Text style={s.insightLabel}>{t('Peak interaction day')}</Text>
               <Text style={s.insightValue}>{loading ? '...' : (statsData?.topInteractionDay ?? '—')}</Text>
             </View>
           </View>
@@ -742,9 +744,9 @@ export default function SellerStatsScreen({ navigation }: Props) {
               <Feather name="check-circle" size={17} color={T.green} />
             </View>
             <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>Certified gluten-free products</Text>
+              <Text style={s.insightLabel}>{t('Certified gluten-free products')}</Text>
               <Text style={s.insightValue}>
-                {loading ? '...' : `${statsData?.certifiedGFCount ?? 0} / ${statsData?.productsCount ?? 0} products`}
+                {loading ? '...' : `${statsData?.certifiedGFCount ?? 0} / ${statsData?.productsCount ?? 0} ${t('products')}`}
               </Text>
             </View>
             {!loading && (statsData?.certifiedGFCount ?? 0) > 0 && (
@@ -758,12 +760,12 @@ export default function SellerStatsScreen({ navigation }: Props) {
               <Feather name="clock" size={17} color={T.green} />
             </View>
             <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>Member since</Text>
+              <Text style={s.insightLabel}>{t('Member since')}</Text>
               <Text style={s.insightValue}>
                 {loading ? '...' : statsData?.memberSince ?? '—'}
               </Text>
               {!loading && (statsData?.accountAgeDays ?? 0) > 0 && (
-                <Text style={s.insightLabel}>{statsData?.accountAgeDays} days on Glunity</Text>
+                <Text style={s.insightLabel}>{statsData?.accountAgeDays} {t('days on Glunity')}</Text>
               )}
             </View>
           </View>

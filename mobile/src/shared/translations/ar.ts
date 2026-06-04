@@ -666,6 +666,28 @@ const ar = {
   '125 Rue Casablanca, Tunis': '125 شارع الدار البيضاء، تونس',
   '2.4 km away from store': 'على بُعد 2.4 كم من المتجر',
   'Loading Profile...': 'جاري تحميل الملف الشخصي...',
+
+  // ── Seller Stats Screen ─────────────────────────────────────────────────
+  'Your visibility': 'ظهورك',
+  Views: 'مشاهدات',
+  'Last 7 days': 'آخر 7 أيام',
+  'Last 30 days': 'آخر 30 يوماً',
+  'Map Clicks': 'نقرات الخريطة',
+  'Visits generated': 'زيارات متولدة',
+  'certified GF': 'معتمد خالِ من الغلوتين',
+  'Avg Price': 'متوسط السعر',
+  'Per product': 'لكل منتج',
+  'Views over time': 'المشاهدات عبر الزمن',
+  'Customer reviews': 'تقييمات العملاء',
+  total: 'إجمالياً',
+  reviews: 'تقييم',
+  'Product categories': 'تصنيفات المنتجات',
+  Insights: 'تحليلات',
+  'Most reviewed product': 'أكثر منتج مراجعةً',
+  'Peak interaction day': 'يوم ذروة التفاعل',
+  'Certified gluten-free products': 'منتجات معتمدة خالية من الغلوتين',
+  'Member since': 'عضو منذ',
+  'days on Glunity': 'يوماً على Glunity',
 };
 
 export default ar;
