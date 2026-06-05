@@ -27,6 +27,7 @@ import productsApi, { Product } from '@/modules/seller/api/products.api';
 import type { AppStackParamList } from '@/navigation/types';
 import FastImage from '@/shared/components/FastImage';
 import PaginationBar from '@/shared/components/PaginationBar';
+import { useSearchCache } from '@/shared/hooks/useSearchCache';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CARD_GAP = 12;
@@ -68,7 +69,7 @@ function getSellerName(sellerId: Product['sellerId']): string {
 type Props = NativeStackScreenProps<AppStackParamList, 'ProductsMarket'>;
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
-const ProductCard = React.memo(({ product, onPress, cardWidth, isOwnProducts }: { product: Product; onPress: () => void; cardWidth: number; isOwnProducts?: boolean }) => {
+const ProductCard = React.memo(({ product, onPress, cardWidth, isOwnProducts }: { product: Product; onPress: (product: Product) => void; cardWidth: number; isOwnProducts?: boolean }) => {
   const { theme: T } = useTheme();
   const scaleAnim  = useRef(new Animated.Value(1)).current;
   const imageUri   = useMemo(() => getProductImage(product), [product]);
@@ -93,7 +94,7 @@ const ProductCard = React.memo(({ product, onPress, cardWidth, isOwnProducts }: 
     },
     certBadgeText: { fontSize: 9, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: '#FFFFFF' },
     cardBody: { padding: 10, gap: 2 },
-    productName: { fontSize: 13, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, lineHeight: 18 },
+    productName: { fontSize: 13, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, lineHeight: 18, height: 36 },
     sellerName: { fontSize: 11, color: T.red, fontWeight: '500', fontFamily: 'Poppins_500Medium' },
     price: { fontSize: 13, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.green, marginTop: 2 },
   }), [T, cardWidth]);
@@ -104,7 +105,7 @@ const ProductCard = React.memo(({ product, onPress, cardWidth, isOwnProducts }: 
         activeOpacity={1}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        onPress={onPress}
+        onPress={() => onPress(product)}
         style={s.card}
         id={`product-card-${product._id}`}
       >
@@ -149,6 +150,15 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
   // Search State
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchVal, setSearchVal] = useState('');
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchVal);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchVal]);
+  const { addQuery, removeQuery, getSuggestions } = useSearchCache('@product_search_queries');
+  const suggestions = getSuggestions(searchVal);
   const searchAnim = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<any>(null);
 
@@ -330,6 +340,41 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
       elevation: 8,
       zIndex: 99,
     },
+    suggestionsContainer: {
+      position: 'absolute',
+      top: 48,
+      left: 0,
+      right: 0,
+      backgroundColor: T.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: T.border,
+      zIndex: 100,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      elevation: 5,
+      paddingVertical: 6,
+    },
+    suggestionRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    suggestionLeft: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+    },
+    suggestionText: {
+      fontSize: 13,
+      color: T.text,
+      fontFamily: 'Poppins_500Medium',
+    },
   }), [T, isRTL, insets.bottom]);
 
   // All products fetched once from the API
@@ -342,14 +387,15 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  // Debounced search setup
-  const [searchVal, setSearchVal] = useState('');
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setSearchQuery(searchVal);
-    }, 400);
-    return () => clearTimeout(handler);
-  }, [searchVal]);
+  const handleProductPress = useCallback((item: Product) => {
+    if (isOwnProducts) {
+      navigation.navigate('AddProduct', { product: item });
+    } else {
+      navigation.navigate('ProductDetail', { product: item });
+    }
+  }, [isOwnProducts, navigation]);
+
+
 
   const fetchProducts = useCallback(async (pageNum: number, isRefresh = false) => {
     if (pageNum === 1) {
@@ -440,25 +486,50 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
           : t('Gluten free products')}
       </Text>
       
-      <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
-        <View style={s.searchInner}>
-          <Feather name="search" size={16} color={T.textMuted} />
-          <TextInput
-            ref={inputRef}
-            value={searchVal}
-            onChangeText={setSearchVal}
-            placeholder={t('Search products...')}
-            placeholderTextColor={T.textMuted}
-            underlineColorAndroid="transparent"
-            style={s.searchInput}
-          />
-          {!!searchVal && (
-            <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchVal("")}>
-              <Ionicons name="close-circle" size={16} color={T.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
-      </Animated.View>
+      <View style={{ position: 'relative', zIndex: 100 }}>
+        <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
+          <View style={s.searchInner}>
+            <Feather name="search" size={16} color={T.textMuted} />
+            <TextInput
+              ref={inputRef}
+              value={searchVal}
+              onChangeText={setSearchVal}
+              onSubmitEditing={() => addQuery(searchVal)}
+              placeholder={t('Search products...')}
+              placeholderTextColor={T.textMuted}
+              underlineColorAndroid="transparent"
+              style={s.searchInput}
+            />
+            {!!searchVal && (
+              <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchVal("")}>
+                <Ionicons name="close-circle" size={16} color={T.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
+
+        {searchOpen && suggestions.length > 0 && (
+          <View style={s.suggestionsContainer}>
+            {suggestions.map((item, idx) => (
+              <View key={item + idx} style={s.suggestionRow}>
+                <TouchableOpacity
+                  style={s.suggestionLeft}
+                  onPress={() => {
+                    setSearchVal(item);
+                    addQuery(item);
+                  }}
+                >
+                  <Feather name="clock" size={14} color={T.textMuted} />
+                  <Text style={s.suggestionText}>{item}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => removeQuery(item)}>
+                  <Feather name="x" size={14} color={T.textMuted} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
 
       <View style={s.filterRow}>
         {FILTERS.map(f => (
@@ -476,7 +547,7 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
         ))}
       </View>
     </>
-  ), [activeFilter, searchHeight, searchOpacity, searchVal, T, s, t, isFilteredBySeller]);
+  ), [activeFilter, searchHeight, searchOpacity, searchVal, T, s, t, isFilteredBySeller, searchOpen, suggestions, addQuery, removeQuery]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -528,13 +599,7 @@ export default function ProductsMarketScreen({ navigation, route }: Props) {
               product={item}
               cardWidth={cardWidth}
               isOwnProducts={isOwnProducts}
-              onPress={() => {
-                if (isOwnProducts) {
-                  navigation.navigate('AddProduct', { product: item });
-                } else {
-                  navigation.navigate('ProductDetail', { product: item });
-                }
-              }}
+              onPress={handleProductPress}
             />
           )}
         />

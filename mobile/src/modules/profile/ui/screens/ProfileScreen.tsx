@@ -955,7 +955,11 @@ export default function ProfileScreen({ navigation }: Props) {
 
           <View style={s.menuDivider} />
 
-          <TouchableOpacity style={s.menuRowCard} id="profile-privacy-btn">
+          <TouchableOpacity
+            style={s.menuRowCard}
+            onPress={() => navigation.navigate('Privacy')}
+            id="profile-privacy-btn"
+          >
             <View style={s.menuLeft}>
               <View style={s.menuIconCircle}>
                 <Feather name="shield" size={18} color={T.red} />

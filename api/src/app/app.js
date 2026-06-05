@@ -57,7 +57,7 @@ app.use('/api/events', eventsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/badges', badgesRoutes);
 app.use('/api/reviews', reviewsRoutes);
-app.use('/api/channels', channelsRoutes);
+app.use('/api/channels',          channelsRoutes);
 app.use('/api/patient-resources', patientResourcesRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────

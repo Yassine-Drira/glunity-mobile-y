@@ -8,22 +8,26 @@
 require('./bootstrap/env.bootstrap');
 
 // ── 2. Config & bootstrap ──────────────────────────────────────────────────────
-const env = require('./config/env');
-const connectDB = require('./bootstrap/db.bootstrap');
-const logger = require('./bootstrap/logger.bootstrap');
-const app = require('./app');
-
+const env            = require('./config/env');
+const connectDB      = require('./bootstrap/db.bootstrap');
+const logger         = require('./bootstrap/logger.bootstrap');
+const app            = require('./app');
+const http           = require('http');
 // ── 3. Boot sequence ───────────────────────────────────────────────────────────
 async function boot() {
   await connectDB();
 
-  const server = app.listen(env.port, () => {
+  // Create HTTP server
+  const server = http.createServer(app);
+
+  server.listen(env.port, () => {
     logger.info(`🚀 GlUnity API running`, {
       port: env.port,
       env: env.node,
       url: `http://localhost:${env.port}`,
     });
   });
+
 
   // Start background jobs
   try {
@@ -44,11 +48,13 @@ async function boot() {
     server.close(async () => {
       try {
         const mongoose = require('mongoose');
-        await mongoose.connection.close();
+        await Promise.allSettled([
+          mongoose.connection.close(),
+        ]);
         logger.info('MongoDB connection closed.');
         process.exit(0);
       } catch (err) {
-        logger.error('Error closing MongoDB connection', { err: err.message });
+        logger.error('Error during shutdown', { err: err.message });
         process.exit(1);
       }
     });

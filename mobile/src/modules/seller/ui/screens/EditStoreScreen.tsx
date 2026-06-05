@@ -257,7 +257,7 @@ export default function EditStoreScreen({ navigation, route }: Props) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images,
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.7,
@@ -284,13 +284,13 @@ export default function EditStoreScreen({ navigation, route }: Props) {
   const openSuccess = () => {
     setShowSuccess(true);
     Animated.parallel([
-      Animated.spring(successScale, { toValue: 1, friction: 5, useNativeDriver: true }),
-      Animated.timing(successOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.spring(successScale, { toValue: 1, friction: 5, useNativeDriver: Platform.OS !== 'web' }),
+      Animated.timing(successOpacity, { toValue: 1, duration: 200, useNativeDriver: Platform.OS !== 'web' }),
     ]).start();
     setTimeout(() => {
       Animated.parallel([
-        Animated.timing(successScale, { toValue: 0.8, duration: 180, useNativeDriver: true }),
-        Animated.timing(successOpacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+        Animated.timing(successScale, { toValue: 0.8, duration: 180, useNativeDriver: Platform.OS !== 'web' }),
+        Animated.timing(successOpacity, { toValue: 0, duration: 180, useNativeDriver: Platform.OS !== 'web' }),
       ]).start(() => {
         setShowSuccess(false);
         navigation.goBack();

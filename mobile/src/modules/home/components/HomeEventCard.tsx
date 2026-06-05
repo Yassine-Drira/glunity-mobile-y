@@ -10,7 +10,7 @@ type Props = {
   onPress?: () => void;
 };
 
-export default function HomeEventCard({ event, onPress }: Props) {
+const HomeEventCard = React.memo(({ event, onPress }: Props) => {
   const { theme: T } = useTheme();
 
   function formatEventDate(iso?: string | null) {
@@ -48,7 +48,7 @@ export default function HomeEventCard({ event, onPress }: Props) {
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -101,3 +101,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 });
+
+export default HomeEventCard;

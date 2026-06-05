@@ -29,6 +29,11 @@ import patientResourcesApi, {
   ResourceCategory,
 } from '../../api/patient-resources.api';
 import FastImage from '@/shared/components/FastImage';
+import {
+  FeaturedArticleSkeleton,
+  ArticleCardSkeleton,
+  VideoCardSkeleton,
+} from '@/shared/components/SkeletonLoader';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PatientResources'>;
 
@@ -837,13 +842,6 @@ export default function PatientResourcesScreen({ navigation }: Props) {
   }, [s, T, t]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <View style={[s.page, s.centered]}>
-        <ActivityIndicator size="large" color={T.green} />
-      </View>
-    );
-  }
 
   return (
     <AppScaffold
@@ -865,37 +863,50 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           </View>
 
           <View style={s.categoriesRow}>
-            {CATEGORIES.map((cat) => {
-              const isActive = activeCategory === cat.key;
-              return (
-                <TouchableOpacity
-                  key={cat.key}
-                  style={[s.categoryCard, isActive && s.categoryCardActive]}
-                  activeOpacity={0.75}
-                  onPress={() => setActiveCategory(isActive ? null : cat.key)}
-                >
-                  <View
-                    style={[
-                      s.categoryIconBox,
-                      { backgroundColor: isActive ? cat.activeBg : cat.bg },
-                    ]}
+            {loading ? (
+              [1, 2, 3, 4].map((i) => (
+                <View key={i} style={[s.categoryCard, { opacity: 0.6, flex: 1, backgroundColor: T.surface }]} />
+              ))
+            ) : (
+              CATEGORIES.map((cat) => {
+                const isActive = activeCategory === cat.key;
+                return (
+                  <TouchableOpacity
+                    key={cat.key}
+                    style={[s.categoryCard, isActive && s.categoryCardActive]}
+                    activeOpacity={0.75}
+                    onPress={() => setActiveCategory(isActive ? null : cat.key)}
                   >
-                    {cat.iconLib === 'ion' ? (
-                      <Ionicons name={cat.icon as any} size={22} color={cat.color} />
-                    ) : (
-                      <MaterialCommunityIcons name={cat.icon as any} size={22} color={cat.color} />
-                    )}
-                  </View>
-                  <Text style={[s.categoryLabel, isActive && { color: cat.color, fontFamily: F.bold, fontWeight: '700' }]}>
-                    {t(cat.label)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                    <View
+                      style={[
+                        s.categoryIconBox,
+                        { backgroundColor: isActive ? cat.activeBg : cat.bg },
+                      ]}
+                    >
+                      {cat.iconLib === 'ion' ? (
+                        <Ionicons name={cat.icon as any} size={22} color={cat.color} />
+                      ) : (
+                        <MaterialCommunityIcons name={cat.icon as any} size={22} color={cat.color} />
+                      )}
+                    </View>
+                    <Text style={[s.categoryLabel, isActive && { color: cat.color, fontFamily: F.bold, fontWeight: '700' }]}>
+                      {t(cat.label)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
 
           {/* ── Featured ───────────────────────────────────────── */}
-          {featured && !activeCategory && (
+          {loading ? (
+            <>
+              <View style={s.sectionRow}>
+                <Text style={s.sectionLabel}>{t('Featured')}</Text>
+              </View>
+              <FeaturedArticleSkeleton />
+            </>
+          ) : featured && !activeCategory ? (
             <>
               <View style={s.sectionRow}>
                 <Text style={s.sectionLabel}>{t('Featured')}</Text>
@@ -955,14 +966,20 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                 </View>
               </TouchableOpacity>
             </>
-          )}
+          ) : null}
 
           {/* ── All Resources ──────────────────────────────────── */}
           <View style={s.sectionRow}>
             <Text style={s.sectionLabel}>{t('All ressources')}</Text>
           </View>
 
-          {displayedArticles.length === 0 ? (
+          {loading ? (
+            <>
+              <ArticleCardSkeleton />
+              <ArticleCardSkeleton />
+              <ArticleCardSkeleton />
+            </>
+          ) : displayedArticles.length === 0 ? (
             <View style={s.centered}>
               <Feather name="file-text" size={40} color={T.textMuted} />
               <Text style={s.emptyText}>{t('No resources found')}</Text>
@@ -1013,7 +1030,18 @@ export default function PatientResourcesScreen({ navigation }: Props) {
           )}
 
           {/* ── Videos & Sessions ─────────────────────────────── */}
-          {videos.length > 0 && (
+          {loading ? (
+            <>
+              <View style={s.sectionRow}>
+                <Text style={s.sectionLabel}>{t('Videos & Sessions')}</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingLeft: 20 }}>
+                <VideoCardSkeleton />
+                <VideoCardSkeleton />
+                <VideoCardSkeleton />
+              </ScrollView>
+            </>
+          ) : videos.length > 0 ? (
             <>
               <View style={s.sectionRow}>
                 <Text style={s.sectionLabel}>{t('Videos & Sessions')}</Text>
@@ -1053,7 +1081,7 @@ export default function PatientResourcesScreen({ navigation }: Props) {
                 ))}
               </View>
             </>
-          )}
+          ) : null}
 
           {/* ── Medical Disclaimer ─────────────────────────────── */}
           <View style={s.disclaimer}>

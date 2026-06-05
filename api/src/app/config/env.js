@@ -61,6 +61,30 @@ const env = {
     pass: process.env.SMTP_PASS || '',
     from: process.env.MAIL_FROM || 'GlUnity <no-reply@glunity.app>',
   },
+
+  // ── Redis ────────────────────────────────────────────────────────────────────
+  redis: {
+    url: process.env.REDIS_URL || 'redis://localhost:6379',
+  },
+
+  // ── Socket.IO ────────────────────────────────────────────────────────────────
+  socket: {
+    corsOrigins: (process.env.SOCKET_CORS_ORIGINS || 'http://localhost:8081,http://localhost:3000')
+      .split(',')
+      .map((o) => o.trim()),
+  },
+
+  // ── Real-time Presence ───────────────────────────────────────────────────────
+  presence: {
+    heartbeatInterval: Number(process.env.PRESENCE_HEARTBEAT_INTERVAL) || 30000,
+    timeout:           Number(process.env.PRESENCE_TIMEOUT) || 90000,
+  },
+
+  // ── Media Upload ─────────────────────────────────────────────────────────────
+  media: {
+    maxImageSize: Number(process.env.MAX_IMAGE_SIZE) || 10 * 1024 * 1024,  // 10 MB
+    maxVideoSize: Number(process.env.MAX_VIDEO_SIZE) || 50 * 1024 * 1024,  // 50 MB
+  },
 };
 
 module.exports = env;

@@ -27,6 +27,8 @@ import { useLanguage } from "@/shared/context/language.context";
 import { ScanFrameIcon } from "@/shared/components/icons/ScanFrameIcon";
 import { eventsApi } from '../../api/events.api';
 import { useNavigation } from '@react-navigation/native';
+import { useSearchCache } from "@/shared/hooks/useSearchCache";
+import * as Haptics from 'expo-haptics';
 
 const ICON_RED = "#C8102E";
 const optimizeUnsplashImage = (url: string, width: number, height: number) => {
@@ -38,6 +40,17 @@ const optimizeUnsplashImage = (url: string, width: number, height: number) => {
   const separator = hasQuery ? "&" : "?";
   return `${url}${separator}auto=format&fit=crop&q=75&w=${width}&h=${height}`;
 };
+
+const HomeRecipeCard = React.memo(({ item, T, styles }: { item: any; T: any; styles: any }) => {
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={item.onPress} style={[styles.recipeCard, { backgroundColor: T.surface }]}>
+      <FastImage source={{ uri: item.imageUrl }} resizeMode={FastImage.resizeMode.cover} style={styles.recipeImage} />
+      <Text style={[styles.recipeName, { color: T.text }]} numberOfLines={2}>
+        {item.title}
+      </Text>
+    </TouchableOpacity>
+  );
+});
 
 export function HomeScreen({
   user,
@@ -368,10 +381,47 @@ export function HomeScreen({
       color: T.textSub,
       textAlign: isRTL ? "right" : "left",
     },
+    suggestionsContainer: {
+      position: 'absolute',
+      top: 48,
+      left: 0,
+      right: 0,
+      backgroundColor: T.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: T.border,
+      zIndex: 100,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      elevation: 5,
+      paddingVertical: 6,
+    },
+    suggestionRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    suggestionLeft: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+    },
+    suggestionText: {
+      fontSize: 13,
+      color: T.text,
+      fontFamily: 'Poppins_500Medium',
+    },
   }), [T, isRTL]);
   const navigation = useNavigation<any>();
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const { addQuery, removeQuery, getSuggestions } = useSearchCache('@home_search_queries');
+  const suggestions = getSuggestions(query);
   const searchAnim = React.useRef(new Animated.Value(0)).current;
   const qrFloat = React.useRef(new Animated.Value(0)).current;
   const inputRef = React.useRef<TextInput>(null);
@@ -520,25 +570,50 @@ export function HomeScreen({
           keyboardShouldPersistTaps="handled"
         >
 
-        <Animated.View style={[styles.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
-          <View style={[styles.searchInner, { backgroundColor: T.surface, borderColor: T.border }]}>
-            <Feather name="search" size={16} color={T.textMuted} />
-            <TextInput
-              ref={inputRef}
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t('Search products, recipes, events')}
-              placeholderTextColor={T.textMuted}
-              underlineColorAndroid="transparent"
-              style={[styles.searchInput, { color: T.text }]}
-            />
-            {!!query && (
-              <TouchableOpacity activeOpacity={0.8} onPress={() => setQuery("")}>
-                <Ionicons name="close-circle" size={16} color={T.textMuted} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </Animated.View>
+        <View style={{ position: 'relative', zIndex: 100 }}>
+          <Animated.View style={[styles.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
+            <View style={[styles.searchInner, { backgroundColor: T.surface, borderColor: T.border }]}>
+              <Feather name="search" size={16} color={T.textMuted} />
+              <TextInput
+                ref={inputRef}
+                value={query}
+                onChangeText={setQuery}
+                onSubmitEditing={() => addQuery(query)}
+                placeholder={t('Search products, recipes, events')}
+                placeholderTextColor={T.textMuted}
+                underlineColorAndroid="transparent"
+                style={[styles.searchInput, { color: T.text }]}
+              />
+              {!!query && (
+                <TouchableOpacity activeOpacity={0.8} onPress={() => setQuery("")}>
+                  <Ionicons name="close-circle" size={16} color={T.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Animated.View>
+
+          {searchOpen && suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.map((item, idx) => (
+                <View key={item + idx} style={styles.suggestionRow}>
+                  <TouchableOpacity
+                    style={styles.suggestionLeft}
+                    onPress={() => {
+                      setQuery(item);
+                      addQuery(item);
+                    }}
+                  >
+                    <Feather name="clock" size={14} color={T.textMuted} />
+                    <Text style={styles.suggestionText}>{item}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeQuery(item)}>
+                    <Feather name="x" size={14} color={T.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
 
         <View style={styles.heroCard}>
           <Animated.View
@@ -557,7 +632,16 @@ export function HomeScreen({
             </View>
           </Animated.View>
           <Text style={styles.heroSubtitle}>{t(homeScreenText.qrSubtitle)}</Text>
-          <TouchableOpacity activeOpacity={0.85} onPress={onPressScan} style={styles.scanCta}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => {
+              try {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              } catch (e) {}
+              if (onPressScan) onPressScan();
+            }}
+            style={styles.scanCta}
+          >
             <Text style={styles.scanCtaText}>{t('Tap to Scan')}</Text>
           </TouchableOpacity>
         </View>
@@ -599,13 +683,12 @@ export function HomeScreen({
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.recipesList}
           showsHorizontalScrollIndicator={false}
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS !== 'web'}
           renderItem={({ item }) => (
-            <TouchableOpacity activeOpacity={0.85} onPress={item.onPress} style={[styles.recipeCard, { backgroundColor: T.surface }]}>
-              <FastImage source={{ uri: item.imageUrl }} resizeMode={FastImage.resizeMode.cover} style={styles.recipeImage} />
-              <Text style={[styles.recipeName, { color: T.text }]} numberOfLines={2}>
-                {item.title}
-              </Text>
-            </TouchableOpacity>
+            <HomeRecipeCard item={item} T={T} styles={styles} />
           )}
         />
 
@@ -622,6 +705,10 @@ export function HomeScreen({
           keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.eventsList}
+          initialNumToRender={2}
+          maxToRenderPerBatch={2}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS !== 'web'}
           renderItem={({ item }) => (
             <View style={[styles.eventCard, { marginRight: 12 }]}> 
               <HomeEventCard event={item} onPress={item.onPress} />

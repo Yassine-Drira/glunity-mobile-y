@@ -182,7 +182,6 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     heroImage: {
       width: '100%',
       height: '100%',
-      resizeMode: 'cover',
     },
 
     // Title section
@@ -758,6 +757,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           <Image
             source={{ uri: currentSeller?.storeInfo?.imageUrl || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=600' }}
             style={s.heroImage}
+            resizeMode="cover"
           />
         </View>
 

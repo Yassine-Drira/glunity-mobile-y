@@ -19,6 +19,7 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
+import { Feather, MaterialCommunityIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
 
 
 // Deep-link / URL mapping
@@ -43,16 +44,16 @@ const linking = {
 };
 
 export default function App() {
-  const [fontsLoaded] = useFonts(
-    Platform.OS === 'web'
-      ? {}
-      : {
-          Poppins_400Regular,
-          Poppins_500Medium,
-          Poppins_600SemiBold,
-          Poppins_700Bold,
-        }
-  );
+  const [fontsLoaded] = useFonts({
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
+    ...Feather.font,
+    ...MaterialCommunityIcons.font,
+    ...Ionicons.font,
+    ...FontAwesome.font,
+  });
 
   /**
    * Apply Poppins as the default font family for all Text and TextInput

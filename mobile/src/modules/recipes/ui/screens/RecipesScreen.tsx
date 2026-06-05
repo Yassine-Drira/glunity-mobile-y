@@ -11,6 +11,7 @@ import {
   Easing,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import FastImage from '@/shared/components/FastImageWrapper';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 import recipesApi, { Recipe, RecipeCategory } from '../../api/recipes.api';
 import PaginationBar from '@/shared/components/PaginationBar';
+import { useSearchCache } from '@/shared/hooks/useSearchCache';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Recipes'>;
 
@@ -50,6 +52,47 @@ function getRecipeImage(recipe: Recipe): string {
   return 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?w=400';
 }
 
+const RecipeCard = React.memo(({ item, onPress, isRTL, T }: { item: Recipe; onPress: (item: Recipe) => void; isRTL: boolean; T: any }) => {
+  return (
+    <TouchableOpacity
+      style={{
+        width: 172,
+        backgroundColor: T.surface,
+        borderRadius: 24,
+        padding: 12,
+        shadowColor: 'rgba(0,0,0,0.06)',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 4,
+        alignItems: isRTL ? 'flex-end' : 'flex-start',
+      }}
+      activeOpacity={0.9}
+      onPress={() => onPress(item)}
+    >
+      <View style={{
+        width: 148,
+        height: 148,
+        borderRadius: 74,
+        overflow: 'hidden',
+        alignSelf: 'center',
+        backgroundColor: T.surfaceAlt,
+        marginBottom: 12,
+        shadowColor: '#000000',
+        shadowOpacity: 0.08,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 6,
+      }}>
+        <FastImage source={{ uri: getRecipeImage(item) }} resizeMode={FastImage.resizeMode.cover} style={{ width: '100%', height: '100%' }} />
+      </View>
+      <View style={{ paddingHorizontal: 4, alignItems: isRTL ? 'flex-end' : 'flex-start', width: '100%' }}>
+        <Text style={{ color: T.text, fontSize: 15, fontWeight: '700', fontFamily: 'Poppins_700Bold', marginBottom: 4, textAlign: isRTL ? 'right' : 'left', width: '100%' }} numberOfLines={1}>{item.title}</Text>
+        <Text style={{ color: T.textSub, fontSize: 11, lineHeight: 16, fontFamily: 'Poppins_400Regular', textAlign: isRTL ? 'right' : 'left', width: '100%' }} numberOfLines={2}>{item.description}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function RecipesScreen({ navigation }: Props) {
   const { user } = useAuth();
   const { theme: T } = useTheme();
@@ -58,6 +101,15 @@ export default function RecipesScreen({ navigation }: Props) {
   // Search State
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchVal, setSearchVal] = useState('');
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearchQuery(searchVal);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchVal]);
+  const { addQuery, removeQuery, getSuggestions } = useSearchCache('@recipe_search_queries');
+  const suggestions = getSuggestions(searchVal);
   const searchAnim = useRef(new Animated.Value(0)).current;
   const inputRef = useRef<any>(null);
 
@@ -355,6 +407,41 @@ export default function RecipesScreen({ navigation }: Props) {
       textAlign: isRTL ? 'right' : 'left',
       width: '100%',
     },
+    suggestionsContainer: {
+      position: 'absolute',
+      top: 48,
+      left: 22,
+      right: 22,
+      backgroundColor: T.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: T.border,
+      zIndex: 100,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.1,
+      shadowRadius: 6,
+      elevation: 5,
+      paddingVertical: 6,
+    },
+    suggestionRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    suggestionLeft: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+    },
+    suggestionText: {
+      fontSize: 13,
+      color: T.text,
+      fontFamily: 'Poppins_500Medium',
+    },
   }), [T, isRTL]);
 
   const [activeCategory, setActiveCategory] = useState<RecipeCategory>('tunisian');
@@ -366,14 +453,11 @@ export default function RecipesScreen({ navigation }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Debounced search setup
-  const [searchVal, setSearchVal] = useState('');
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setSearchQuery(searchVal);
-    }, 400);
-    return () => clearTimeout(handler);
-  }, [searchVal]);
+  const handleRecipePress = useCallback((item: Recipe) => {
+    navigation.navigate('RecipeDetail', { recipeId: item._id, initialRecipe: item });
+  }, [navigation]);
+
+
 
   const fetchRecipes = useCallback(async (pageNum: number, isRefresh = false) => {
     if (pageNum === 1) {
@@ -446,25 +530,50 @@ export default function RecipesScreen({ navigation }: Props) {
           <Text style={[s.heroSub, { color: T.red }]}>Healthy and nutritious food recipes</Text>
 
           {/* Search Bar */}
-          <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
-            <View style={s.searchInner}>
-              <Feather name="search" size={16} color={T.textMuted} />
-              <TextInput
-                ref={inputRef}
-                value={searchVal}
-                onChangeText={setSearchVal}
-                placeholder="Search recipes..."
-                placeholderTextColor={T.textMuted}
-                underlineColorAndroid="transparent"
-                style={s.searchInput}
-              />
-              {!!searchVal && (
-                <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchVal("")}>
-                  <Ionicons name="close-circle" size={16} color={T.textMuted} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </Animated.View>
+          <View style={{ position: 'relative', zIndex: 100 }}>
+            <Animated.View style={[s.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
+              <View style={s.searchInner}>
+                <Feather name="search" size={16} color={T.textMuted} />
+                <TextInput
+                  ref={inputRef}
+                  value={searchVal}
+                  onChangeText={setSearchVal}
+                  onSubmitEditing={() => addQuery(searchVal)}
+                  placeholder="Search recipes..."
+                  placeholderTextColor={T.textMuted}
+                  underlineColorAndroid="transparent"
+                  style={s.searchInput}
+                />
+                {!!searchVal && (
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => setSearchVal("")}>
+                    <Ionicons name="close-circle" size={16} color={T.textMuted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Animated.View>
+
+            {searchOpen && suggestions.length > 0 && (
+              <View style={s.suggestionsContainer}>
+                {suggestions.map((item, idx) => (
+                  <View key={item + idx} style={s.suggestionRow}>
+                    <TouchableOpacity
+                      style={s.suggestionLeft}
+                      onPress={() => {
+                        setSearchVal(item);
+                        addQuery(item);
+                      }}
+                    >
+                      <Feather name="clock" size={14} color={T.textMuted} />
+                      <Text style={s.suggestionText}>{item}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => removeQuery(item)}>
+                      <Feather name="x" size={14} color={T.textMuted} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
 
           {/* Filter Tabs */}
           <View style={s.filters}>
@@ -500,6 +609,10 @@ export default function RecipesScreen({ navigation }: Props) {
             keyExtractor={(item) => item._id}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={s.cardsRow}
+            initialNumToRender={4}
+            maxToRenderPerBatch={4}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS !== 'web'}
             ListFooterComponent={
               loadingMore ? (
                 <View style={{ justifyContent: 'center', alignItems: 'center', paddingHorizontal: 16 }}>
@@ -508,19 +621,7 @@ export default function RecipesScreen({ navigation }: Props) {
               ) : null
             }
             renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[s.recipeCard, { backgroundColor: T.surface }]}
-                activeOpacity={0.9}
-                onPress={() => navigation.navigate('RecipeDetail', { recipeId: item._id, initialRecipe: item })}
-              >
-                <View style={s.recipeImageContainer}>
-                  <FastImage source={{ uri: getRecipeImage(item) }} resizeMode={FastImage.resizeMode.cover} style={s.recipeImage} />
-                </View>
-                <View style={s.recipeBody}>
-                  <Text style={[s.recipeName, { color: T.text }]} numberOfLines={1}>{item.title}</Text>
-                  <Text style={[s.recipeDesc, { color: T.textSub }]} numberOfLines={2}>{item.description}</Text>
-                </View>
-              </TouchableOpacity>
+              <RecipeCard item={item} onPress={handleRecipePress} isRTL={isRTL} T={T} />
             )}
           />
 

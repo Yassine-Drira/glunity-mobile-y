@@ -12,6 +12,7 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '@/shared/context/language.context';
 import PaginationBar from '@/shared/components/PaginationBar';
+import { EventCardSkeleton } from '@/shared/components/SkeletonLoader';
 
 const FILTER_KEYS = [
   { key: 'All',       label: 'All',       icon: 'apps-outline'          as const },
@@ -329,7 +330,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
         {/* FlatList header will render filter and will be sticky */}
 
         <FlatList
-          data={filtered}
+          data={isLoading ? ([{ id: 'sk-1' }, { id: 'sk-2' }, { id: 'sk-3' }] as any) : filtered}
           keyExtractor={(it) => it.id}
           ListHeaderComponent={ListHeader}
           stickyHeaderIndices={[0]}
@@ -343,15 +344,15 @@ export default function EventsCalendarScreen({ navigation }: any) {
           }
           ListEmptyComponent={() => (
             <View style={{ padding: 24, alignItems: 'center' }}>
-              {isLoading ? (
-                <ActivityIndicator size="small" color={T.green} />
-              ) : (
-                <Text style={{ color: T.textSub, fontSize: 15 }}>{t('No events to display.')}</Text>
-              )}
+              <Text style={{ color: T.textSub, fontSize: 15 }}>{t('No events to display.')}</Text>
             </View>
           )}
           style={{ flex: 1 }}
-          renderItem={({ item }) => (
+          renderItem={({ item }) => {
+            if (isLoading) {
+              return <EventCardSkeleton />;
+            }
+            return (
               <EventCard
                 event={item}
                 onPress={async () => {
@@ -364,7 +365,8 @@ export default function EventsCalendarScreen({ navigation }: any) {
                   navigation.navigate('EventDetail', { eventId: item.id });
                 }}
               />
-          )}
+            );
+          }}
           contentContainerStyle={styles.list}
           initialNumToRender={6}
           maxToRenderPerBatch={8}
@@ -372,17 +374,19 @@ export default function EventsCalendarScreen({ navigation }: any) {
           updateCellsBatchingPeriod={50}
           removeClippedSubviews
           ListFooterComponent={() => (
-            <View style={{ paddingBottom: 116 + insets.bottom }}>
-              <PaginationBar
-                page={page}
-                totalPages={totalPages}
-                loading={loadingMore}
-                onPageChange={(p) => {
-                  setPage(p);
-                  fetchEvents(p);
-                }}
-              />
-            </View>
+            isLoading ? null : (
+              <View style={{ paddingBottom: 116 + insets.bottom }}>
+                <PaginationBar
+                  page={page}
+                  totalPages={totalPages}
+                  loading={loadingMore}
+                  onPageChange={(p) => {
+                    setPage(p);
+                    fetchEvents(p);
+                  }}
+                />
+              </View>
+            )
           )}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />

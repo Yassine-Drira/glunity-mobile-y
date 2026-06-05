@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '../context/theme.context';
 import { ScanFrameIcon } from './icons/ScanFrameIcon';
 
@@ -102,6 +103,26 @@ export function BottomNavBar({
     },
   }), [C, insets]);
 
+  const handleTabPress = (callback?: () => void) => {
+    if (!callback) return;
+    try {
+      Haptics.selectionAsync();
+    } catch (e) {
+      // Ignore fallback
+    }
+    callback();
+  };
+
+  const handleCenterPress = () => {
+    if (!onPressCenter) return;
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {
+      // Ignore fallback
+    }
+    onPressCenter();
+  };
+
   const getLabelStyle = (tab: TabKey) => [styles.navLabel, activeTab === tab ? styles.navLabelActive : null];
   const getIconColor = (tab: TabKey) => (activeTab === tab ? C.green : C.textMuted);
   const getIconFrameStyle = (tab: TabKey) => [styles.iconFrame, activeTab === tab ? styles.iconFrameActive : null];
@@ -110,8 +131,6 @@ export function BottomNavBar({
     <View
       style={styles.container}
       pointerEvents="box-none"
-      // Prevents this fixed bar from being announced as hidden when a
-      // React Navigation screen overlay sets aria-hidden on its parent.
       importantForAccessibility="yes"
       accessibilityRole="tablist"
     >
@@ -119,7 +138,7 @@ export function BottomNavBar({
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
-          onPress={onPressHome}
+          onPress={() => handleTabPress(onPressHome)}
           id={`${idPrefix}-home`}
           accessibilityRole="tab"
           accessibilityLabel={t('Home')}
@@ -134,7 +153,7 @@ export function BottomNavBar({
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
-          onPress={onPressEvents}
+          onPress={() => handleTabPress(onPressEvents)}
           id={`${idPrefix}-events`}
           accessibilityRole="tab"
           accessibilityLabel={t('Events')}
@@ -151,7 +170,7 @@ export function BottomNavBar({
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
-          onPress={onPressReels}
+          onPress={() => handleTabPress(onPressReels)}
           id={`${idPrefix}-reels`}
           accessibilityRole="tab"
           accessibilityLabel={t('Reels')}
@@ -166,7 +185,7 @@ export function BottomNavBar({
         <TouchableOpacity
           style={styles.navItem}
           activeOpacity={0.8}
-          onPress={onPressProfile}
+          onPress={() => handleTabPress(onPressProfile)}
           id={`${idPrefix}-profile`}
           accessibilityRole="tab"
           accessibilityLabel={t('Profile')}
@@ -182,7 +201,7 @@ export function BottomNavBar({
       <TouchableOpacity
         style={styles.fabButton}
         activeOpacity={0.85}
-        onPress={onPressCenter}
+        onPress={handleCenterPress}
         id={`${idPrefix}-fab`}
         accessibilityRole="button"
         accessibilityLabel={t('Scan for gluten')}

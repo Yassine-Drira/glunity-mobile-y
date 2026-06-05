@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "nodemon src/app/server.js",
     "start": "node src/app/server.js",
-    "seed:recipes":   "node scripts/seed-recipes.js",
+    "seed:recipes": "node scripts/seed-recipes.js",
     "seed:locations": "node scripts/seed-locations.js",
     "seed:scale": "node scripts/scale-flood-seed.js",
     "seed:5": "node scripts/insert-5-locations.js",
@@ -15,6 +15,7 @@
     "test": "echo \"api test placeholder\""
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.9.0",
     "cookie-parser": "^1.4.7",
@@ -24,10 +25,12 @@
     "express-rate-limit": "^7.5.0",
     "express-validator": "^7.3.1",
     "helmet": "^8.0.0",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.5",
     "multer": "^2.0.2",
-    "nodemailer": "^8.0.4"
+    "nodemailer": "^8.0.4",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

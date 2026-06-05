@@ -533,7 +533,11 @@ export default function SellerProProfileScreen({ navigation }: Props) {
             <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={17} color={T.textMuted} />
           </TouchableOpacity>
           <View style={s.menuDivider} />
-          <TouchableOpacity style={s.menuRow} id="pro-profile-privacy-btn">
+          <TouchableOpacity
+            style={s.menuRow}
+            onPress={() => navigation.navigate('Privacy')}
+            id="pro-profile-privacy-btn"
+          >
             <View style={s.menuLeft}>
               <View style={s.menuIconCircle}><Feather name="shield" size={17} color={T.red} /></View>
               <Text style={s.menuLabel}>{t('Privacy & Security')}</Text>

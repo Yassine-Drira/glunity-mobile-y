@@ -1,0 +1,158 @@
+'use strict';
+
+const Channel  = require('../../database/models/channel.model');
+const Message  = require('../../database/models/message.model');
+const emitter  = require('../emitters/channel.emitter');
+const logger   = require('../../bootstrap/logger.bootstrap');
+
+const TYPING_COOLDOWN_MS = 2000;
+const lastTypingEvents   = new Map();
+
+function messageHandler(io, socket) {
+  const user   = socket.data.user;
+  const userId = user._id.toString();
+
+  // Guard: checks if the sender is actually in the target channel
+  async function checkMembership(channelId) {
+    const channel = await Channel.findById(channelId).lean();
+    if (!channel) {
+      const err = new Error('Channel not found');
+      err.status = 404;
+      throw err;
+    }
+
+    const isPublic = !channel.isPrivate;
+    if (!isPublic) {
+      const hasAccess = channel.participants && channel.participants.some(p => {
+        if (!p) return false;
+        const pId = p.userId ? p.userId.toString() : p.toString();
+        return pId === userId;
+      });
+      if (!hasAccess) {
+        const err = new Error('Forbidden: Not a participant of this channel');
+        err.status = 403;
+        throw err;
+      }
+    }
+  }
+
+  // Send message
+  socket.on('message:send', async ({ channelId, content, type, attachments, reelRef, replyTo }, callback) => {
+    try {
+      await checkMembership(channelId);
+
+      const msg = new Message({
+        channelId,
+        senderId: userId,
+        content: content?.trim(),
+        type: type || 'text',
+        attachments: attachments || [],
+        reelRef,
+      });
+
+      if (replyTo?.messageId) {
+        const parent = await Message.findById(replyTo.messageId).lean();
+        if (parent) {
+          msg.replyTo = {
+            messageId: parent._id,
+            senderName: replyTo.senderName || 'User',
+            preview: parent.deletedAt ? null : parent.content?.slice(0, 50),
+          };
+        }
+      }
+
+      await msg.save();
+
+      // Denormalize on Channel: atomics
+      await Channel.findByIdAndUpdate(channelId, {
+        $set: {
+          lastMessage: {
+            messageId: msg._id,
+            senderId: user._id,
+            senderName: user.fullName,
+            content: msg.type === 'text' ? msg.content : `[${msg.type}]`,
+            createdAt: msg.createdAt,
+          },
+        },
+      });
+
+      // Populate sender info for clients
+      const populated = {
+        id: msg._id.toString(),
+        channelId: msg.channelId.toString(),
+        senderId: userId,
+        senderName: user.fullName,
+        content: msg.content,
+        type: msg.type,
+        attachments: msg.attachments,
+        reelRef: msg.reelRef,
+        replyTo: msg.replyTo && msg.replyTo.messageId ? {
+          messageId: msg.replyTo.messageId.toString(),
+          senderName: msg.replyTo.senderName,
+          preview: msg.replyTo.preview,
+        } : null,
+        reactionCounts: {},
+        createdAt: msg.createdAt,
+      };
+
+      emitter.messageNew(io, channelId, populated);
+      if (callback) callback({ ok: true, data: populated });
+    } catch (err) {
+      logger.error('[socket:message] Send failed', { err: err.message });
+      if (callback) callback({ ok: false, error: err.message });
+    }
+  });
+
+  // Edit message
+  socket.on('message:edit', async ({ messageId, content }, callback) => {
+    try {
+      const msg = await Message.findOne({ _id: messageId, senderId: user._id });
+      if (!msg) throw new Error('Message not found or unauthorized');
+
+      msg.content = content.trim();
+      msg.editedAt = new Date();
+      await msg.save();
+
+      emitter.messageEdited(io, msg.channelId.toString(), msg._id.toString(), msg.content, msg.editedAt);
+      if (callback) callback({ ok: true });
+    } catch (err) {
+      logger.error('[socket:message] Edit failed', { err: err.message });
+      if (callback) callback({ ok: false, error: err.message });
+    }
+  });
+
+  // Delete message (soft-delete)
+  socket.on('message:delete', async ({ messageId }, callback) => {
+    try {
+      const msg = await Message.findOne({ _id: messageId, senderId: user._id });
+      if (!msg) throw new Error('Message not found or unauthorized');
+
+      msg.deletedAt = new Date();
+      await msg.save();
+
+      emitter.messageDeleted(io, msg.channelId.toString(), msg._id.toString());
+      if (callback) callback({ ok: true });
+    } catch (err) {
+      logger.error('[socket:message] Delete failed', { err: err.message });
+      if (callback) callback({ ok: false, error: err.message });
+    }
+  });
+
+  // Typing indicator
+  socket.on('message:typing', async ({ channelId }) => {
+    try {
+      const now = Date.now();
+      const lastSent = lastTypingEvents.get(`${channelId}:${userId}`) || 0;
+      if (now - lastSent < TYPING_COOLDOWN_MS) return;
+
+      await checkMembership(channelId);
+
+      lastTypingEvents.set(`${channelId}:${userId}`, now);
+      emitter.typingIndicator(io, channelId, userId, user.fullName);
+    } catch (err) {
+      logger.error('[socket:message] Typing failed', { err: err.message });
+    }
+  });
+}
+
+module.exports = messageHandler;
