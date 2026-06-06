@@ -59,6 +59,10 @@ async function attachRedisAdapter(io) {
   const pub = getPubClient();
   const sub = getSubClient();
 
+  if (!pub || !sub) {
+    throw new Error('Redis clients not initialized (disabled)');
+  }
+
   await Promise.race([
     new Promise((resolve, reject) => {
       if (pub.status === 'ready') return resolve();

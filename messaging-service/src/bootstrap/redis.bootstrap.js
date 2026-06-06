@@ -4,6 +4,10 @@ const Redis  = require('ioredis');
 const logger = require('./logger.bootstrap');
 const env = require('../config/env');
 
+if (env.redis.disabled) {
+  logger.info('[redis] Redis is disabled via configuration');
+}
+
 const MAX_RETRY_ATTEMPTS = 10;
 const MAX_RETRY_DELAY_MS = 3000;
 
@@ -41,13 +45,17 @@ function createClient(label) {
 }
 
 function getPubClient() {
+  if (env.redis.disabled) return null;
   if (!pubClient) pubClient = createClient('pub');
   return pubClient;
 }
 
 function getSubClient() {
+  if (env.redis.disabled) return null;
   if (!subClient) {
-    subClient = getPubClient().duplicate();
+    const pub = getPubClient();
+    if (!pub) return null;
+    subClient = pub.duplicate();
     subClient.on('error', (err) => logger.error(`[redis:sub] Error: ${err.message}`));
     subClient.on('end',   () => logger.warn('[redis:sub] Connection ended'));
   }
@@ -55,6 +63,7 @@ function getSubClient() {
 }
 
 function createMainClient() {
+  if (env.redis.disabled) return null;
   return createClient('main');
 }
 

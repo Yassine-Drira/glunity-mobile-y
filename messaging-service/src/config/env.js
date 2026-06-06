@@ -33,6 +33,7 @@ const env = {
 
   redis: {
     url: process.env.REDIS_URL || 'redis://localhost:6379',
+    disabled: process.env.DISABLE_REDIS === 'true',
   },
 
   socket: {

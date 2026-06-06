@@ -32,7 +32,3 @@ tatus
 db-check-result.txt
 *.log
 *.txt.resolved
-
-# Temporary testing UI & assets
-*tempuimes*
-*TempCommunity*
