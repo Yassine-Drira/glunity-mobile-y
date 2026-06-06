@@ -24,6 +24,9 @@ import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 import productsApi, { Product } from '../../api/products.api';
 import reviewsApi, { Review } from '../../api/reviews.api';
+import axios from 'axios';
+import { API_BASE_URL } from '@/core/config/api.config';
+import { TokenStore } from '@/core/storage/secure-store';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerProfile'>;
 
@@ -68,6 +71,35 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   // Sellers can only VIEW; non-sellers (celiac / proche / pro_health) can WRITE
   const isSeller = user?.profileType === 'pro_commerce';
   const canWriteReview = !isOwnProfile && !isSeller;
+
+  const [messagingLoading, setMessagingLoading] = useState(false);
+
+  const handleMessageSeller = async () => {
+    if (messagingLoading || !targetSellerId) return;
+    try {
+      setMessagingLoading(true);
+      const token = await TokenStore.getAccessToken();
+      if (!token) return;
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/channels/direct`,
+        { userId: targetSellerId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (response.data?.success && response.data?.data) {
+        const channel = response.data.data;
+        navigation.navigate('CommunityChat', {
+          channelId: channel.id,
+          initialChannel: channel
+        });
+      }
+    } catch (error) {
+      console.error('Error opening direct message:', error);
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -830,9 +862,17 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               style={[s.customerActionBtn, s.customerMessageBtn]}
               activeOpacity={0.8}
               id="seller-message-btn"
+              onPress={handleMessageSeller}
+              disabled={messagingLoading}
             >
-              <Feather name="message-square" size={16} color={T.green} />
-              <Text style={s.customerMessageText}>{t('Message')}</Text>
+              {messagingLoading ? (
+                <ActivityIndicator size="small" color={T.green} />
+              ) : (
+                <>
+                  <Feather name="message-square" size={16} color={T.green} />
+                  <Text style={s.customerMessageText}>{t('Message')}</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         ) : (

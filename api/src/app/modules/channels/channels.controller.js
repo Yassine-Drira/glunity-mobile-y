@@ -9,8 +9,9 @@ const channelsController = {
 	list: asyncHandler(async (req, res) => {
 		const limit = req.query.limit !== undefined ? Number(req.query.limit) : 50;
 		const skip = req.query.skip !== undefined ? Number(req.query.skip) : 0;
+		const userId = req.user?._id;
 
-		let { items } = await service.list({ limit, skip });
+		let { items } = await service.list({ userId, limit, skip });
 
 		if (items.length === 0 && skip === 0) {
 			const seedData = [
@@ -39,6 +40,21 @@ const channelsController = {
 		}
 
 		res.status(200).json(mapper.toChannelListResponse(items));
+	}),
+
+	// POST /api/channels/direct
+	getOrCreateDirectChannel: asyncHandler(async (req, res) => {
+		const user1Id = req.user?._id;
+		const { userId: user2Id } = req.body;
+
+		if (!user2Id) {
+			const error = new Error('Target user ID (userId) is required');
+			error.status = 400;
+			throw error;
+		}
+
+		const channel = await service.getOrCreateDirectChannel(user1Id, user2Id);
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
 	}),
 
 	// GET /api/channels/:id/messages

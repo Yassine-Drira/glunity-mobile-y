@@ -7,7 +7,7 @@ import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 import { TempCommunityMessaging } from './TempCommunityMessaging';
 
-export default function CommunityChatScreen({ navigation }: any) {
+export default function CommunityChatScreen({ navigation, route }: any) {
   const [joined, setJoined] = useState(true);
   const { theme: T } = useTheme();
   const insets = useSafeAreaInsets();
@@ -29,9 +29,12 @@ export default function CommunityChatScreen({ navigation }: any) {
     navigation.replace('Home');
   };
 
+  const initialChannel = route?.params?.initialChannel;
+  const initialChannelId = route?.params?.channelId;
+
   return (
     <AppScaffold title={t('Community')} activeTab="events" contentStyle={{ backgroundColor: T.bg }}>
-      <TempCommunityMessaging />
+      <TempCommunityMessaging initialChannel={initialChannel} initialChannelId={initialChannelId} />
     </AppScaffold>
   );
 }

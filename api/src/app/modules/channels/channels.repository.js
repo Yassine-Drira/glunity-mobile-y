@@ -4,8 +4,11 @@ const Channel = require('../../../database/models/channel.model');
 const Message = require('../../../database/models/message.model');
 
 const channelsRepository = {
-	findMany({ limit = 50, skip = 0 } = {}) {
-		return Channel.find()
+	findMany({ userId, limit = 50, skip = 0 } = {}) {
+		const query = userId 
+			? { $or: [{ isPrivate: { $ne: true } }, { participants: userId }] }
+			: { isPrivate: { $ne: true } };
+		return Channel.find(query)
 			.limit(limit)
 			.skip(skip)
 			.lean();
@@ -13,6 +16,13 @@ const channelsRepository = {
 
 	findById(id) {
 		return Channel.findById(id).lean();
+	},
+
+	findDirectChannel(user1Id, user2Id) {
+		return Channel.findOne({
+			isPrivate: true,
+			participants: { $all: [user1Id, user2Id] }
+		}).lean();
 	},
 
 	create(payload) {

@@ -111,7 +111,7 @@ const formatStackTime = (dateStr: string) => {
   return { datePart, timePart };
 };
 
-export function TempCommunityMessaging() {
+export function TempCommunityMessaging({ initialChannel, initialChannelId }: { initialChannel?: any; initialChannelId?: string } = {}) {
   const { user } = useAuth();
   const { theme: T, isDark } = useTheme();
   const { t, isRTL } = useLanguage();
@@ -119,6 +119,24 @@ export function TempCommunityMessaging() {
   // State variables
   const [channels, setChannels] = useState<any[]>([]);
   const [activeChannel, setActiveChannel] = useState<any | null>(null);
+
+  const getChannelDisplayName = (channel: any) => {
+    if (!channel) return '';
+    if (channel.name && channel.name.startsWith('DM-')) {
+      const desc = channel.description || '';
+      const prefix = 'Direct Message between ';
+      if (desc.startsWith(prefix)) {
+        const namesStr = desc.substring(prefix.length);
+        const parts = namesStr.split(' and ');
+        if (parts.length === 2) {
+          const otherName = parts[0] === user?.fullName ? parts[1] : parts[0];
+          return otherName;
+        }
+      }
+      return channel.description || channel.name;
+    }
+    return channel.name;
+  };
   const [messages, setMessages] = useState<any[]>([]);
   const [inputText, setInputText] = useState('');
   const [connected, setConnected] = useState(false);
@@ -1048,11 +1066,32 @@ export function TempCommunityMessaging() {
           headers: { Authorization: `Bearer ${token}` },
         });
         const list = res.data.data || [];
-        setChannels(list);
-        if (list.length > 0) {
-          // Do not auto-select channel to allow navigation from Spaces view
-          // setActiveChannel(list[0]);
+        
+        if (initialChannel) {
+          if (!list.some((c: any) => c.id === initialChannel.id)) {
+            list.push(initialChannel);
+          }
+          setActiveChannel(initialChannel);
+        } else if (initialChannelId) {
+          const matched = list.find((c: any) => c.id === initialChannelId);
+          if (matched) {
+            setActiveChannel(matched);
+          } else {
+            try {
+              const chRes = await axios.get(`${CORE_API_URL}/channels/${initialChannelId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (chRes.data?.data) {
+                list.push(chRes.data.data);
+                setActiveChannel(chRes.data.data);
+              }
+            } catch (e) {
+              console.error('[community] Failed to fetch channel details', e);
+            }
+          }
         }
+        
+        setChannels(list);
       } catch (err) {
         console.error('[community] Failed to load channels', err);
       } finally {
@@ -1060,7 +1099,7 @@ export function TempCommunityMessaging() {
       }
     }
     load();
-  }, []);
+  }, [initialChannel, initialChannelId]);
 
   // ── 2. Socket.IO Connection Setup (Port 5001) ──────────────────────────────
   useEffect(() => {
@@ -1749,7 +1788,12 @@ export function TempCommunityMessaging() {
             <Text style={styles.spacesSectionTitle}>{t('Your Spaces')}</Text>
           )}
           renderItem={({ item }) => {
+            const isDM = item.name && item.name.startsWith('DM-');
+            const displayName = getChannelDisplayName(item);
             const visual = getChannelVisual(item.name);
+            const iconName = isDM ? 'person-outline' : visual.icon;
+            const subtext = isDM ? t('Direct Message') : (item.description || t('Welcome to this space! Tap to read.'));
+            const unreadCount = isDM ? 0 : visual.unread;
             return (
               <TouchableOpacity
                 style={styles.spaceCard}
@@ -1759,17 +1803,17 @@ export function TempCommunityMessaging() {
                 }}
               >
                 <View style={[styles.spaceIconContainer, { backgroundColor: T.surfaceAlt }]}>
-                  <Ionicons name={visual.icon as any} size={22} color={T.text} />
+                  <Ionicons name={iconName as any} size={22} color={T.text} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.spaceTitle}>{item.name}</Text>
+                  <Text style={styles.spaceTitle}>{displayName}</Text>
                   <Text style={styles.spaceSubtext} numberOfLines={1}>
-                    {item.description || t('Welcome to this space! Tap to read.')}
+                    {subtext}
                   </Text>
                 </View>
-                {visual.unread > 0 && (
+                {unreadCount > 0 && (
                   <View style={styles.spaceBadge}>
-                    <Text style={styles.spaceBadgeText}>{visual.unread}</Text>
+                    <Text style={styles.spaceBadgeText}>{unreadCount}</Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -1825,7 +1869,10 @@ export function TempCommunityMessaging() {
           >
             <Ionicons name={isRTL ? "arrow-forward-outline" : "arrow-back-outline"} size={24} color={T.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}># {activeChannel?.name || t('Loading...')}</Text>
+          <Text style={styles.headerTitle}>
+            {activeChannel?.name?.startsWith('DM-') ? '' : '# '}
+            {getChannelDisplayName(activeChannel) || t('Loading...')}
+          </Text>
         </View>
 
         <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>

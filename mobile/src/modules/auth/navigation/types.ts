@@ -34,6 +34,6 @@ export type AppStackParamList = {
   PatientResources: undefined;
   Privacy:         undefined;
   Community:       undefined;
-  CommunityChat:   undefined;
+  CommunityChat:   { channelId?: string; initialChannel?: any } | undefined;
 };
 
