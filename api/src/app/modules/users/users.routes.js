@@ -9,6 +9,9 @@ const router = express.Router();
 // All /api/users/* routes require authentication
 router.use(authMiddleware);
 
+/** GET /api/users — list active users (paginated) */
+router.get('/', usersController.list);
+
 /** PATCH /api/users/me — update authenticated user's profile */
 router.patch('/me', usersController.updateMe);
 

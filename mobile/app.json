@@ -9,6 +9,9 @@
       "expo-font",
       "expo-image",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "android": {
+      "package": "com.islemhammami.glunitymobile"
+    }
   }
 }

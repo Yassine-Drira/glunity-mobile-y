@@ -5,7 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
-import { TempCommunityMessaging } from './TempCommunityMessaging';
+import MessagingHome from './MessagingHome';
+import CommunityMessaging from './CommunityMessaging';
 
 export default function CommunityChatScreen({ navigation, route }: any) {
   const [joined, setJoined] = useState(true);
@@ -33,8 +34,13 @@ export default function CommunityChatScreen({ navigation, route }: any) {
   const initialChannelId = route?.params?.channelId;
 
   return (
-    <AppScaffold title={t('Community')} activeTab="events" contentStyle={{ backgroundColor: T.bg }}>
-      <TempCommunityMessaging initialChannel={initialChannel} initialChannelId={initialChannelId} />
+    <AppScaffold title={t('Community')} activeTab="events" contentStyle={{ backgroundColor: T.bg, paddingBottom: 0 }} showHeader={false} showBottomNav={false}>
+      {/* Render flux messaging screen (home/list) or open chat when channel provided */}
+      {initialChannel || initialChannelId ? (
+        <CommunityMessaging initialChannel={initialChannel} initialChannelId={initialChannelId} navigation={navigation} />
+      ) : (
+        <MessagingHome navigation={navigation} />
+      )}
     </AppScaffold>
   );
 }

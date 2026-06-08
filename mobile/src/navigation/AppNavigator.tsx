@@ -28,7 +28,9 @@ import AddEventScreen from '../modules/events/ui/screens/AddEventScreen';
 import NotificationsScreen from '../modules/notifications/ui/screens/NotificationsScreen';
 import PatientResourcesScreen from '../modules/patient-resources/ui/screens/PatientResourcesScreen';
 import CommunityJoinScreen from '../modules/community/ui/screens/CommunityJoinScreen';
+import CommunityJoin from '../modules/community/ui/screens/CommunityJoin';
 import CommunityChatScreen from '../modules/community/ui/screens/CommunityChatScreen';
+import MessagingHome from '../modules/community/ui/screens/MessagingHome';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -169,6 +171,8 @@ export function AppNavigator() {
       </Stack.Screen>
       <Stack.Screen name="Events" component={EventsCalendarScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="Community" component={CommunityJoinScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="CommunityJoin" component={CommunityJoin} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="MessagingHome" component={MessagingHome} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="CommunityChat" component={CommunityChatScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="AddEvent" component={AddEventScreen} options={{ animation: 'slide_from_bottom' }} />

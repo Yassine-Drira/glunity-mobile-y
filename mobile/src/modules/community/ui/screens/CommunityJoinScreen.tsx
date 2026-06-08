@@ -19,7 +19,7 @@ export default function CommunityJoinScreen({ navigation }: any) {
     } catch (e) {
       // ignore
     }
-    navigation.replace('CommunityChat');
+    navigation.replace('CommunityJoin');
   };
 
   const handleMaybeLater = () => {

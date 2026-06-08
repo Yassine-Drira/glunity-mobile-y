@@ -1,5 +1,5 @@
 {
-  "name": "glunity-mobile-y",
+  "name": "glunity-mobile",
   "private": true,
   "version": "0.1.0",
   "workspaces": [
@@ -11,8 +11,8 @@
     "dev:api": "npm --workspace api run dev",
     "dev:messaging": "npm --workspace glunity-messaging-service run dev",
     "dev:mobile": "npm --workspace mobile run start",
-    "lint": "npm --workspace api run lint; npm --workspace mobile run lint",
-    "test": "npm --workspace api run test; npm --workspace mobile run test",
+    "lint": "npm --workspace api run lint && npm --workspace mobile run lint",
+    "test": "npm --workspace api run test && npm --workspace mobile run test",
     "typecheck": "npm --workspace mobile run typecheck"
   }
 }

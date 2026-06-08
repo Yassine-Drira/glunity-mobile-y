@@ -12,6 +12,8 @@ export type AppTabKey = 'home' | 'events' | 'reels' | 'profile';
 interface AppScaffoldProps {
   title: string;
   activeTab: AppTabKey;
+  showHeader?: boolean;
+  showBottomNav?: boolean;
   onBack?: () => void;
   rightIcon?: string;
   onRightPress?: () => void;
@@ -31,6 +33,8 @@ interface AppScaffoldProps {
 export function AppScaffold({
   title,
   activeTab,
+  showHeader = true,
+  showBottomNav = true,
   onBack,
   rightIcon,
   onRightPress,
@@ -67,27 +71,31 @@ export function AppScaffold({
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: C.bg }]}>
       <StatusBar barStyle={C.statusBar} backgroundColor={C.bg} />
-      <AppHeader
-        title={title}
-        onBack={onBack}
-        rightIcon={rightIcon}
-        onRightPress={onRightPress}
-        rightElement={rightElement}
-        showSearch={showSearch}
-        onSearchPress={onSearchPress}
-        searchIcon={searchIcon}
-      />
+      {showHeader ? (
+        <AppHeader
+          title={title}
+          onBack={onBack}
+          rightIcon={rightIcon}
+          onRightPress={onRightPress}
+          rightElement={rightElement}
+          showSearch={showSearch}
+          onSearchPress={onSearchPress}
+          searchIcon={searchIcon}
+        />
+      ) : null}
       <View style={[styles.content, { backgroundColor: C.bg, paddingBottom: bottomPadding }, contentStyle]}>
         {children}
       </View>
-      <BottomNavBar
-        activeTab={activeTab}
-        onPressHome={handleHome}
-        onPressEvents={handleEvents}
-        onPressCenter={handleCenter}
-        onPressReels={handleReels}
-        onPressProfile={handleProfile}
-      />
+      {showBottomNav ? (
+        <BottomNavBar
+          activeTab={activeTab}
+          onPressHome={handleHome}
+          onPressEvents={handleEvents}
+          onPressCenter={handleCenter}
+          onPressReels={handleReels}
+          onPressProfile={handleProfile}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
