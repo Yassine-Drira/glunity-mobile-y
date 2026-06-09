@@ -1,6 +1,7 @@
 'use strict';
 
 const express         = require('express');
+const path = require('path');
 const cors            = require('cors');
 const cookieParser    = require('cookie-parser');
 const corsOptions     = require('./config/cors');
@@ -22,8 +23,12 @@ const badgesRoutes = require('./modules/badges/badges.routes');
 const reviewsRoutes = require('./modules/reviews/reviews.routes');
 const channelsRoutes = require('./modules/channels/channels.routes');
 const patientResourcesRoutes = require('./modules/patient-resources/patient-resources.routes');
+const uploadsRoutes = require('./modules/uploads/uploads.routes');
 
 const app = express();
+
+// Serve local uploaded files (development fallback)
+app.use('/uploads', express.static(path.join(__dirname, '..', '..', 'uploads')));
 
 // ── Global middleware ──────────────────────────────────────────────────────────
 app.use(requestId);
@@ -59,6 +64,7 @@ app.use('/api/badges', badgesRoutes);
 app.use('/api/reviews', reviewsRoutes);
 app.use('/api/channels',          channelsRoutes);
 app.use('/api/patient-resources', patientResourcesRoutes);
+app.use('/api/uploads', uploadsRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {

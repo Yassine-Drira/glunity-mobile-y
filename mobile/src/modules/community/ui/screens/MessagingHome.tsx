@@ -4,6 +4,8 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndi
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import { io } from 'socket.io-client';
+import messagingEvents from '../../../../shared/utils/messagingEvents';
 import { TokenStore } from '../../../../core/storage/secure-store';
 import { API_BASE_URL } from '../../../../core/config/api.config';
 import { useTheme } from '../../../../shared/context/theme.context';
@@ -11,6 +13,8 @@ import { useLanguage } from '../../../../shared/context/language.context';
 import { useAuth } from '../../../../modules/auth/state/auth.context';
 
 const CORE_API_URL = API_BASE_URL;
+const MSG_SERVICE_URL = CORE_API_URL.replace(':5000', ':5001');
+const MSG_SERVICE_SOCKET_URL = MSG_SERVICE_URL.replace('/api', '');
 
 const fallbackChannels = [
   { _id: 'c1', name: 'General', description: 'Ok. Let me check', lastMessage: { content: 'Ok. Let me check', createdAt: new Date().toISOString() }, unreadCount: 0, avatarUrl: null },
@@ -198,6 +202,103 @@ export default function MessagingHome({ navigation }: any) {
     }
   }
 
+  const socketRef = useRef<any>(null);
+
+  // Connect a lightweight socket in the list screen to receive real-time updates
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const token = await TokenStore.getAccessToken();
+        if (!token) return;
+        if (socketRef.current) socketRef.current.disconnect();
+        const s = io(MSG_SERVICE_SOCKET_URL, { auth: { token } });
+        s.on('connect_error', (err: any) => console.warn('[messaging list] socket connect_error', err));
+        s.on('disconnect', (reason: any) => console.warn('[messaging list] socket disconnected', reason));
+
+        s.on('message:new', ({ message }: any) => {
+          if (!active) return;
+          setChannels((prev) => {
+            const cid = String(message.channelId || message.channel || '');
+            let found = false;
+            const next = prev.map((c) => {
+              const cId = String(c._id || c.id || c.channelId || '');
+              if (cId === cid) {
+                found = true;
+                const isSenderMe = String(message.senderId) === String(user?._id);
+                const unread = isSenderMe ? 0 : ((c.unreadCount || 0) + 1);
+                return { ...c, lastMessage: { content: message.content, createdAt: message.createdAt, messageId: message.id || message._id }, unreadCount: unread };
+              }
+              return c;
+            });
+            if (!found) return prev;
+            return next;
+          });
+        });
+
+        s.on('message:edited', ({ messageId, content }: any) => {
+          if (!active) return;
+          setChannels((prev) => prev.map((c) => {
+            const lm = c.lastMessage || {};
+            if (lm.messageId && String(lm.messageId) === String(messageId)) return { ...c, lastMessage: { ...lm, content } };
+            return c;
+          }));
+        });
+
+        s.on('message:deleted', ({ messageId, channelId }: any) => {
+          if (!active) return;
+          setChannels((prev) => prev.map((c) => {
+            const lm = c.lastMessage || {};
+            if ((lm.messageId && String(lm.messageId) === String(messageId)) || String(c._id || c.id) === String(channelId)) {
+              return { ...c, lastMessage: { ...lm, content: null } };
+            }
+            return c;
+          }));
+        });
+
+        socketRef.current = s;
+      } catch (err) {
+        console.warn('Messaging list socket error', err);
+      }
+    })();
+
+    return () => { active = false; if (socketRef.current) socketRef.current.disconnect(); };
+  }, [user]);
+
+  // When the chat screen marks a channel as opened/read, clear the badge here
+  useEffect(() => {
+    const onOpened = (channelId: any) => {
+      setChannels(prev => prev.map(c => (String(c._id || c.id) === String(channelId) ? { ...c, unreadCount: 0 } : c)));
+    };
+    messagingEvents.on('channel:opened', onOpened);
+    return () => { messagingEvents.off('channel:opened', onOpened); };
+  }, []);
+
+  // Also listen to local message events emitted by the chat screen to update list instantly
+  useEffect(() => {
+    const onLocalMessage = (message: any) => {
+      if (!message) return;
+      setChannels((prev) => {
+        const cid = String(message.channelId || message.channel || '');
+        let found = false;
+        const next = prev.map((c) => {
+          const cId = String(c._id || c.id || c.channelId || '');
+          if (cId === cid) {
+            found = true;
+            const isSenderMe = String(message.senderId) === String(user?._id);
+            const unread = isSenderMe ? 0 : ((c.unreadCount || 0) + 1);
+            return { ...c, lastMessage: { content: message.content, createdAt: message.createdAt, messageId: message.id || message._id }, unreadCount: unread };
+          }
+          return c;
+        });
+        if (!found) return prev;
+        return next;
+      });
+    };
+    messagingEvents.on('message:new', onLocalMessage);
+    return () => { messagingEvents.off('message:new', onLocalMessage); };
+  }, [user]);
+
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: T.bg },
     header: { paddingHorizontal: 18, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -312,7 +413,14 @@ export default function MessagingHome({ navigation }: any) {
                 const avatarUri = disp.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(disp.name || 'C')}&background=8BC34A&color=fff`;
             const subtitle = disp.isDM ? `Direct message with ${disp.name}` : (item.lastMessage?.content || item.description);
             return (
-              <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('CommunityChat', { initialChannel: item })}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => {
+                  // clear unread locally immediately, then open chat
+                  setChannels(prev => prev.map(c => (String(c._id || c.id) === String(item._id || item.id) ? { ...c, unreadCount: 0 } : c)));
+                  navigation.navigate('CommunityChat', { initialChannel: item });
+                }}
+              >
                 <Image source={{ uri: avatarUri }} style={styles.avatar} />
                 <View style={styles.rowContent}>
                   <View style={styles.rowTop}>
@@ -332,7 +440,7 @@ export default function MessagingHome({ navigation }: any) {
         />
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Community') }>
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('CreateGroup') }>
         <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>

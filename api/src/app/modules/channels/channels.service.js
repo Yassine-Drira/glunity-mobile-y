@@ -48,6 +48,13 @@ const channelsService = {
 		return repository.create(payload);
 	},
 
+	async update(id, payload) {
+		// validate existence
+		await this.getById(id);
+		const updated = await repository.update(id, payload);
+		return updated;
+	},
+
 	async listMessages(channelId, { limit = 50, skip = 0 } = {}) {
 		const items = await repository.findMessages(channelId, { limit, skip });
 		return { items };

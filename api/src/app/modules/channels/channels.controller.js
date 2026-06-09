@@ -13,32 +13,6 @@ const channelsController = {
 
 		let { items } = await service.list({ userId, limit, skip });
 
-		if (items.length === 0 && skip === 0) {
-			const seedData = [
-				{
-					name: 'General Chat 💬',
-					description: 'General discussions for gluten-free lifestyle.',
-					icon: 'chatbubble-ellipses-outline',
-				},
-				{
-					name: 'Recipe Sharing 🥞',
-					description: 'Share your gluten-free pizza, breads, and recipes!',
-					icon: 'restaurant-outline',
-				},
-				{
-					name: 'Tunisian GF Food 🌾',
-					description: 'Find local Tunisian gluten free meals and products.',
-					icon: 'location-outline',
-				},
-			];
-			const created = [];
-			for (const seed of seedData) {
-				const doc = await service.create(seed);
-				created.push(doc);
-			}
-			items = created;
-		}
-
 		res.status(200).json(mapper.toChannelListResponse(items));
 	}),
 
@@ -55,6 +29,20 @@ const channelsController = {
 
 		const channel = await service.getOrCreateDirectChannel(user1Id, user2Id);
 		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
+	}),
+
+	// POST /api/channels
+	createChannel: asyncHandler(async (req, res) => {
+		const { name, description, participants, icon } = req.body;
+		const payload = {
+			name: name || `Group-${Date.now()}`,
+			description: description || '',
+			isPrivate: false,
+			participants: Array.isArray(participants) ? participants : [],
+			icon: icon || undefined,
+		};
+		const channel = await service.create(payload);
+		res.status(201).json({ success: true, data: mapper.toChannelResponse(channel) });
 	}),
 
 	// GET /api/channels/:id/messages
@@ -107,6 +95,19 @@ const channelsController = {
 		});
 
 		res.status(201).json({ success: true, data: mapper.toMessageResponse(msg) });
+	}),
+
+	// PATCH /api/channels/:id
+	updateChannel: asyncHandler(async (req, res) => {
+		const channelId = req.params.id;
+		const payload = {};
+		const { name, icon, description } = req.body || {};
+		if (name !== undefined) payload.name = name;
+		if (icon !== undefined) payload.icon = icon;
+		if (description !== undefined) payload.description = description;
+
+		const updated = await service.update(channelId, payload);
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(updated) });
 	}),
 };
 

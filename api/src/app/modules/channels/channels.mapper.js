@@ -7,6 +7,8 @@ const toChannelResponse = (channel) => {
 		name: channel.name,
 		description: channel.description,
 		icon: channel.icon,
+		// Provide a normalized avatarUrl for clients that expect an image URL
+		avatarUrl: (channel.icon && typeof channel.icon === 'string' && (channel.icon.startsWith('http') || channel.icon.startsWith('/'))) ? channel.icon : null,
 		isPrivate: channel.isPrivate,
 	};
 };

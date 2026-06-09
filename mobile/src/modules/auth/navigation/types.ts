@@ -37,5 +37,6 @@ export type AppStackParamList = {
   CommunityJoin:   undefined;
   MessagingHome:   undefined;
   CommunityChat:   { channelId?: string; initialChannel?: any } | undefined;
+  CreateGroup:     undefined;
 };
 

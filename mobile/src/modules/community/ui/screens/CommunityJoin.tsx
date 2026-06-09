@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Platform, Dimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { TokenStore } from '../../../../core/storage/secure-store';
@@ -26,6 +26,12 @@ const getChannelVisual = (channelName: string) => {
   }
   return { icon: 'chatbubbles-outline', unread: 0 };
 };
+
+function formatTime(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 const fallbackUsers = [
   { _id: '1', fullName: 'Yasmine Ben Salah', profileType: 'celiac', points: 1240, avatarUrl: 'https://randomuser.me/api/portraits/women/12.jpg', badges: [{ id: 'b1', name: 'Community Contributor' }] },
@@ -60,6 +66,8 @@ const badgeImageMap: { [key: string]: any } = {
 export default function CommunityJoin({ navigation }: any) {
   const { theme: T, isDark } = useTheme();
   const { t, isRTL } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const screenW = Dimensions.get('window').width;
 
   const [users, setUsers] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>([]);
@@ -103,49 +111,42 @@ export default function CommunityJoin({ navigation }: any) {
 
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: T.bg },
-    header: { padding: 16, borderBottomWidth: 1, borderBottomColor: T.divider, backgroundColor: T.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    title: { fontSize: 20, fontWeight: '700', color: T.text },
-    skipText: { color: T.textMuted, fontSize: 14, paddingHorizontal: 8 },
+    header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: T.divider, backgroundColor: T.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    headerLeft: { flexDirection: 'row', alignItems: 'center' },
+    title: { fontSize: 22, fontWeight: '800', color: T.text },
+    skipBtn: { paddingHorizontal: 10, paddingVertical: 6 },
+    skipText: { color: T.textMuted, fontSize: 14 },
     sectionTitle: { fontSize: 12, fontWeight: '700', color: T.textMuted, marginTop: 18, marginBottom: 8, paddingHorizontal: 16, textTransform: 'uppercase' },
-    // Channel explore styles (matching TempCommunityMessaging)
-    spaceCard: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      backgroundColor: T.surface,
-      borderRadius: 16,
-      padding: 16,
-      marginHorizontal: 20,
-      marginVertical: 6,
-      shadowColor: T.shadow,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.04,
-      shadowRadius: 6,
-      elevation: 1.5,
-    },
-    spaceIconContainer: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: isRTL ? 0 : 14, marginLeft: isRTL ? 14 : 0 },
-    spaceTitle: { fontSize: 15.5, fontWeight: '700', color: T.text },
-    spaceSubtext: { fontSize: 12.5, color: T.textMuted, marginTop: 3 },
-    spaceBadge: { backgroundColor: T.green, borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5, position: 'absolute', right: isRTL ? undefined : 16, left: isRTL ? 16 : undefined },
-    spaceBadgeText: { fontSize: 11, fontWeight: 'bold', color: '#FFFFFF' },
-    joinBtn: { backgroundColor: T.greenLight, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    joinBtnText: { color: T.green, fontWeight: '700' },
-    userCardWrap: { width: 200, marginHorizontal: 6, paddingVertical: 4 },
-    userCard: { backgroundColor: T.surface, borderRadius: 16, padding: 14, alignItems: 'flex-start', shadowColor: T.shadow, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3, minHeight: 190 },
-    avatarWrap: { width: 88, height: 88, borderRadius: 44, overflow: 'hidden', borderWidth: 4, borderColor: T.surface, justifyContent: 'center', alignItems: 'center', backgroundColor: T.surfaceAlt },
-    avatarImage: { width: 80, height: 80, borderRadius: 40 },
-    statusDot: { position: 'absolute', right: 8, bottom: 8, width: 16, height: 16, borderRadius: 8, borderWidth: 2, borderColor: T.surface, backgroundColor: T.green },
-    name: { fontSize: 18, fontWeight: '800', color: T.text, marginTop: 8 },
-    metaRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginTop: 8, gap: 8 },
-    metaText: { fontSize: 13, color: T.textMuted },
-    divider: { height: StyleSheet.hairlineWidth, backgroundColor: T.divider, width: '100%', marginVertical: 12 },
-    badgeRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8 },
-    badgeIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: T.surfaceAlt, justifyContent: 'center', alignItems: 'center' },
-    badgeText: { fontSize: 13, color: T.textMuted, marginLeft: 8 },
-    contactBtn: { marginTop: 14, backgroundColor: T.greenLight, paddingVertical: 14, paddingHorizontal: 12, borderRadius: 14, width: '100%', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 },
-    contactBtnText: { color: T.green, fontWeight: '800', fontSize: 16 },
-    channelItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: T.divider, backgroundColor: T.surface },
-    channelName: { fontSize: 16, fontWeight: '700', color: T.text, marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 },
-  }), [T, isRTL]);
+
+    // Explore users carousel
+    usersCarousel: { height: 150 },
+    userCardWrap: { width: Math.min(140, Math.max(120, (screenW - 64) / 3)), marginHorizontal: 8 },
+    userCard: { backgroundColor: T.surface, borderRadius: 12, padding: 12, alignItems: 'center', shadowColor: T.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+    avatarWrap: { width: 64, height: 64, borderRadius: 32, overflow: 'hidden', borderWidth: 2, borderColor: T.surface, justifyContent: 'center', alignItems: 'center', backgroundColor: T.surfaceAlt },
+    avatarImage: { width: 60, height: 60, borderRadius: 30 },
+    statusDot: { position: 'absolute', right: 4, bottom: 4, width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: T.surface, backgroundColor: T.green },
+    userName: { fontSize: 14, fontWeight: '700', color: T.text, marginTop: 8, textAlign: 'center' },
+    userRole: { fontSize: 12, color: T.textMuted, marginTop: 4, textTransform: 'capitalize' },
+    contactBtnSmall: { marginTop: 10, backgroundColor: T.greenLight, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10 },
+    contactBtnSmallText: { color: T.green, fontWeight: '700', fontSize: 13 },
+
+    // Channels list
+    channelsList: { paddingHorizontal: 16, paddingTop: 8 },
+    channelCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: T.surface, borderRadius: 12, padding: 12, marginBottom: 10, shadowColor: T.shadow, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+    channelAvatar: { width: 52, height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: T.surfaceAlt },
+    channelContent: { flex: 1, marginLeft: 12, marginRight: 8 },
+    channelTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    channelTitle: { fontSize: 16, fontWeight: '800', color: T.text },
+    channelTime: { fontSize: 12, color: T.textMuted },
+    channelDesc: { fontSize: 13, color: T.textMuted, marginTop: 6 },
+    channelMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+    joinWrap: { alignItems: 'center', justifyContent: 'center' },
+    joinBtn: { backgroundColor: T.greenLight, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, minWidth: 72, alignItems: 'center', justifyContent: 'center' },
+    joinBtnText: { color: T.green, fontWeight: '800' },
+    badge: { position: 'absolute', top: -6, right: -6, backgroundColor: T.green, minWidth: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
+    badgeText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  }), [T, isRTL, screenW]);
 
   async function contactUser(targetUserId: string) {
     setCreatingChannelFor(targetUserId);
@@ -166,139 +167,113 @@ export default function CommunityJoin({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Community</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('MessagingHome') }>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionTitle}>Explore Users</Text>
-      {loadingUsers ? (
-        <ActivityIndicator style={{ margin: 20 }} />
-      ) : (
-          <FlatList
-            horizontal
-            style={{ height: 230, marginBottom: 8 }}
-            data={users}
-            keyExtractor={(i) => i._id}
-            showsHorizontalScrollIndicator={false}
-            decelerationRate="fast"
-            contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 8, paddingBottom: 12, paddingRight: 32 }}
-            renderItem={({ item }) => (
-            <View style={styles.userCardWrap}>
-              <View style={styles.userCard}>
-                <View style={{ alignSelf: 'center' }}>
-                  <View style={styles.avatarWrap}>
-                    {item.avatarUrl ? (
-                      <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
-                    ) : (
-                      <View style={styles.avatarImage} />
-                    )}
-                    <View style={styles.statusDot} />
-                  </View>
-                </View>
-
-                <Text style={styles.name}>{item.fullName}</Text>
-
-                <View style={styles.metaRow}>
-                  <Ionicons name="leaf-outline" size={16} color={T.green} />
-                  <Text style={styles.metaText}>{item.profileType}</Text>
-                  <View style={{ width: 6 }} />
-                  <Text style={styles.metaText}>•</Text>
-                  <View style={{ width: 6 }} />
-                  <Text style={styles.metaText}>{item.points ?? 0} XP</Text>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.badgeRow}>
-                  {item.badges && item.badges.length ? (
-                    <>
-                      <Image source={ badgeImageMap[item.badges[item.badges.length - 1].icon] || badgeImageMap.default } style={{ width: 36, height: 36, borderRadius: 8 }} />
-                      <Text style={styles.badgeText}>{item.badges[item.badges.length - 1].name}</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Image source={badgeImageMap.default} style={{ width: 36, height: 36, borderRadius: 8 }} />
-                      <Text style={styles.badgeText}>No badge yet</Text>
-                    </>
-                  )}
-                </View>
-
-                <TouchableOpacity style={styles.contactBtn} onPress={() => contactUser(item._id)} disabled={creatingChannelFor === item._id}>
-                  <Ionicons name="mail-outline" size={18} color={T.green} />
-                  {creatingChannelFor === item._id ? (
-                    <ActivityIndicator />
-                  ) : (
-                    <Text style={styles.contactBtnText}>Contact</Text>
-                  )}
-                </TouchableOpacity>
+      <FlatList
+        data={channels}
+        keyExtractor={(c) => c.id || c._id}
+        contentContainerStyle={{ paddingBottom: 24 + insets.bottom }}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={(
+          <View>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.title}>Community</Text>
               </View>
+              <TouchableOpacity style={styles.skipBtn} onPress={() => navigation.navigate('MessagingHome') }>
+                <Text style={styles.skipText}>Skip</Text>
+              </TouchableOpacity>
             </View>
-          )}
-        />
-      )}
 
-      <Text style={styles.sectionTitle}>Channels</Text>
-      {loadingChannels ? (
-        <ActivityIndicator style={{ margin: 20 }} />
-      ) : (
-            <FlatList
-              data={channels}
-              contentContainerStyle={{ paddingBottom: 120 }}
-          keyExtractor={(c) => c.id || c._id}
-          renderItem={({ item }) => {
-            const isDM = item.name && item.name.startsWith('DM-');
-            const displayName = item.name || item.description || 'Channel';
-            const visual = getChannelVisual(item.name);
-            const iconName = isDM ? 'person-outline' : visual.icon;
-            const subtext = isDM ? 'Direct Message' : (item.description || 'Welcome to this space! Tap to read.');
-            const unreadCount = isDM ? 0 : visual.unread;
+            <Text style={styles.sectionTitle}>Explore Users</Text>
+            {loadingUsers ? (
+              <ActivityIndicator style={{ margin: 20 }} />
+            ) : (
+              <FlatList
+                horizontal
+                data={users}
+                keyExtractor={(i) => i._id}
+                showsHorizontalScrollIndicator={false}
+                decelerationRate="fast"
+                contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}
+                renderItem={({ item }) => (
+                  <View style={styles.userCardWrap}>
+                    <View style={styles.userCard}>
+                      <View style={{ position: 'relative' }}>
+                        <View style={styles.avatarWrap}>
+                          {item.avatarUrl ? (
+                            <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} />
+                          ) : (
+                            <View style={styles.avatarImage} />
+                          )}
+                        </View>
+                        <View style={styles.statusDot} />
+                      </View>
 
-            return (
-              <TouchableOpacity activeOpacity={0.95} style={[styles.spaceCard, { paddingVertical: 12 }]}>
-                <View style={[styles.spaceIconContainer, { backgroundColor: T.surfaceAlt }]}> 
-                  <Ionicons name={iconName as any} size={20} color={T.text} />
-                </View>
-                <View style={{ flex: 1, paddingHorizontal: 8 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={styles.spaceTitle}>{displayName}</Text>
-                    <Text style={{ color: T.textMuted, fontSize: 12 }}>09:30 AM</Text>
-                  </View>
-                  <Text style={styles.spaceSubtext} numberOfLines={1}>{subtext}</Text>
-                </View>
-                {unreadCount > 0 && (
-                  <View style={{ marginLeft: 8 }}>
-                    <View style={styles.spaceBadge}>
-                      <Text style={styles.spaceBadgeText}>{unreadCount}</Text>
+                      <Text style={styles.userName} numberOfLines={1}>{item.fullName}</Text>
+                      <Text style={styles.userRole} numberOfLines={1}>{item.profileType}</Text>
+
+                      <TouchableOpacity style={styles.contactBtnSmall} onPress={() => contactUser(item._id)} disabled={creatingChannelFor === item._id}>
+                        {creatingChannelFor === item._id ? (
+                          <ActivityIndicator />
+                        ) : (
+                          <Text style={styles.contactBtnSmallText}>{t('Contact')}</Text>
+                        )}
+                      </TouchableOpacity>
                     </View>
                   </View>
                 )}
-                {/* Join button for non-DM channels */}
-                <View style={{ marginLeft: 12 }}>
-                  <TouchableOpacity style={styles.joinBtn} onPress={async () => {
-                    try {
-                      const token = await TokenStore.getAccessToken();
-                      // Try to join via API; fallback to navigating directly
-                      try {
-                        await axios.post(`${CORE_API_URL}/channels/${item.id || item._id}/join`, {}, { headers: { Authorization: `Bearer ${token}` } });
-                      } catch (e) {
-                        // ignore API errors, still navigate
-                      }
-                      navigation.navigate('CommunityChat', { initialChannel: item });
-                    } catch (err) {
-                      console.error('Failed to join channel', err);
-                    }
-                  }}>
-                    <Text style={styles.joinBtnText}>{t('Join')}</Text>
-                  </TouchableOpacity>
+              />
+            )}
+
+            <Text style={styles.sectionTitle}>Channels</Text>
+          </View>
+        )}
+        ListEmptyComponent={() => loadingChannels ? <ActivityIndicator style={{ margin: 20 }} /> : <Text style={{ padding: 16, color: T.textMuted }}>{t('No channels found')}</Text>}
+        renderItem={({ item }) => {
+          const isDM = item.name && item.name.startsWith('DM-');
+          const displayName = item.name || item.description || 'Channel';
+          const visual = getChannelVisual(item.name);
+          const iconName = isDM ? 'person-outline' : visual.icon;
+          const subtext = isDM ? 'Direct Message' : (item.description || 'Welcome to this space! Tap to read.');
+          const unreadCount = isDM ? 0 : visual.unread;
+
+          return (
+            <View style={styles.channelCard}>
+              <View style={styles.channelAvatar}>
+                <Ionicons name={iconName as any} size={22} color={T.text} />
+              </View>
+
+              <View style={styles.channelContent}>
+                <View style={styles.channelTitleRow}>
+                  <Text style={styles.channelTitle}>{displayName}</Text>
+                  <Text style={styles.channelTime}>{formatTime(item.lastMessage?.createdAt)}</Text>
                 </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
+                <Text style={styles.channelDesc} numberOfLines={2}>{subtext}</Text>
+              </View>
+
+              <View style={[styles.joinWrap, { position: 'relative' }]}> 
+                {unreadCount > 0 && (
+                  <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount}</Text></View>
+                )}
+                <TouchableOpacity style={styles.joinBtn} onPress={async () => {
+                  try {
+                    const token = await TokenStore.getAccessToken();
+                    try {
+                      await axios.post(`${CORE_API_URL}/channels/${item.id || item._id}/join`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                    } catch (e) {
+                      // ignore
+                    }
+                    navigation.navigate('CommunityChat', { initialChannel: item });
+                  } catch (err) {
+                    console.error('Failed to join channel', err);
+                  }
+                }}>
+                  <Text style={styles.joinBtnText}>{t('Join')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }

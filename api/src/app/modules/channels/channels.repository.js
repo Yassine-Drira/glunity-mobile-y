@@ -29,6 +29,10 @@ const channelsRepository = {
 		return Channel.create(payload);
 	},
 
+	update(id, payload) {
+		return Channel.findByIdAndUpdate(id, { $set: payload }, { new: true }).lean();
+	},
+
 	findMessages(channelId, { limit = 50, skip = 0 } = {}) {
 		return Message.find({ channelId })
 			.populate('senderId', 'fullName avatar')

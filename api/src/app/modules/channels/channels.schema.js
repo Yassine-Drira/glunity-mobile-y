@@ -11,7 +11,24 @@ const postMessageSchema = [
 	body('content').notEmpty().withMessage('Message content cannot be empty').trim(),
 ];
 
+const createChannelSchema = [
+	body('name').optional().isString().trim(),
+	body('description').optional().isString().trim(),
+	body('participants').optional().isArray(),
+	body('participants.*').optional().isMongoId().withMessage('Invalid participant id'),
+	body('icon').optional().isString().trim(),
+];
+
+const updateChannelSchema = [
+    param('id').isMongoId().withMessage('Invalid channel ID'),
+    body('name').optional().isString().trim(),
+    body('icon').optional().isString().trim(),
+    body('description').optional().isString().trim(),
+];
+
 module.exports = {
 	channelIdSchema,
 	postMessageSchema,
+	createChannelSchema,
+	updateChannelSchema,
 };
