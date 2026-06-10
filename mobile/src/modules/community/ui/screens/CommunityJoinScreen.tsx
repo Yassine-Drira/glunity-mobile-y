@@ -18,7 +18,9 @@ export default function CommunityJoinScreen({ navigation }: any) {
       try {
         const joined = await AsyncStorage.getItem('@joined_community');
         if (joined === 'true') {
-          navigation.replace('CommunityChat');
+          // Returning user: show the explore/discover page.
+          // From there they can Skip directly to MessagingHome.
+          navigation.replace('CommunityJoin');
         }
       } catch (e) {
         // ignore
@@ -118,7 +120,7 @@ export default function CommunityJoinScreen({ navigation }: any) {
   }), [isRTL, T, accent, accentSoft]);
 
   return (
-    <AppScaffold title={t('Community')} activeTab="events" onBack={handleMaybeLater}>
+    <AppScaffold title={t('Community')} activeTab="community" onBack={handleMaybeLater}>
       <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 116 + insets.bottom }]}>
         <Image
           source={require('../../../../../assets/Logo/image 3.png')}

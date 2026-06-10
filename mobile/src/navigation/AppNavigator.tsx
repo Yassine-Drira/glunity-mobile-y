@@ -123,6 +123,7 @@ function HomeScreenContainer() {
       onPressNotification={() => navigation.navigate('Notifications')}
       onPressNavHome={() => navigation.navigate('Home')}
       onPressNavEvents={() => navigation.navigate('Events')}
+      onPressNavReels={() => navigation.navigate('Community')}
       onPressNavProfile={handleProfileNavigation}
     />
   );

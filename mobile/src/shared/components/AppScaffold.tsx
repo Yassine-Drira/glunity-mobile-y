@@ -7,7 +7,7 @@ import { BottomNavBar } from './BottomNavBar';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/modules/auth/state/auth.context';
 
-export type AppTabKey = 'home' | 'events' | 'reels' | 'profile';
+export type AppTabKey = 'home' | 'events' | 'reels' | 'community' | 'profile';
 
 interface AppScaffoldProps {
   title: string;
@@ -59,7 +59,7 @@ export function AppScaffold({
   const handleHome = onPressHome || (() => navigation.navigate('Home'));
   const handleEvents = onPressEvents || (() => navigation.navigate('Events'));
   const handleCenter = onPressCenter || (() => navigation.navigate('Map'));
-  const handleReels = onPressReels || (() => {});
+  const handleReels = onPressReels || (() => navigation.navigate('Community'));
   const handleProfile = onPressProfile || (() => {
     if (user?.profileType === 'pro_commerce') {
       navigation.navigate('SellerProProfile');
