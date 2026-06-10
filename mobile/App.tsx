@@ -41,6 +41,8 @@ const linking = {
       Register: 'register',
       ForgotPassword: 'forgot-password',
       Welcome: 'welcome',
+      Community: 'Community',
+      CommunityChat: 'CommunityChat',
     },
   },
 };

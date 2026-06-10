@@ -16,6 +16,10 @@ let subClient  = null;
 let isAvailable = false;
 
 function createClient(label) {
+  if (env.redis.disabled) {
+    logger.warn(`[redis:${label}] Redis is disabled via environment variable`);
+    return null;
+  }
   const url = env.redis.url;
 
   const client = new Redis(url, {
