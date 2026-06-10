@@ -13,7 +13,7 @@ const cloudinary = require('cloudinary').v2;
 const fs         = require('fs');
 const path       = require('path');
 const crypto     = require('crypto');
-const env        = require('../../config/env');
+const env        = require('../config/env');
 
 // ── Configure once at module load ─────────────────────────────────────────────
 
