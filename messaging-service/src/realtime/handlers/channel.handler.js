@@ -12,7 +12,6 @@ function channelHandler(io, socket) {
       const channels = await Channel.find({
         $or: [
           { isPrivate: { $ne: true } },
-          { participants: socket.data.user?._id },
           { 'participants.userId': socket.data.user?._id }
         ]
       }).lean();

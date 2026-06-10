@@ -3,10 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Animated, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
+import http from '../../../../core/network/http.client';
 import messagingEvents from '../../../../shared/utils/messagingEvents';
-import { TokenStore } from '../../../../core/storage/secure-store';
-import { API_BASE_URL } from '../../../../core/config/api.config';
 import { useTheme } from '../../../../shared/context/theme.context';
 import { useLanguage } from '../../../../shared/context/language.context';
 import { useAuth } from '../../../../modules/auth/state/auth.context';
@@ -14,8 +12,6 @@ import { useSocket } from '../../../../shared/context/socket.context';
 import { ChatCacheService } from '../../services/chat-cache.service';
 import { usePresence } from '../../../../shared/hooks/usePresence';
 import AnimatedReanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
-
-const CORE_API_URL = API_BASE_URL;
 
 function formatTime(iso?: string) {
   if (!iso) return '';
@@ -47,26 +43,22 @@ export default function MessagingHome({ navigation }: any) {
   const anim = useRef(new Animated.Value(0)).current; // 0,1,2
 
   const fetchChannels = useCallback(async () => {
-    // 1. Try to load cached channel list for instant rendering
     try {
       const cached = await ChatCacheService.getChannels();
       if (cached && cached.length > 0) {
         setChannels(cached);
-        setLoading(false); // remove primary loading state immediately
+        setLoading(false);
       }
     } catch (err) {
       console.warn('Failed to load cached channels list', err);
     }
 
     try {
-      const token = await TokenStore.getAccessToken();
-      const res = await axios.get(`${CORE_API_URL}/channels`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await http.get('/channels');
       const fresh = res.data?.data || [];
       setChannels(fresh);
-      // 2. Save fresh channel list to cache
       await ChatCacheService.saveChannels(fresh);
     } catch (err) {
-      // only clear if we don't have cached data to avoid wipe-out
       if (channels.length === 0) setChannels([]);
     } finally {
       setLoading(false);
@@ -87,8 +79,7 @@ export default function MessagingHome({ navigation }: any) {
   useEffect(() => {
     (async () => {
       try {
-        const token = await TokenStore.getAccessToken();
-        const res = await axios.get(`${CORE_API_URL}/users`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await http.get('/users');
         setUsers(res.data?.data || []);
       } catch (err) {
         setUsers([]);
@@ -226,8 +217,7 @@ export default function MessagingHome({ navigation }: any) {
   async function contactUser(targetId: string) {
     setCreatingContactFor(targetId);
     try {
-      const token = await TokenStore.getAccessToken();
-      const res = await axios.post(`${CORE_API_URL}/channels/direct`, { userId: targetId }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await http.post('/channels/direct', { userId: targetId });
       const channel = res.data?.data;
       if (channel) {
         navigation.navigate('CommunityChat', { initialChannel: channel });
@@ -276,11 +266,10 @@ export default function MessagingHome({ navigation }: any) {
     );
 
     try {
-      const token = await TokenStore.getAccessToken();
       if (originalPinned) {
-        await axios.delete(`${CORE_API_URL}/channels/${channelId}/pin`, { headers: { Authorization: `Bearer ${token}` } });
+        await http.delete(`/channels/${channelId}/pin`);
       } else {
-        await axios.post(`${CORE_API_URL}/channels/${channelId}/pin`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        await http.post(`/channels/${channelId}/pin`, {});
       }
     } catch (err) {
       setChannels((prev) => 

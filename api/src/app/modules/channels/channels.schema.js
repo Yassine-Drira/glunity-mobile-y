@@ -8,7 +8,11 @@ const channelIdSchema = [
 
 const postMessageSchema = [
 	param('id').isMongoId().withMessage('Invalid channel ID'),
-	body('content').notEmpty().withMessage('Message content cannot be empty').trim(),
+	body('content').optional().isString().trim(),
+	body('type').optional().isString().trim(),
+	body('attachments').optional().isArray(),
+	body('reelRef').optional().isObject(),
+	body('replyTo').optional().isObject(),
 ];
 
 const createChannelSchema = [

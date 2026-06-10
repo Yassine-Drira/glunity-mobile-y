@@ -2,14 +2,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import { TokenStore } from '../../../../core/storage/secure-store';
-import { API_BASE_URL } from '../../../../core/config/api.config';
+import http from '../../../../core/network/http.client';
 import { useTheme } from '../../../../shared/context/theme.context';
 import { useLanguage } from '../../../../shared/context/language.context';
 import { usePresence } from '../../../../shared/hooks/usePresence';
-
-const CORE_API_URL = API_BASE_URL;
 
 const getChannelVisual = (channelName: string) => {
   const name = (channelName || '').toLowerCase();
@@ -67,15 +63,9 @@ export default function CommunityJoin({ navigation }: any) {
   useEffect(() => {
     (async () => {
       try {
-        const token = await TokenStore.getAccessToken();
-        // Try to fetch users list — if API doesn't support it, fallback to empty array
-        try {
-          const res = await axios.get(`${CORE_API_URL}/users`, { headers: { Authorization: `Bearer ${token}` } });
-          setUsers(res.data?.data || []);
-        } catch (e) {
-          setUsers([]);
-        }
-      } catch (err) {
+        const res = await http.get('/users');
+        setUsers(res.data?.data || []);
+      } catch (e) {
         setUsers([]);
       } finally {
         setLoadingUsers(false);
@@ -84,8 +74,7 @@ export default function CommunityJoin({ navigation }: any) {
 
     (async () => {
       try {
-        const token = await TokenStore.getAccessToken();
-        const res = await axios.get(`${CORE_API_URL}/channels`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await http.get('/channels');
         const data = res.data?.data && res.data.data.length ? res.data.data : [];
         // Only keep non-DM/group channels that the user can join
         setChannels(data.filter((ch: any) => !isDMChannel(ch)));
@@ -140,10 +129,8 @@ export default function CommunityJoin({ navigation }: any) {
   async function contactUser(targetUserId: string) {
     setCreatingChannelFor(targetUserId);
     try {
-      const token = await TokenStore.getAccessToken();
-      const res = await axios.post(`${CORE_API_URL}/channels/direct`, { userId: targetUserId }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await http.post('/channels/direct', { userId: targetUserId });
       const channel = res.data?.data;
-      // Navigate to the messaging screen if available; fallback to TempCommunityMessaging
       if (channel) {
         navigation.navigate('CommunityChat', { initialChannel: channel });
       }
@@ -249,11 +236,10 @@ export default function CommunityJoin({ navigation }: any) {
                 )}
                 <TouchableOpacity style={styles.joinBtn} onPress={async () => {
                   try {
-                    const token = await TokenStore.getAccessToken();
                     try {
-                      await axios.post(`${CORE_API_URL}/channels/${item.id || item._id}/join`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                      await http.post(`/channels/${item.id || item._id}/join`, {});
                     } catch (e) {
-                      // ignore
+                      // ignore join errors — still navigate
                     }
                     navigation.navigate('CommunityChat', { initialChannel: item });
                   } catch (err) {

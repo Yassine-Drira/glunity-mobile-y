@@ -8,9 +8,12 @@ import { useTheme } from '../../../shared/context/theme.context';
 import { useLanguage } from '../../../shared/context/language.context';
 import { TokenStore } from '../../../core/storage/secure-store';
 import { API_BASE_URL } from '../../../core/config/api.config';
+import http from '../../../core/network/http.client';
+import messagingHttp from '../../../core/network/messaging-http.client';
 import messagingEvents from '../../../shared/utils/messagingEvents';
 import { ChatCacheService } from '../services/chat-cache.service';
 
+// Keep for legacy usages that don't go through the intercepted clients
 const CORE_API_URL = API_BASE_URL;
 const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5001');
 
@@ -125,22 +128,16 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
       if (!initialChannelId) return;
       try {
-        const token = await TokenStore.getAccessToken();
-        if (!token) return;
+        const res = await http.get(`/channels/${initialChannelId}`);
+        if (mounted) setChannel(res.data?.data || res.data || null);
+      } catch (err) {
         try {
-          const res = await axios.get(`${CORE_API_URL}/channels/${initialChannelId}`, { headers: { Authorization: `Bearer ${token}` } });
-          if (mounted) setChannel(res.data?.data || res.data || null);
-        } catch (err) {
-          try {
-            const listRes = await axios.get(`${CORE_API_URL}/channels`, { headers: { Authorization: `Bearer ${token}` } });
-            const list = listRes.data?.data || listRes.data || [];
-            const found = Array.isArray(list) ? list.find((c: any) => String(c._id || c.id) === String(initialChannelId)) : null;
-            if (mounted && found) {
-              setChannel(found);
-            }
-          } catch (ee) { }
-        }
-      } catch (err) { }
+          const listRes = await http.get('/channels');
+          const list = listRes.data?.data || listRes.data || [];
+          const found = Array.isArray(list) ? list.find((c: any) => String(c._id || c.id) === String(initialChannelId)) : null;
+          if (mounted && found) setChannel(found);
+        } catch (ee) { }
+      }
     }
     loadChannel();
     return () => { mounted = false; };
@@ -167,15 +164,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
       setLoading(true);
       try {
-        const token = await TokenStore.getAccessToken();
-        if (!token) {
-          setMessages([]);
-          setLoading(false);
-          return;
-        }
-
-        // 2. Fetch fresh messages from the backend
-        const res = await axios.get(`${MSG_SERVICE_URL}/channels/${targetId}/messages?limit=60`, { headers: { Authorization: `Bearer ${token}` } });
+        // 2. Fetch fresh messages from the backend (uses auto-refresh interceptor)
+        const res = await messagingHttp.get(`/channels/${targetId}/messages?limit=60`);
         if (!mounted) return;
 
         const fresh = res.data?.data || [];
@@ -498,19 +488,18 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const handleTogglePin = useCallback(async (messageId: string) => {
     if (!channel) return;
     try {
-      const token = await TokenStore.getAccessToken();
       const targetId = channel.id || channel._id;
       const isPinned = channel.pinnedMessages && channel.pinnedMessages.some((p: any) => String(p.messageId) === String(messageId));
 
       if (isPinned) {
-        const res = await axios.delete(`${MSG_SERVICE_URL}/channels/${targetId}/messages/${messageId}/pin`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await messagingHttp.delete(`/channels/${targetId}/messages/${messageId}/pin`);
         const updatedPinned = res.data?.pinnedMessages;
         setMessages((prev) => prev.map((m) => (m.id === messageId || m._id === messageId) ? { ...m, pinned: false } : m));
         if (updatedPinned) {
           setChannel((prev: any) => prev ? { ...prev, pinnedMessages: updatedPinned } : prev);
         }
       } else {
-        const res = await axios.post(`${MSG_SERVICE_URL}/channels/${targetId}/messages/${messageId}/pin`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await messagingHttp.post(`/channels/${targetId}/messages/${messageId}/pin`, {});
         const updatedPinned = res.data?.pinnedMessages;
         setMessages((prev) => prev.map((m) => (m.id === messageId || m._id === messageId) ? { ...m, pinned: true } : m));
         if (updatedPinned) {
@@ -676,12 +665,11 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         if (channel[k]) { raw = channel[k]; break; }
       }
 
-      const token = await TokenStore.getAccessToken();
       const membersEndpoints = [`/channels/${channel.id || channel._id}/members`, `/channels/${channel.id || channel._id}/participants`];
       if (!raw || (Array.isArray(raw) && raw.length === 0)) {
         for (const ep of membersEndpoints) {
           try {
-            const res = await axios.get(`${CORE_API_URL}${ep}`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await http.get(ep);
             const data = res.data?.data || res.data;
             if (Array.isArray(data) && data.length > 0) { raw = data; break; }
           } catch (e) { }
@@ -708,11 +696,11 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         const ids = raw.map((r: any) => String(r));
         let fetched: any[] = [];
         try {
-          const res = await axios.get(`${CORE_API_URL}/users?ids=${encodeURIComponent(ids.join(','))}`, { headers: { Authorization: `Bearer ${token}` } });
+          const res = await http.get(`/users?ids=${encodeURIComponent(ids.join(','))}`);
           fetched = res.data?.data || res.data || [];
         } catch (e) {
           try {
-            const res2 = await axios.get(`${CORE_API_URL}/users`, { headers: { Authorization: `Bearer ${token}` } });
+            const res2 = await http.get('/users');
             fetched = (res2.data?.data || res2.data || []).filter((u: any) => ids.includes(String(u._id) || String(u.id)));
           } catch (ee) { }
         }
@@ -736,10 +724,9 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     if (!selectedToAdd || selectedToAdd.length === 0) return;
     setAdding(true);
     try {
-      const token = await TokenStore.getAccessToken();
       let ok = false;
       try {
-        await axios.post(`${CORE_API_URL}/channels/${channel.id || channel._id}/members`, { members: selectedToAdd }, { headers: { Authorization: `Bearer ${token}` } });
+        await http.post(`/channels/${channel.id || channel._id}/members`, { members: selectedToAdd });
         ok = true;
       } catch (e) { }
 
@@ -766,10 +753,9 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       {
         text: 'Remove', style: 'destructive', onPress: async () => {
           try {
-            const token = await TokenStore.getAccessToken();
             let ok = false;
             try {
-              await axios.delete(`${CORE_API_URL}/channels/${channel.id || channel._id}/members/${memberId}`, { headers: { Authorization: `Bearer ${token}` } });
+              await http.delete(`/channels/${channel.id || channel._id}/members/${memberId}`);
               ok = true;
             } catch (e) { }
 
@@ -871,7 +857,6 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     if (!editName || editName.trim() === '') return;
     setSaving(true);
     try {
-      const token = await TokenStore.getAccessToken();
       const payload: any = {};
       if (editName && editName.trim() !== (channel?.name || '')) payload.name = editName.trim();
 
@@ -885,10 +870,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         payload.avatarUrl = finalIcon;
       }
 
-      let ok = false;
       try {
-        await axios.patch(`${CORE_API_URL}/channels/${channel.id || channel._id}`, payload, { headers: { Authorization: `Bearer ${token}` } });
-        ok = true;
+        await http.patch(`/channels/${channel.id || channel._id}`, payload);
       } catch (e) { }
 
       const updated = { ...(channel || {}), name: payload.name || channel?.name, avatarUrl: payload.avatarUrl || channel?.avatarUrl, icon: payload.icon || channel?.icon };
@@ -906,11 +889,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     if (!isCreator) return;
     setDeleting(true);
     try {
-      const token = await TokenStore.getAccessToken();
-      let ok = false;
       try {
-        await axios.delete(`${CORE_API_URL}/channels/${channel.id || channel._id}`, { headers: { Authorization: `Bearer ${token}` } });
-        ok = true;
+        await http.delete(`/channels/${channel.id || channel._id}`);
       } catch (e) { }
 
       messagingEvents.emit('channel:deleted', channel.id || channel._id);
@@ -939,8 +919,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
   const fetchAllUsers = useCallback(async () => {
     try {
-      const token = await TokenStore.getAccessToken();
-      const res = await axios.get(`${CORE_API_URL}/users`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await http.get('/users');
       setAllUsers((res.data?.data || []).filter((u: any) => String(u._id || u.id) !== String(user?._id)));
     } catch (err) {
       setAllUsers([]);

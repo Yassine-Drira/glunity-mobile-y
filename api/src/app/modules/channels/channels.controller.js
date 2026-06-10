@@ -47,11 +47,34 @@ const channelsController = {
 	// POST /api/channels
 	createChannel: asyncHandler(async (req, res) => {
 		const { name, description, participants, icon } = req.body;
+		
+		const participantList = Array.isArray(participants) ? participants : [];
+		const formattedParticipants = participantList.map(p => {
+			if (typeof p === 'string') {
+				return { userId: p, role: 'member' };
+			} else if (p && p.userId) {
+				return { userId: p.userId, role: p.role || 'member' };
+			}
+			return p;
+		});
+
+		// Ensure the creator is in the participants as owner
+		const creatorId = req.user?._id;
+		if (creatorId) {
+			const hasCreator = formattedParticipants.some(p => p.userId?.toString() === creatorId.toString());
+			if (!hasCreator) {
+				formattedParticipants.push({ userId: creatorId, role: 'owner' });
+			} else {
+				const creatorObj = formattedParticipants.find(p => p.userId?.toString() === creatorId.toString());
+				if (creatorObj) creatorObj.role = 'owner';
+			}
+		}
+
 		const payload = {
 			name: name || `Group-${Date.now()}`,
 			description: description || '',
 			isPrivate: false,
-			participants: Array.isArray(participants) ? participants : [],
+			participants: formattedParticipants,
 			icon: icon || undefined,
 		};
 		const channel = await service.create(payload);
@@ -97,14 +120,34 @@ const channelsController = {
 	postMessage: asyncHandler(async (req, res) => {
 		const channelId = req.params.id;
 		const senderId = req.user?._id;
-		const { content } = req.body;
+		const { content, type, attachments, reelRef, replyTo } = req.body;
 
 		await service.getById(channelId);
 
-		const msg = await service.postMessage({
+		const payload = {
 			channelId,
 			senderId,
-			content,
+			content: content !== undefined ? content : '',
+			type: type || 'text',
+			attachments: Array.isArray(attachments) ? attachments : [],
+			reelRef: reelRef || undefined,
+			replyTo: replyTo || undefined,
+		};
+
+		const msg = await service.postMessage(payload);
+
+		// Update Channel lastMessage denormalized field
+		const Channel = require('../../../database/models/channel.model');
+		await Channel.findByIdAndUpdate(channelId, {
+			$set: {
+				lastMessage: {
+					messageId: msg._id,
+					senderId: req.user._id,
+					senderName: req.user.fullName,
+					content: msg.type === 'text' ? msg.content : `[${msg.type}]`,
+					createdAt: msg.createdAt,
+				},
+			},
 		});
 
 		res.status(201).json({ success: true, data: mapper.toMessageResponse(msg) });

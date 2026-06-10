@@ -6,7 +6,7 @@ const Message = require('../../../database/models/message.model');
 const channelsRepository = {
 	findMany({ userId, limit = 50, skip = 0 } = {}) {
 		const query = userId
-			? { $or: [{ isPrivate: { $ne: true } }, { participants: userId }] }
+			? { $or: [{ isPrivate: { $ne: true } }, { 'participants.userId': userId }] }
 			: { isPrivate: { $ne: true } };
 		return Channel.find(query)
 			.populate({
@@ -32,7 +32,7 @@ const channelsRepository = {
 	findDirectChannel(user1Id, user2Id) {
 		return Channel.findOne({
 			isPrivate: true,
-			participants: { $all: [user1Id, user2Id] }
+			'participants.userId': { $all: [user1Id, user2Id] }
 		}).lean();
 	},
 
