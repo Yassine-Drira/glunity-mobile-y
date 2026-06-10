@@ -26,7 +26,7 @@ export type AppStackParamList = {
   AddProduct:      { product?: any } | undefined;
   SellerStats:     undefined;
   ProductDetail:   { product?: any; productId?: string };
-  ProductsMarket:  undefined;
+  ProductsMarket:  { sellerId?: string } | undefined;
   Events:          undefined;
   EventDetail:     { eventId: string };
   AddEvent:        undefined;
@@ -35,6 +35,7 @@ export type AppStackParamList = {
   Privacy:         undefined;
   Community:       undefined;
   CommunityJoin:   undefined;
+  CommunityMembers: { channelId: string };
   MessagingHome:   undefined;
   CommunityChat:   { channelId?: string; initialChannel?: any } | undefined;
   CreateGroup:     undefined;

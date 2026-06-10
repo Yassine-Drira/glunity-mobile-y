@@ -78,10 +78,10 @@ export default function FastImage(props: FastImageProps) {
 
 // Add static properties to match react-native-fast-image API
 FastImage.resizeMode = {
-  contain: 'contain',
-  cover: 'cover',
-  stretch: 'stretch',
-  center: 'center',
+  contain: 'contain' as const,
+  cover: 'cover' as const,
+  stretch: 'stretch' as const,
+  center: 'center' as const,
 };
 
 FastImage.preload = (sources: Array<{ uri: string }>) => {

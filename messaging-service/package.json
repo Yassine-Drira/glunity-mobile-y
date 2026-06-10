@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "lint": "echo \"messaging lint placeholder\"",
+    "test": "echo \"messaging test placeholder\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

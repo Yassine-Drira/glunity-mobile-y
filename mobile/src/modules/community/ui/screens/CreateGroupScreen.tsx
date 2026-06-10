@@ -254,7 +254,7 @@ export default function CreateGroupScreen({ navigation }: any) {
 
                   <View style={styles.actionWrap as any}>
                     <TouchableOpacity onPress={() => toggleSelect(item)} style={[styles.addBtn as any, isSel ? styles.addBtnActive : undefined]} accessibilityRole="button" accessibilityLabel={isSel ? t('Remove') : t('Add') }>
-                      {isSel ? <Ionicons name="check" size={20} color="#fff" /> : <Ionicons name="add" size={20} color={T.text} />}
+                      {isSel ? <Ionicons name="checkmark" size={20} color="#fff" /> : <Ionicons name="add" size={20} color={T.text} />}
                     </TouchableOpacity>
                   </View>
                 </View>

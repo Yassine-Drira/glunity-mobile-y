@@ -1,14 +1,14 @@
-name: Mobile Integration Checks
+name: Messaging Integration Checks
 
 on:
   pull_request:
     paths:
-      - 'mobile/**'
-      - '.github/workflows/mobile.yml'
+      - 'messaging-service/**'
+      - '.github/workflows/messaging.yml'
 
 jobs:
-  mobile-build-and-test:
-    name: Mobile Typecheck, Lint, and Test
+  messaging-build-and-test:
+    name: Messaging Lint and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -24,11 +24,8 @@ jobs:
       - name: Install Monorepo Dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Mobile Lint Check
-        run: npm --workspace mobile run lint
+      - name: Messaging Lint Check
+        run: npm --workspace glunity-messaging-service run lint
 
-      - name: Mobile Type Check
-        run: npm --workspace mobile run typecheck
-
-      - name: Mobile Test Runner
-        run: npm --workspace mobile run test
+      - name: Messaging Test Runner
+        run: npm --workspace glunity-messaging-service run test

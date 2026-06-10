@@ -4,6 +4,7 @@ export type NotificationType = 'system' | 'event' | 'product' | 'community' | 'a
 
 export interface Notification {
   id: string;
+  _id?: string;
   userId: string;
   title: string;
   body: string;
