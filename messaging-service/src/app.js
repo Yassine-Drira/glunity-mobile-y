@@ -11,7 +11,7 @@ const env          = require('./config/env');
 const requestId    = require('./common/middleware/request-id.middleware');
 const errorHandler = require('./common/middleware/error.middleware');
 
-const messagesRoutes = require('./modules/messages/messages.routes');
+const channelsRoutes           = require('./modules/channels/channels.routes');
 const messagesRoutesStandalone = require('./modules/messages/messages.routes.standalone');
 
 const app = express();
@@ -45,10 +45,19 @@ app.get('/', (req, res) => {
 });
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-// Mount within-channel route mapping
-app.use('/api/channels/:channelId/messages', messagesRoutes);
+// Channels (+ nested messages sub-resource)
+//   GET    /api/channels
+//   POST   /api/channels
+//   POST   /api/channels/dm
+//   PATCH  /api/channels/:id/participants/:uid/role
+//   GET    /api/channels/:channelId/messages?cursor=&limit=&direction=
+//   POST   /api/channels/:channelId/messages/:messageId/pin
+//   DELETE /api/channels/:channelId/messages/:messageId/pin
+app.use('/api/channels', channelsRoutes);
 
-// Mount standalone message edit/delete routes
+// Standalone message mutations (edit & soft-delete)
+//   PATCH  /api/messages/:id
+//   DELETE /api/messages/:id
 app.use('/api/messages', messagesRoutesStandalone);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────

@@ -13,6 +13,19 @@ export default function CommunityJoinScreen({ navigation }: any) {
   const { theme: T } = useTheme();
   const { t, isRTL } = useLanguage();
 
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const joined = await AsyncStorage.getItem('@joined_community');
+        if (joined === 'true') {
+          navigation.replace('CommunityChat');
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [navigation]);
+
   const handleJoin = async () => {
     try {
       await AsyncStorage.setItem('@joined_community', 'true');
