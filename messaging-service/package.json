@@ -10,16 +10,18 @@
     "test": "echo \"messaging test placeholder\""
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.x",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "ioredis": "^5.6.x",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.1.5",
-    "ioredis": "^5.6.x",
-    "socket.io": "^4.8.x",
-    "@socket.io/redis-adapter": "^8.3.x"
+    "multer": "^2.1.1",
+    "socket.io": "^4.8.x"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

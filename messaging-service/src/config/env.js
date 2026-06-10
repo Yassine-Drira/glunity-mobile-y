@@ -4,6 +4,7 @@ const REQUIRED = [
   'MONGO_URI',
   'JWT_SECRET',
   'REFRESH_SECRET',
+  // CLOUDINARY_* are optional — omit them and the service falls back to local disk storage
 ];
 
 function validateEnv() {
@@ -45,6 +46,18 @@ const env = {
   presence: {
     heartbeatInterval: Number(process.env.PRESENCE_HEARTBEAT_INTERVAL) || 30000,
     timeout:           Number(process.env.PRESENCE_TIMEOUT) || 90000,
+  },
+
+  cloudinary: {
+    cloudName:  process.env.CLOUDINARY_CLOUD_NAME  || '',
+    apiKey:     process.env.CLOUDINARY_API_KEY     || '',
+    apiSecret:  process.env.CLOUDINARY_API_SECRET  || '',
+  },
+
+  media: {
+    maxImageSize: Number(process.env.MAX_IMAGE_SIZE) || 10 * 1024 * 1024, // 10 MB
+    maxVideoSize: Number(process.env.MAX_VIDEO_SIZE) || 50 * 1024 * 1024, // 50 MB
+    appUrl:       process.env.APP_URL || 'http://localhost:5001',
   },
 };
 
