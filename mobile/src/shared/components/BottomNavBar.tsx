@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../context/theme.context';
 import { ScanFrameIcon } from './icons/ScanFrameIcon';
 
-type TabKey = 'home' | 'events' | 'reels' | 'profile';
+type TabKey = 'home' | 'events' | 'reels' | 'community' | 'profile';
 
 interface BottomNavBarProps {
   activeTab: TabKey;
@@ -171,15 +171,15 @@ export function BottomNavBar({
           style={styles.navItem}
           activeOpacity={0.8}
           onPress={() => handleTabPress(onPressReels)}
-          id={`${idPrefix}-reels`}
+          id={`${idPrefix}-community`}
           accessibilityRole="tab"
-          accessibilityLabel={t('Reels')}
-          accessibilityState={{ selected: activeTab === 'reels' }}
+          accessibilityLabel={t('Community')}
+          accessibilityState={{ selected: activeTab === 'community' }}
         >
-          <View style={getIconFrameStyle('reels')}>
-            <MaterialCommunityIcons name="movie-play-outline" size={24} color={getIconColor('reels')} />
+          <View style={getIconFrameStyle('community')}>
+            <Ionicons name="chatbubbles-outline" size={24} color={getIconColor('community')} />
           </View>
-          <Text style={getLabelStyle('reels')} numberOfLines={1} allowFontScaling={false}>{t('Reels')}</Text>
+          <Text style={getLabelStyle('community')} numberOfLines={1} allowFontScaling={false}>{t('Community')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

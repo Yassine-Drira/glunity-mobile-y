@@ -154,7 +154,7 @@ export default function CommunityJoin({ navigation }: any) {
               <View style={styles.headerLeft}>
                 <Text style={styles.title}>Community</Text>
               </View>
-              <TouchableOpacity style={styles.skipBtn} onPress={() => navigation.navigate('MessagingHome') }>
+              <TouchableOpacity style={styles.skipBtn} onPress={() => navigation.navigate('CommunityChat') }>
                 <Text style={styles.skipText}>Skip</Text>
               </TouchableOpacity>
             </View>
