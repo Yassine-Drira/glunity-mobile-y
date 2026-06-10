@@ -686,9 +686,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             )}
 
             <TouchableOpacity
-              onPressIn={chat.startRecording}
-              onPressOut={chat.stopRecordingAndSend}
+              onPress={chat.isRecording ? chat.stopRecordingAndSend : chat.startRecording}
               style={{ padding: 8 }}
+              accessibilityLabel="Voice message"
             >
               <View style={{
                 width: 36,
