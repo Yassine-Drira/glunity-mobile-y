@@ -71,6 +71,24 @@ router.post('/:id/read', auth, readReceiptController.markRead);
  */
 router.post('/:id/reels', auth, reelShareController.shareReel);
 
+/**
+ * DELETE /api/channels/:id
+ * Soft-delete a DM channel (both sides). Also works for groups if user is creator.
+ */
+router.delete('/:id', auth, controller.deleteChannel);
+
+/**
+ * DELETE /api/channels/:id/messages
+ * Clear all messages in a channel (wipes chat history for all participants).
+ */
+router.delete('/:id/messages', auth, controller.clearMessages);
+
+/**
+ * POST /api/channels/:id/mute
+ * Toggle mute for the requesting user in the given channel.
+ */
+router.post('/:id/mute', auth, controller.toggleMute);
+
 // ── Messages sub-resource ─────────────────────────────────────────────────────
 
 /**

@@ -102,7 +102,7 @@ const channelsService = {
     if (existing) return { channel: existing, created: false };
 
     const channel = await repository.create({
-      type:        'DM',
+      type:        'direct',
       isPrivate:   true,
       participants: [
         { userId: new mongoose.Types.ObjectId(String(userId)),       role: 'member' },
@@ -147,7 +147,7 @@ const channelsService = {
     const channel = await repository.findById(channelId);
     if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
 
-    if (channel.type === 'DM') {
+    if (channel.type === 'DM' || channel.type === 'direct') {
       throw createError('Cannot change roles in a DM channel', 403, 'FORBIDDEN');
     }
 
@@ -185,6 +185,59 @@ const channelsService = {
     if (!updated) throw createError('Role update failed unexpectedly', 500, 'INTERNAL_ERROR');
 
     return updated;
+  },
+
+  async deleteChannel(channelId, userId) {
+    const Channel = require('../../database/models/channel.model');
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      throw createError('Channel not found', 404, 'NOT_FOUND');
+    }
+    const isMember = channel.participants.some(p => p.userId.toString() === userId.toString());
+    if (!isMember) {
+      throw createError('Forbidden', 403, 'FORBIDDEN');
+    }
+
+    channel.deletedAt = new Date();
+    await channel.save();
+    return channel;
+  },
+
+  async clearMessages(channelId, userId) {
+    const Channel = require('../../database/models/channel.model');
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      throw createError('Channel not found', 404, 'NOT_FOUND');
+    }
+    const isMember = channel.participants.some(p => p.userId.toString() === userId.toString());
+    if (!isMember) {
+      throw createError('Forbidden', 403, 'FORBIDDEN');
+    }
+
+    const Message = require('../../database/models/message.model');
+    await Message.deleteMany({ channelId });
+
+    channel.lastMessage = null;
+    channel.messageCount = 0;
+    channel.pinnedMessages = [];
+    await channel.save();
+    return channel;
+  },
+
+  async toggleMute(channelId, userId) {
+    const Channel = require('../../database/models/channel.model');
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      throw createError('Channel not found', 404, 'NOT_FOUND');
+    }
+    const participant = channel.participants.find(p => p.userId.toString() === userId.toString());
+    if (!participant) {
+      throw createError('Forbidden', 403, 'FORBIDDEN');
+    }
+
+    participant.muted = !participant.muted;
+    await channel.save();
+    return channel;
   },
 };
 

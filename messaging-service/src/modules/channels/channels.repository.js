@@ -30,7 +30,7 @@ const channelsRepository = {
    */
   async findDM(userIdA, userIdB) {
     return Channel.findOne({
-      type: 'DM',
+      type: { $in: ['DM', 'direct'] },
       'participants.userId': { $all: [userIdA, userIdB] },
       $expr: { $eq: [{ $size: '$participants' }, 2] },
       deletedAt: { $in: [null, undefined] },

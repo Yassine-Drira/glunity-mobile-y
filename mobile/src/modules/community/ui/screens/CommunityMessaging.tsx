@@ -154,24 +154,94 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     container: {
       flex: 1,
       backgroundColor: T.bg,
-      ...(Platform.OS === 'web' ? { position: 'relative', overflow: 'hidden' } : {}),
+      ...(Platform.OS === 'web' ? { position: 'relative', overflow: 'hidden' } as any : {}),
     },
-    header: { height: 64, borderBottomWidth: 1, borderBottomColor: T.divider, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingHorizontal: 12, justifyContent: 'space-between' },
-    headerLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
-    avatar: { width: 34, height: 34, borderRadius: 17, marginRight: 8, marginBottom: 2 },
+    // ── Header ──────────────────────────────────────────────────────────────
+    header: {
+      height: 64,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: T.divider,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      justifyContent: 'space-between',
+      backgroundColor: T.surface,
+    },
+    headerLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', flex: 1, minWidth: 0 },
+    headerRight: { flexDirection: 'row', alignItems: 'center', paddingLeft: 4 },
+    backBtn: { padding: 6, marginRight: 2 },
+    // DM avatar: slightly larger, circular with ring
+    dmAvatar: {
+      width: 40, height: 40, borderRadius: 20,
+      borderWidth: 2, borderColor: isDark ? '#2ECC7130' : '#2ECC7140',
+    },
+    // Group avatar: rounded square, icon-based
+    groupAvatar: {
+      width: 40, height: 40, borderRadius: 12,
+      backgroundColor: isDark ? '#1E4A3A' : '#D5F5E3',
+      alignItems: 'center', justifyContent: 'center',
+    },
+    presenceDot: {
+      position: 'absolute', right: 0, bottom: 0,
+      width: 12, height: 12, borderRadius: 6,
+      borderWidth: 2, borderColor: T.surface,
+    },
+    headerMeta: { flex: 1, marginLeft: 10, minWidth: 0 },
+    headerName: {
+      fontSize: 15, fontWeight: '700',
+      color: T.text,
+      fontFamily: 'Poppins_700Bold',
+    },
+    headerSub: { fontSize: 11.5, color: T.textMuted, marginTop: 1 },
+    headerSubOnline: { fontSize: 11.5, color: '#27AE60', marginTop: 1, fontWeight: '600' },
+    // ── Bubbles ─────────────────────────────────────────────────────────────
+    avatar: { width: 34, height: 34, borderRadius: 17, marginRight: 6 },
     title: { fontSize: 16, fontWeight: '700', color: T.text },
     subtitle: { fontSize: 12, color: T.textMuted },
     listContent: { padding: 16, paddingBottom: 24 },
-    row: { marginVertical: 4, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-end' },
-    bubbleLeft: { backgroundColor: T.surfaceAlt, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, borderBottomLeftRadius: 4, maxWidth: windowWidth * 0.7, minWidth: 60, alignSelf: 'flex-start', flexShrink: 1, marginHorizontal: 6, overflow: 'hidden', ...(Platform.OS === 'web' ? ({ wordBreak: 'break-word', overflowWrap: 'break-word' } as any) : {}) },
-    bubbleRight: { backgroundColor: isDark ? '#1E7A4D' : '#2ECC71', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16, borderBottomRightRadius: 4, maxWidth: windowWidth * 0.7, minWidth: 60, alignSelf: 'flex-end', flexShrink: 1, marginHorizontal: 6, overflow: 'hidden', alignItems: 'flex-start', ...(Platform.OS === 'web' ? ({ wordBreak: 'break-word', overflowWrap: 'break-word' } as any) : {}) },
-    msgText: { color: T.text, fontSize: 14.5, lineHeight: 19, flexWrap: 'wrap', flexShrink: 1, minWidth: 0, ...(Platform.OS === 'web' ? ({ wordBreak: 'break-word', overflowWrap: 'break-word' } as any) : {}) },
+    row: { marginVertical: 3, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-end' },
+    bubbleLeft: {
+      backgroundColor: T.surfaceAlt,
+      paddingVertical: 8, paddingHorizontal: 12,
+      borderRadius: 18, borderBottomLeftRadius: 4,
+      maxWidth: windowWidth * 0.72, minWidth: 60,
+      alignSelf: 'flex-start', flexShrink: 1, marginHorizontal: 6,
+      overflow: 'hidden',
+      ...(Platform.OS === 'web' ? { wordBreak: 'break-word', overflowWrap: 'break-word' } as any : {}),
+    },
+    bubbleRight: {
+      backgroundColor: isDark ? '#1E7A4D' : '#2ECC71',
+      paddingVertical: 8, paddingHorizontal: 12,
+      borderRadius: 18, borderBottomRightRadius: 4,
+      maxWidth: windowWidth * 0.72, minWidth: 60,
+      alignSelf: 'flex-end', flexShrink: 1, marginHorizontal: 6,
+      overflow: 'hidden', alignItems: 'flex-start',
+      ...(Platform.OS === 'web' ? { wordBreak: 'break-word', overflowWrap: 'break-word' } as any : {}),
+    },
+    msgText: {
+      color: T.text, fontSize: 14.5, lineHeight: 20,
+      flexWrap: 'wrap', flexShrink: 1, minWidth: 0,
+      ...(Platform.OS === 'web' ? { wordBreak: 'break-word', overflowWrap: 'break-word' } as any : {}),
+    },
     timeText: { fontSize: 10, color: T.textMuted, marginTop: 2 },
     messageBlock: { flexDirection: 'column', alignItems: 'flex-start' },
-    inputBar: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 12, backgroundColor: T.surface, borderTopWidth: 1, borderTopColor: T.divider },
+    inputBar: {
+      position: 'absolute', left: 0, right: 0, bottom: 0,
+      padding: 12, backgroundColor: T.surface,
+      borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.divider,
+    },
     inputRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
-    textInput: { flex: 1, marginHorizontal: 8, backgroundColor: T.surfaceAlt, paddingVertical: Platform.OS === 'ios' ? 12 : 8, paddingHorizontal: 12, borderRadius: 24, color: T.text },
-    sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: isDark ? '#1E7A4D' : '#2ECC71', justifyContent: 'center', alignItems: 'center' },
+    textInput: {
+      flex: 1, marginHorizontal: 8,
+      backgroundColor: T.surfaceAlt,
+      paddingVertical: Platform.OS === 'ios' ? 12 : 8, paddingHorizontal: 14,
+      borderRadius: 24, color: T.text,
+    },
+    sendBtn: {
+      width: 44, height: 44, borderRadius: 22,
+      backgroundColor: isDark ? '#1E7A4D' : '#2ECC71',
+      justifyContent: 'center', alignItems: 'center',
+    },
   }), [T, isDark, isRTL, windowWidth]);
 
   const formatMessageTime = (dateString: string) => {
@@ -419,7 +489,8 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         )}
 
         <View style={[styles.messageBlock, isMe ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }]}>
-          {!isMe && (
+          {/* Only show sender name in GROUP conversations */}
+          {!isMe && !dmPartnerId && (
             <Text style={{ fontSize: 11, fontWeight: '600', color: T.green || '#2ECC71', marginBottom: 3, marginLeft: 6 }}>
               {item.senderName || 'User'}
             </Text>
@@ -468,61 +539,94 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
   return (
     <SafeAreaView style={styles.container} edges={["top","left","right"]}>
-      {/* Header */}
+      {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
+        {/* Left: back + avatar + identity */}
         <View style={styles.headerLeft}>
           <TouchableOpacity
             onPress={() => {
-              if (navigation.canGoBack && navigation.canGoBack()) {
-                navigation.goBack();
-              } else {
-                navigation.navigate('MessagingHome');
-              }
+              if (navigation.canGoBack && navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('MessagingHome');
             }}
-            style={{ padding: 6 }}
+            style={styles.backBtn}
           >
             <Ionicons name={isRTL ? 'arrow-forward-outline' : 'arrow-back-outline'} size={22} color={T.text} />
           </TouchableOpacity>
-          {/* Avatar with live presence dot */}
-          <View style={{ position: 'relative' }}>
-            {display.avatar ? (
-              <Image source={{ uri: display.avatar }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, { backgroundColor: T.surfaceAlt, justifyContent: 'center', alignItems: 'center' }]}>
-                <Ionicons name="people" size={20} color={T.textMuted} />
+
+          {dmPartnerId ? (
+            /* ── DM Header ──────────────────────────────────────────────────── */
+            <TouchableOpacity
+              onPress={() => chat.setMembersSheetVisible(true)}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}
+              activeOpacity={0.75}
+            >
+              {/* Avatar with presence dot */}
+              <View style={{ position: 'relative' }}>
+                {display.avatar ? (
+                  <Image source={{ uri: display.avatar }} style={styles.dmAvatar} />
+                ) : (
+                  <View style={[styles.dmAvatar, { backgroundColor: isDark ? '#1E4A3A' : '#D5F5E3', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={{ fontSize: 16, fontWeight: '800', color: T.green || '#2ECC71' }}>
+                      {String(display.name || '?').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={[styles.presenceDot, { backgroundColor: partnerOnline ? '#27AE60' : '#9E9E9E' }]} />
               </View>
-            )}
-            {dmPartnerId && (
-              <View style={{
-                position: 'absolute',
-                right: 0,
-                bottom: 0,
-                width: 11,
-                height: 11,
-                borderRadius: 6,
-                backgroundColor: partnerOnline ? '#4CAF50' : '#9E9E9E',
-                borderWidth: 2,
-                borderColor: T.bg,
-              }} />
-            )}
-          </View>
-          <View style={{ marginLeft: 8 }}>
-            <Text style={styles.title}>{display.name}</Text>
-            {dmPartnerId ? (
-              <Text style={[styles.subtitle, { color: partnerOnline ? '#4CAF50' : T.textMuted }]}>
-                {partnerOnline ? t('Online') : t('Offline')}
-              </Text>
-            ) : (
-              <Text style={styles.subtitle}>
-                {(chat.channel?.participants?.length || 0) > 0
-                  ? `${chat.channel.participants.length} ${t('members')}`
-                  : t('Group')}
-              </Text>
-            )}
-          </View>
+
+              {/* Name + status */}
+              <View style={styles.headerMeta}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Text style={styles.headerName} numberOfLines={1}>{display.name}</Text>
+                  {!!chat.channel?.myMuted && (
+                    <Ionicons name="notifications-off" size={13} color={T.textMuted} />
+                  )}
+                </View>
+                {chat.typingUser ? (
+                  <Text style={styles.headerSubOnline}>{t('typing...')}</Text>
+                ) : (
+                  <Text style={partnerOnline ? styles.headerSubOnline : styles.headerSub}>
+                    {partnerOnline ? t('Online') : t('Offline')}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          ) : (
+            /* ── Group Header ───────────────────────────────────────────────── */
+            <TouchableOpacity
+              onPress={() => chat.setMembersSheetVisible(true)}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}
+              activeOpacity={0.75}
+            >
+              {/* Group icon */}
+              <View style={styles.groupAvatar}>
+                {display.avatar ? (
+                  <Image source={{ uri: display.avatar }} style={{ width: 40, height: 40, borderRadius: 12 }} />
+                ) : (
+                  <Ionicons name="people" size={20} color={T.green || '#2ECC71'} />
+                )}
+              </View>
+
+              {/* Name + member count */}
+              <View style={styles.headerMeta}>
+                <Text style={styles.headerName} numberOfLines={1}>{display.name}</Text>
+                <Text style={styles.headerSub}>
+                  {(chat.channel?.participants?.length || 0) > 0
+                    ? `${chat.channel.participants.length} ${t('members')}`
+                    : t('Group')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
-        <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
-          <TouchableOpacity style={{ padding: 8 }} onPress={() => chat.setMenuVisible(true)} accessibilityLabel="Options">
+
+        {/* Right: actions */}
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={{ padding: 8 }}
+            onPress={() => chat.setMenuVisible(true)}
+            accessibilityLabel="Options"
+          >
             <Ionicons name="ellipsis-vertical" size={20} color={T.text} />
           </TouchableOpacity>
         </View>
@@ -756,12 +860,18 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       <OptionsActionMenu
         visible={chat.menuVisible}
         onRequestClose={() => chat.setMenuVisible(false)}
+        isDM={!!dmPartnerId}
+        isMuted={!!chat.channel?.myMuted}
         onOpenMembers={() => chat.setMembersSheetVisible(true)}
         onOpenEditGroup={() => chat.setEditSheetVisible(true)}
+        onMuteToggle={chat.handleMuteDM}
+        onClearChat={chat.handleClearChat}
+        onDeleteConversation={chat.handleDeleteDM}
         theme={T}
         insets={insets}
         isDark={isDark}
         BlurView={BlurView}
+        t={t}
       />
 
       {/* Members Bottom Sheet */}

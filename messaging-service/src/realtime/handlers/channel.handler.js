@@ -42,16 +42,16 @@ function channelHandler(io, socket) {
         return logger.warn('[socket:channel] Join blocked: not a member', { channelId, userId });
       }
 
-      socket.join(`channel:${channelId}`);
-      logger.info('[socket:channel] Joined room', { channelId, userId });
+      socket.join(`viewing:${channelId}`);
+      logger.info('[socket:channel] Joined viewing room', { channelId, userId });
     } catch (err) {
       logger.error('[socket:channel] Join handler error', { err: err.message });
     }
   });
 
   socket.on('channel:leave', ({ channelId }) => {
-    socket.leave(`channel:${channelId}`);
-    logger.info('[socket:channel] Left room', { channelId, userId });
+    socket.leave(`viewing:${channelId}`);
+    logger.info('[socket:channel] Left viewing room', { channelId, userId });
   });
 }
 

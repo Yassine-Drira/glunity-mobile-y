@@ -35,6 +35,9 @@ export default function MessagingHome({ navigation }: any) {
   const reducedMotion = useReducedMotion();
 
   const [channels, setChannels] = useState<any[]>([]);
+  // sortOrder: explicit ordered list of channelIds, most-recent first.
+  // Updated immediately on conversation:updated so the list reorders in real-time.
+  const [sortOrder, setSortOrder] = useState<string[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -56,6 +59,9 @@ export default function MessagingHome({ navigation }: any) {
     try {
       const res = await http.get('/channels');
       const fresh = res.data?.data || [];
+      // Build initial sort order from server response (already sorted by lastMessage)
+      const ids = fresh.map((c: any) => String(c._id || c.id));
+      setSortOrder(ids);
       setChannels(fresh);
       await ChatCacheService.saveChannels(fresh);
     } catch (err) {
@@ -167,18 +173,34 @@ export default function MessagingHome({ navigation }: any) {
     return channels.filter(c => isGroupChannel(c) || isDMChannel(c));
   }, [channels, activeTab]);
 
-  // Sort channels by last message timestamp (most recent first)
+  // Sort channels using explicit sortOrder array (updated on each new message).
+  // Falls back to timestamp sort only if sortOrder has no entry for a channel.
   const sortedChannels = useMemo(() => {
     const list = filteredChannels ? [...filteredChannels] : [];
-    list.sort((a: any, b: any) => {
-      const ta = (a?.lastMessage?.createdAt || a?.lastMessage?.created_at || 0);
-      const tb = (b?.lastMessage?.createdAt || b?.lastMessage?.created_at || 0);
-      const na = typeof ta === 'string' ? new Date(ta).getTime() : (ta || 0);
-      const nb = typeof tb === 'string' ? new Date(tb).getTime() : (tb || 0);
-      return nb - na;
-    });
+    if (sortOrder.length > 0) {
+      list.sort((a: any, b: any) => {
+        const aId = String(a._id || a.id);
+        const bId = String(b._id || b.id);
+        const ai = sortOrder.indexOf(aId);
+        const bi = sortOrder.indexOf(bId);
+        // Items in sortOrder come first (lower index = more recent)
+        if (ai !== -1 && bi !== -1) return ai - bi;
+        if (ai !== -1) return -1;
+        if (bi !== -1) return 1;
+        // Both unknown: fall back to timestamp
+        const ta = a?.lastMessage?.createdAt || a?.updatedAt || a?.createdAt || 0;
+        const tb = b?.lastMessage?.createdAt || b?.updatedAt || b?.createdAt || 0;
+        return new Date(tb).getTime() - new Date(ta).getTime();
+      });
+    } else {
+      list.sort((a: any, b: any) => {
+        const ta = a?.lastMessage?.createdAt || a?.updatedAt || a?.createdAt || 0;
+        const tb = b?.lastMessage?.createdAt || b?.updatedAt || b?.createdAt || 0;
+        return new Date(tb).getTime() - new Date(ta).getTime();
+      });
+    }
     return list;
-  }, [filteredChannels]);
+  }, [filteredChannels, sortOrder]);
 
   const contactsList = useMemo(() => {
     if (!users || users.length === 0 || !user) return [];
@@ -350,20 +372,25 @@ export default function MessagingHome({ navigation }: any) {
 
     const handleConversationUpdated = ({ channelId, lastMessage, unreadCount }: any) => {
       if (!channelId) return;
+      const cid = String(channelId);
+
+      // Bubble this channel to front of sortOrder
+      setSortOrder(prev => {
+        const next = prev.filter(id => id !== cid);
+        next.unshift(cid);
+        return next;
+      });
+
       setChannels((prev) => {
-        const cid = String(channelId);
         const idx = prev.findIndex(c => String(c._id || c.id) === cid);
         if (idx === -1) return prev;
         const updated = {
           ...prev[idx],
           ...(lastMessage ? { lastMessage } : {}),
-          // only update unread for others (sender already has 0)
           ...(unreadCount !== undefined ? { unreadCount } : {}),
         };
-        // Bubble to top by moving updated item to front
         const next = [...prev];
-        next.splice(idx, 1);
-        next.unshift(updated);
+        next[idx] = updated;
         return next;
       });
     };
@@ -394,8 +421,14 @@ export default function MessagingHome({ navigation }: any) {
   useEffect(() => {
     const onLocalMessage = (message: any) => {
       if (!message) return;
+      const cid = String(message.channelId || message.channel || '');
+      // Bubble this channel to top of sort order
+      setSortOrder(prev => {
+        const next = prev.filter(id => id !== cid);
+        next.unshift(cid);
+        return next;
+      });
       setChannels((prev) => {
-        const cid = String(message.channelId || message.channel || '');
         let found = false;
         const next = prev.map((c) => {
           const cId = String(c._id || c.id || c.channelId || '');
@@ -414,6 +447,7 @@ export default function MessagingHome({ navigation }: any) {
     messagingEvents.on('message:new', onLocalMessage);
     return () => { messagingEvents.off('message:new', onLocalMessage); };
   }, [user]);
+
 
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: T.bg },
@@ -550,7 +584,14 @@ export default function MessagingHome({ navigation }: any) {
 
             const disp = getChannelDisplay(item);
             const avatarUri = disp.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(disp.name || 'C')}&background=8BC34A&color=fff`;
-            const subtitle = disp.isDM ? `Direct message with ${disp.name}` : (item.lastMessage?.content || item.description);
+            const unread: number = item.unreadCount || 0;
+            const rawSubtitle = item.lastMessage?.content || item.description || '';
+            // For unread messages: show count prefix or truncate to avoid overflow
+            const subtitle = unread > 0 && !disp.isDM
+              ? `${unread > 4 ? '4+' : unread} unread · ${rawSubtitle}`.slice(0, 80)
+              : disp.isDM
+                ? (rawSubtitle || `Direct message`)
+                : rawSubtitle;
 
             // ── Online dot ────────────────────────────────────────────────────
             let showOnlineDot = false;
@@ -601,18 +642,20 @@ export default function MessagingHome({ navigation }: any) {
                   <View style={styles.rowContent}>
                     <View style={styles.rowTop}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={styles.rowName}>{disp.name}</Text>
+                        <Text style={[styles.rowName, item.unreadCount > 0 && { fontWeight: '900', color: T.text }]} numberOfLines={1}>{disp.name}</Text>
                         {!!item.isPinned && (
                           <Ionicons name="pin" size={13} color={T.green || '#8BC34A'} style={{ marginLeft: 6 }} />
                         )}
                       </View>
                       <Text style={styles.rowTime}>{formatTime(item.lastMessage?.createdAt)}</Text>
                     </View>
-                    <Text style={styles.rowSnippet} numberOfLines={1}>{subtitle}</Text>
+                    <Text style={[styles.rowSnippet, item.unreadCount > 0 && { fontWeight: '700', color: T.text }]} numberOfLines={1}>{subtitle}</Text>
                   </View>
-                  {item.unreadCount > 0 ? (
+                  {unread > 0 ? (
                     <View style={styles.unreadWrap}>
-                      <View style={styles.unreadBadge}><Text style={styles.unreadText}>{item.unreadCount}</Text></View>
+                      <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadText}>{unread > 4 ? '4+' : unread}</Text>
+                      </View>
                     </View>
                   ) : null}
                 </TouchableOpacity>

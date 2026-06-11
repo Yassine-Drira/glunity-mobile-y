@@ -82,6 +82,34 @@ const channelsController = {
       data:    mapper.toChannelResponse(channel, req.user._id),
     });
   }),
+
+  deleteChannel: asyncHandler(async (req, res) => {
+    const { id: channelId } = req.params;
+    await service.deleteChannel(channelId, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Channel deleted successfully',
+    });
+  }),
+
+  clearMessages: asyncHandler(async (req, res) => {
+    const { id: channelId } = req.params;
+    const channel = await service.clearMessages(channelId, req.user._id);
+    res.status(200).json({
+      success: true,
+      message: 'Messages cleared successfully',
+      data:    mapper.toChannelResponse(channel, req.user._id),
+    });
+  }),
+
+  toggleMute: asyncHandler(async (req, res) => {
+    const { id: channelId } = req.params;
+    const channel = await service.toggleMute(channelId, req.user._id);
+    res.status(200).json({
+      success: true,
+      data:    mapper.toChannelResponse(channel, req.user._id),
+    });
+  }),
 };
 
 module.exports = channelsController;

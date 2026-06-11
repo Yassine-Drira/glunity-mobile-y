@@ -687,13 +687,18 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const currentBadges = isPro ? PRO_BADGES : CELIAC_BADGES;
 
-  const unlockedBadges = user?.badges || [];
-  const isBadgeUnlocked = (badgeId: string) => {
+  /**
+   * A badge is unlocked if and only if the user has accumulated enough XP.
+   * We do NOT use user.badges (populated DB objects) because:
+   * 1. The backend seeds generic DB badges (pointsRequired: 10, 50, 100, 200)
+   *    which don't correspond to the frontend's visual badge set.
+   * 2. The previous fallback compared frontend badge id strings ('gold') against
+   *    the DB badge icon field, which could cause false positives.
+   */
+  const isBadgeUnlocked = (badgeId: string): boolean => {
     const badge = currentBadges.find((b) => b.id === badgeId);
-    if (badge && points >= badge.pointsRequired) {
-      return true;
-    }
-    return unlockedBadges.some((b: any) => b.icon?.toLowerCase() === badgeId.toLowerCase());
+    if (!badge) return false;
+    return points >= badge.pointsRequired;
   };
 
   return (

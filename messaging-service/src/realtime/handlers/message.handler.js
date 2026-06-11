@@ -122,16 +122,16 @@ function messageHandler(io, socket) {
             unreadCount
           });
 
-          // If participant is not the sender, check if they are viewing the channel
-          if (pId !== userId) {
-            const userSockets = await io.in(pId).fetchSockets();
-            let isViewing = false;
-            for (const s of userSockets) {
-              if (s.rooms.has(`channel:${channelId}`)) {
-                isViewing = true;
-                break;
+            // If participant is not the sender, check if they are viewing the channel
+            if (pId !== userId) {
+              const userSockets = await io.in(pId).fetchSockets();
+              let isViewing = false;
+              for (const s of userSockets) {
+                if (s.rooms.has(`viewing:${channelId}`)) {
+                  isViewing = true;
+                  break;
+                }
               }
-            }
 
             if (!isViewing) {
               let conversationName = updatedChannel.name;

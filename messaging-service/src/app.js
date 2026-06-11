@@ -1,17 +1,17 @@
 'use strict';
 
 require('./bootstrap/env.bootstrap');
-const express      = require('express');
-const cors         = require('cors');
+const express = require('express');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const path         = require('path');
-const fs           = require('fs');
+const path = require('path');
+const fs = require('fs');
 
-const env          = require('./config/env');
-const requestId    = require('./common/middleware/request-id.middleware');
+const env = require('./config/env');
+const requestId = require('./common/middleware/request-id.middleware');
 const errorHandler = require('./common/middleware/error.middleware');
 
-const channelsRoutes           = require('./modules/channels/channels.routes');
+const channelsRoutes = require('./modules/channels/channels.routes');
 const messagesRoutesStandalone = require('./modules/messages/messages.routes.standalone');
 
 const app = express();

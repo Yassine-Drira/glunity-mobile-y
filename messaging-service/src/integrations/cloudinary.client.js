@@ -10,22 +10,22 @@
  */
 
 const cloudinary = require('cloudinary').v2;
-const fs         = require('fs');
-const path       = require('path');
-const crypto     = require('crypto');
-const env        = require('../config/env');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const env = require('../config/env');
 
 // ── Configure once at module load ─────────────────────────────────────────────
 
 const configured =
   env.cloudinary?.cloudName &&
-  env.cloudinary?.apiKey   &&
+  env.cloudinary?.apiKey &&
   env.cloudinary?.apiSecret;
 
 if (configured) {
   cloudinary.config({
     cloud_name: env.cloudinary.cloudName,
-    api_key:    env.cloudinary.apiKey,
+    api_key: env.cloudinary.apiKey,
     api_secret: env.cloudinary.apiSecret,
   });
 }
@@ -35,13 +35,13 @@ if (configured) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const MIME_EXT = {
-  'image/jpeg':  '.jpg',
-  'image/jpg':   '.jpg',
-  'image/png':   '.png',
-  'image/gif':   '.gif',
-  'image/webp':  '.webp',
-  'video/mp4':   '.mp4',
-  'video/webm':  '.webm',
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'video/mp4': '.mp4',
+  'video/webm': '.webm',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,16 +104,16 @@ async function uploadBuffer(buffer, opts = {}) {
   if (!ext.startsWith('.')) ext = '.' + ext;
 
   const safeFolder = (opts.folder || 'files').replace(/[/\\]+/g, '_');
-  const filename   = `${safeFolder}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
-  const filePath   = path.join(uploadDir, filename);
+  const filename = `${safeFolder}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`;
+  const filePath = path.join(uploadDir, filename);
 
   fs.writeFileSync(filePath, buffer);
 
   const base = (env.media?.appUrl || 'http://localhost:5001').replace(/\/$/, '');
   return {
     secure_url: `${base}/uploads/${filename}`,
-    url:        `${base}/uploads/${filename}`,
-    public_id:  filename,
+    url: `${base}/uploads/${filename}`,
+    public_id: filename,
     resource_type: opts.resource_type || 'auto',
     // local fallback doesn't generate real thumbnails
     eager: [],

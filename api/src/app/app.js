@@ -1,21 +1,21 @@
 'use strict';
 
-const express         = require('express');
+const express = require('express');
 const path = require('path');
-const cors            = require('cors');
-const cookieParser    = require('cookie-parser');
-const corsOptions     = require('./config/cors');
-const security        = require('./config/security');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const corsOptions = require('./config/cors');
+const security = require('./config/security');
 const { authLimiter, globalLimiter } = require('./config/rate-limit');
 const errorMiddleware = require('./common/middleware/error.middleware');
-const requestId       = require('./common/middleware/request-id.middleware');
-const logger          = require('./bootstrap/logger.bootstrap');
+const requestId = require('./common/middleware/request-id.middleware');
+const logger = require('./bootstrap/logger.bootstrap');
 
 // ── Route modules ─────────────────────────────────────────────────────────────
-const authRoutes      = require('./modules/auth/auth.routes');
-const usersRoutes     = require('./modules/users/users.routes');
-const recipesRoutes   = require('./modules/recipes/recipes.routes');
-const productsRoutes  = require('./modules/products/products.routes');
+const authRoutes = require('./modules/auth/auth.routes');
+const usersRoutes = require('./modules/users/users.routes');
+const recipesRoutes = require('./modules/recipes/recipes.routes');
+const productsRoutes = require('./modules/products/products.routes');
 const locationsRoutes = require('./modules/locations/locations.routes');
 const eventsRoutes = require('./modules/events/events.routes');
 const notificationsRoutes = require('./modules/notifications/notifications.routes');
@@ -59,17 +59,17 @@ app.get('/health', (_req, res) =>
 );
 
 // ── API Routes ────────────────────────────────────────────────────────────────
-app.use('/api/auth',      authLimiter, authRoutes);
-app.use('/api/users',     usersRoutes);
-app.use('/api/recipes',   recipesRoutes);
-app.use('/api/products',  productsRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/recipes', recipesRoutes);
+app.use('/api/products', productsRoutes);
 app.use('/api/locations', locationsRoutes);
 app.use('/api/events', eventsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/badges', badgesRoutes);
 app.use('/api/reviews', reviewsRoutes);
-app.use('/api/channels',          channelsRoutes);
-app.use('/api/conversations',     channelsRoutes);
+app.use('/api/channels', channelsRoutes);
+app.use('/api/conversations', channelsRoutes);
 app.use('/api/patient-resources', patientResourcesRoutes);
 app.use('/api/uploads', uploadsRoutes);
 

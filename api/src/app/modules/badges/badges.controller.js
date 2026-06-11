@@ -15,28 +15,34 @@ const badgesController = {
 		if (items.length === 0 && skip === 0) {
 			const seedData = [
 				{
-					name: 'Gluten-Free Novice',
+					name: 'Bronze Initiator',
 					description: 'Awarded for starting your gluten-free journey with GlUnity.',
-					icon: 'sprout',
-					pointsRequired: 10,
+					icon: 'bronze',
+					pointsRequired: 150,
 				},
 				{
-					name: 'Celiac Warrior',
+					name: 'Active Contributor',
 					description: 'Recognizes members with high awareness of cross-contamination.',
-					icon: 'shield-check',
-					pointsRequired: 50,
+					icon: 'silver',
+					pointsRequired: 500,
 				},
 				{
-					name: 'Community Contributor',
-					description: 'Given for contributing reviews and sharing gluten-free recipes.',
-					icon: 'heart-pulse',
-					pointsRequired: 100,
+					name: 'Gluten-Free Champion',
+					description: 'Awarded for mastering the gluten-free lifestyle and inspiring others.',
+					icon: 'gold',
+					pointsRequired: 2500,
 				},
 				{
-					name: 'Master Baker',
-					description: 'Unlock this by baking verified Tunisian gluten-free dishes.',
-					icon: 'chef-hat',
-					pointsRequired: 200,
+					name: 'Silver Advocate',
+					description: 'Recognizes pro members showing high advocacy.',
+					icon: 'pro_silver',
+					pointsRequired: 300,
+				},
+				{
+					name: 'Gold Guardian',
+					description: 'The highest pro honour for ultimate community guardians.',
+					icon: 'pro_gold',
+					pointsRequired: 2500,
 				},
 			];
 			const created = [];

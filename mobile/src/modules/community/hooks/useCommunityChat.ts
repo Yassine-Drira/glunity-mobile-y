@@ -778,6 +778,9 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       } else {
         form.append('file', { uri, name: filename, type: 'audio/m4a' } as any);
       }
+      if (durationSec !== undefined) {
+        form.append('duration', String(durationSec));
+      }
 
       // 3. Post to the messaging service channel upload endpoint (which uses Cloudinary)
       const uploadRes = await http.post(`${MSG_SERVICE_URL}/channels/${targetId}/upload`, form, {
@@ -1180,6 +1183,71 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     }
   }, [channel, t]);
 
+  // ── DM-specific actions ─────────────────────────────────────────────────────
+
+  const handleMuteDM = useCallback(async () => {
+    try {
+      const channelId = channel?.id || channel?._id;
+      const res = await messagingHttp.post(`/channels/${channelId}/mute`, {});
+      const muted = res.data?.data?.myMuted ?? false;
+      setChannel((prev: any) => prev ? { ...prev, myMuted: muted } : prev);
+      Alert.alert(
+        muted ? t('Muted') : t('Unmuted'),
+        muted ? t('You will no longer receive notifications from this conversation.') : t('Notifications re-enabled for this conversation.')
+      );
+    } catch (err: any) {
+      Alert.alert(t('Error'), err?.response?.data?.message || t('Failed to toggle mute'));
+    }
+  }, [channel, t]);
+
+  const handleClearChat = useCallback(() => {
+    Alert.alert(
+      t('Clear Chat'),
+      t('All messages in this conversation will be permanently deleted for everyone. This cannot be undone.'),
+      [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('Clear'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const channelId = channel?.id || channel?._id;
+              await messagingHttp.delete(`/channels/${channelId}/messages`);
+              setMessages([]);
+              setChannel((prev: any) => prev ? { ...prev, lastMessage: null, pinnedMessages: [] } : prev);
+            } catch (err: any) {
+              Alert.alert(t('Error'), err?.response?.data?.message || t('Failed to clear chat'));
+            }
+          },
+        },
+      ]
+    );
+  }, [channel, t]);
+
+  const handleDeleteDM = useCallback(() => {
+    Alert.alert(
+      t('Delete Conversation'),
+      t('This conversation and all its messages will be permanently deleted. This cannot be undone.'),
+      [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('Delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const channelId = channel?.id || channel?._id;
+              await messagingHttp.delete(`/channels/${channelId}`);
+              messagingEvents.emit('channel:deleted', channelId);
+              navigation.goBack();
+            } catch (err: any) {
+              Alert.alert(t('Error'), err?.response?.data?.message || t('Failed to delete conversation'));
+            }
+          },
+        },
+      ]
+    );
+  }, [channel, navigation, t]);
+
   const fetchAllUsers = useCallback(async () => {
     try {
       const res = await http.get('/users');
@@ -1306,5 +1374,10 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     performDeleteGroup,
     copyChannelLink,
     showImageOptions,
+
+    // DM-specific actions
+    handleMuteDM,
+    handleClearChat,
+    handleDeleteDM,
   };
 }

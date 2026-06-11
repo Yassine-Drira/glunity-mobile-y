@@ -55,9 +55,9 @@ const channelSchema = new Schema(
      *  'social' kept for backwards-compat with the social-feed feed feature. */
     type: {
       type:     String,
-      enum:     ['DM', 'group', 'social'],
+      enum:     ['DM', 'direct', 'group', 'social'],
       required: true,
-      default:  'DM',
+      default:  'direct',
     },
 
     /** When true, only participants may read messages (enforced in service layer). */
