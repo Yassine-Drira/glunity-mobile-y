@@ -408,7 +408,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     if (editingMsgId) {
       socket.emit('message:edit', { messageId: editingMsgId, content: textToSend }, (res: any) => {
         if (res?.ok) {
-          setMessages((prev) => prev.map(m => m.id === editingMsgId ? { ...m, content: textToSend, editedAt: new Date().toISOString() } : m));
+          setMessages((prev) => prev.map(m => String(m.id || m._id) === String(editingMsgId) ? { ...m, content: textToSend, editedAt: new Date().toISOString() } : m));
           setEditingMsgId(null);
           setInput('');
         } else {
@@ -568,7 +568,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       }
       if (res?.ok) {
-        setMessages((prev) => prev.map((m) => m.id === messageId ? { ...m, deletedAt: new Date().toISOString(), content: null } : m));
+        setMessages((prev) => prev.map((m) => String(m.id || m._id) === String(messageId) ? { ...m, deletedAt: new Date().toISOString(), content: null } : m));
       } else {
         Alert.alert('Error', res?.error || 'Failed to delete message');
       }
@@ -1269,25 +1269,26 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
   const handlePressMessage = useCallback((message: any) => {
     const now = Date.now();
-    if (lastTapRef.current.id === message.id && (now - lastTapRef.current.time) < 350) {
+    const msgId = message.id || message._id;
+    if (lastTapRef.current.id === msgId && (now - lastTapRef.current.time) < 350) {
       lastTapRef.current = { id: null, time: 0 };
-      handleToggleReaction(message.id, '❤️');
+      handleToggleReaction(msgId, '❤️');
       return;
     }
-    lastTapRef.current = { id: message.id, time: now };
+    lastTapRef.current = { id: msgId, time: now };
     setTimeout(() => {
       if (Date.now() - lastTapRef.current.time >= 350) lastTapRef.current = { id: null, time: 0 };
     }, 400);
   }, [handleToggleReaction]);
 
   const handleStartEdit = useCallback((message: any) => {
-    setEditingMsgId(message.id);
+    setEditingMsgId(message.id || message._id);
     setInput(message.content || '');
     setReactionMsgId(null);
   }, []);
 
   const handleReplyTo = useCallback((message: any) => {
-    setReplyingTo({ id: message.id, senderName: message.senderName, preview: message.content });
+    setReplyingTo({ id: message.id || message._id, senderName: message.senderName, preview: message.content });
     setReactionMsgId(null);
   }, []);
 
