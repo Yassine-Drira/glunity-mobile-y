@@ -6,6 +6,7 @@ import http from '../../../../core/network/http.client';
 import { useTheme } from '../../../../shared/context/theme.context';
 import { useLanguage } from '../../../../shared/context/language.context';
 import { usePresence } from '../../../../shared/hooks/usePresence';
+import OnlineDot from '../../../../shared/components/OnlineDot';
 
 const getChannelVisual = (channelName: string) => {
   const name = (channelName || '').toLowerCase();
@@ -52,7 +53,7 @@ export default function CommunityJoin({ navigation }: any) {
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
   const screenW = Dimensions.get('window').width;
-  const { isOnline } = usePresence();
+  const { isOnline, fetchStatuses } = usePresence();
 
   const [users, setUsers] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>([]);
@@ -64,7 +65,12 @@ export default function CommunityJoin({ navigation }: any) {
     (async () => {
       try {
         const res = await http.get('/users');
-        setUsers(res.data?.data || []);
+        const userList = res.data?.data || [];
+        setUsers(userList);
+        const userIds = userList.map((u: any) => u._id).filter(Boolean);
+        if (userIds.length > 0) {
+          fetchStatuses(userIds);
+        }
       } catch (e) {
         setUsers([]);
       } finally {
@@ -181,11 +187,8 @@ export default function CommunityJoin({ navigation }: any) {
                             <View style={styles.avatarImage} />
                           )}
                         </View>
-                        {/* Live presence dot — green if online, grey if offline */}
-                        <View style={[
-                          styles.statusDot,
-                          { backgroundColor: isOnline(item._id) ? T.green : '#9E9E9E' }
-                        ]} />
+                        {/* Live presence dot */}
+                        <OnlineDot isOnline={isOnline(item._id)} size={14} />
                       </View>
 
                       <Text style={styles.userName} numberOfLines={1}>{item.fullName}</Text>
