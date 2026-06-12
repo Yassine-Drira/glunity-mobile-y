@@ -116,7 +116,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   }, [chat.channel?.pinnedMessages]);
 
   const selectedMsg = useMemo(() => {
-    return chat.messages.find((m) => m.id === chat.reactionMsgId);
+    return chat.messages.find((m) => String(m.id || m._id) === String(chat.reactionMsgId));
   }, [chat.messages, chat.reactionMsgId]);
 
   const formatDuration = (sec?: number) => {
@@ -367,13 +367,13 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
     const bubbleStyle = isMe
       ? [
-          item.id === highlightedMsgId
+          (item.id || item._id) === highlightedMsgId
             ? [styles.bubbleRight, { backgroundColor: isDark ? '#196F3D' : '#27AE60', transform: [{ scale: 1.02 }] }]
             : styles.bubbleRight,
           { borderBottomRightRadius: shouldGroup ? 18 : 4 }
         ]
       : [
-          item.id === highlightedMsgId
+          (item.id || item._id) === highlightedMsgId
             ? [styles.bubbleLeft, { backgroundColor: isDark ? '#2E4053' : '#D5F5E3', transform: [{ scale: 1.02 }] }]
             : styles.bubbleLeft,
           { borderBottomLeftRadius: shouldGroup ? 18 : 4 }

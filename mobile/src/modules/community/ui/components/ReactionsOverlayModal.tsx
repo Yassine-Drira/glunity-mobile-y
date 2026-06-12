@@ -136,7 +136,7 @@ export function ReactionsOverlayModal({
                 )}
 
                 <TouchableOpacity
-                  onPress={() => { if (selectedMsg) handleDeleteMessage(selectedMsg.id); }}
+                  onPress={() => { if (selectedMsg) handleDeleteMessage(selectedMsg.id || selectedMsg._id); }}
                   style={s.actionItem}
                   activeOpacity={0.7}
                 >
