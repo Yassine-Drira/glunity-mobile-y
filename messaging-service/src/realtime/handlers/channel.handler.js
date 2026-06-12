@@ -43,7 +43,8 @@ function channelHandler(io, socket) {
       }
 
       socket.join(`viewing:${channelId}`);
-      logger.info('[socket:channel] Joined viewing room', { channelId, userId });
+      socket.join(`channel:${channelId}`);
+      logger.info('[socket:channel] Joined viewing and channel rooms', { channelId, userId });
     } catch (err) {
       logger.error('[socket:channel] Join handler error', { err: err.message });
     }

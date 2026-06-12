@@ -240,8 +240,13 @@ async function registerPresenceHandler(io, socket, redisClient) {
     // b. Set a per-user TTL key for heartbeat:
     await redis.set(`presence:heartbeat:${userId}`, '1', 'EX', 90);
 
-    // c. Find all channel IDs where this user is a participant:
-    const channels = await Channel.find({ 'participants.userId': userId }, { _id: 1 });
+    // c. Find all channel IDs where this user is a participant (support both sub-doc and flat array schemas):
+    const channels = await Channel.find({
+      $or: [
+        { 'participants.userId': userId },
+        { participants: userId }
+      ]
+    }, { _id: 1 }).lean();
 
     // d. For each channelId, emit to room `channel:<channelId>`:
     for (const channel of channels) {
@@ -273,7 +278,12 @@ async function registerPresenceHandler(io, socket, redisClient) {
         await redis.set(`presence:lastseen:${userId}`, lastSeen, 'EX', 604800);
 
         // d. Find all channel IDs where this user is a participant:
-        const channels = await Channel.find({ 'participants.userId': userId }, { _id: 1 });
+        const channels = await Channel.find({
+          $or: [
+            { 'participants.userId': userId },
+            { participants: userId }
+          ]
+        }, { _id: 1 }).lean();
 
         // e. For each channelId, emit to room `channel:<channelId>`:
         for (const channel of channels) {
@@ -301,10 +311,21 @@ async function registerPresenceHandler(io, socket, redisClient) {
   socket.on('presence:get_status', async ({ userIds }, callback) => {
     try {
       const statuses = {};
-      if (Array.isArray(userIds)) {
+      if (Array.isArray(userIds) && userIds.length > 0) {
+        // First try Redis / memoryOnlineSet
         for (const id of userIds) {
           const isMember = await redis.sismember('presence:online', id);
           statuses[id] = isMember === 1;
+        }
+
+        // For any users that Redis says are offline, fallback to MongoDB's onlineStatus
+        const offlineIds = Object.keys(statuses).filter(id => !statuses[id]);
+        if (offlineIds.length > 0) {
+          const User = getUserModel();
+          const users = await User.find({ _id: { $in: offlineIds } }).select('_id onlineStatus').lean();
+          for (const u of users) {
+            statuses[u._id.toString()] = u.onlineStatus === 'online';
+          }
         }
       }
       if (typeof callback === 'function') {

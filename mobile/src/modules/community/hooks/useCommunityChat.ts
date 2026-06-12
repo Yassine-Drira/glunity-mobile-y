@@ -72,6 +72,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
   // Audio playback references
   const activeSoundRef = useRef<any>(null);
+  const lastTypingSentRef = useRef<number>(0);
 
   // Members lists
   const [members, setMembers] = useState<any[]>([]);
@@ -364,11 +365,11 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     const targetId = channel.id || channel._id;
     if (typeof targetId === 'string' && targetId.startsWith('local-')) return;
 
-    const throttle = setTimeout(() => {
+    const now = Date.now();
+    if (now - lastTypingSentRef.current > 2000) {
+      lastTypingSentRef.current = now;
       socket.emit('message:typing', { channelId: targetId });
-    }, 150);
-
-    return () => clearTimeout(throttle);
+    }
   }, [input, socket, channel]);
 
   // Listen for other participants typing
