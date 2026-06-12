@@ -11,6 +11,7 @@ import { useAuth } from '../../../../modules/auth/state/auth.context';
 import { useSocket } from '../../../../shared/context/socket.context';
 import { ChatCacheService } from '../../services/chat-cache.service';
 import { usePresence } from '../../../../shared/hooks/usePresence';
+import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 
 function formatTime(iso?: string) {
@@ -27,7 +28,7 @@ export default function MessagingHome({ navigation }: any) {
   const { t, isRTL } = useLanguage();
   const { user } = useAuth();
   const { socket } = useSocket();
-  const { isOnline } = usePresence();
+  const { isOnline, fetchStatuses } = usePresence();
 
   const seenIds = useRef<Set<string>>(new Set());
   const hasPopulatedChannels = useRef(false);
@@ -51,6 +52,14 @@ export default function MessagingHome({ navigation }: any) {
       if (cached && cached.length > 0) {
         setChannels(cached);
         setLoading(false);
+        const userIds = cached
+          .filter(isDMChannel)
+          .map((c: any) => findOtherParticipant(c))
+          .filter(Boolean)
+          .map((other: any) => String(other._id || other.id));
+        if (userIds.length > 0) {
+          fetchStatuses(userIds);
+        }
       }
     } catch (err) {
       console.warn('Failed to load cached channels list', err);
@@ -64,12 +73,20 @@ export default function MessagingHome({ navigation }: any) {
       setSortOrder(ids);
       setChannels(fresh);
       await ChatCacheService.saveChannels(fresh);
+      const userIds = fresh
+        .filter(isDMChannel)
+        .map((c: any) => findOtherParticipant(c))
+        .filter(Boolean)
+        .map((other: any) => String(other._id || other.id));
+      if (userIds.length > 0) {
+        fetchStatuses(userIds);
+      }
     } catch (err) {
       if (channels.length === 0) setChannels([]);
     } finally {
       setLoading(false);
     }
-  }, [channels.length]);
+  }, [channels.length, fetchStatuses]);
 
   useEffect(() => {
     fetchChannels();
@@ -625,19 +642,7 @@ export default function MessagingHome({ navigation }: any) {
                 >
                   <View style={{ position: 'relative' }}>
                     <Image source={{ uri: avatarUri }} style={styles.avatar} />
-                    {showOnlineDot && (
-                      <View style={{
-                        position: 'absolute',
-                        right: 1,
-                        bottom: 1,
-                        width: 13,
-                        height: 13,
-                        borderRadius: 7,
-                        backgroundColor: '#4CAF50',
-                        borderWidth: 2,
-                        borderColor: T.bg,
-                      }} />
-                    )}
+                    <OnlineDot isOnline={showOnlineDot} size={13} />
                   </View>
                   <View style={styles.rowContent}>
                     <View style={styles.rowTop}>
