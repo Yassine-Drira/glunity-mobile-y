@@ -36,6 +36,13 @@ function bootstrap(httpServer) {
     const userId = socket.data.user?._id?.toString() ?? 'unknown';
     logger.info('[socket.io] Client connected', { userId, socketId: socket.id });
 
+    socket.userId = userId;
+    const redisClient = require('../bootstrap/redis.bootstrap').getPubClient();
+
+    // import { registerPresenceHandler } from './handlers/presence.handler.js';
+    const { registerPresenceHandler } = require('./handlers/presence.handler.js');
+    registerPresenceHandler(io, socket, redisClient);
+
     socket.data.io = io;
     if (userId !== 'unknown') {
       socket.join(userId);

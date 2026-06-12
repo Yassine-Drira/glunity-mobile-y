@@ -7,6 +7,7 @@ import { useLanguage } from '../../../../shared/context/language.context';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCommunityChat } from '../../hooks/useCommunityChat';
 import { usePresence } from '../../../../shared/hooks/usePresence';
+import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, SlideInRight, useReducedMotion } from 'react-native-reanimated';
 
 // Decoupled sub-components
@@ -55,7 +56,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
   // Extract all states and operations from our state controller
   const chat = useCommunityChat(initialChannel, initialChannelId, navigation);
-  const { isOnline } = usePresence();
+  const { isOnline, fetchStatuses } = usePresence();
 
   // Pulsing recording indicator animation
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
@@ -105,6 +106,12 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   }, [chat.channel]);
 
   const partnerOnline = dmPartnerId ? isOnline(dmPartnerId) : false;
+
+  React.useEffect(() => {
+    if (dmPartnerId) {
+      fetchStatuses([dmPartnerId]);
+    }
+  }, [dmPartnerId, fetchStatuses]);
 
   const seenIds = React.useRef<Set<string>>(new Set());
   const reducedMotion = useReducedMotion();
@@ -276,6 +283,60 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     }
   };
 
+  const renderDateSeparator = (currentMsg: any, prevMsg: any) => {
+    if (!currentMsg) return null;
+    const currentDate = new Date(currentMsg.createdAt || currentMsg.created_at);
+    if (isNaN(currentDate.getTime())) return null;
+
+    if (prevMsg) {
+      const prevDate = new Date(prevMsg.createdAt || prevMsg.created_at);
+      if (!isNaN(prevDate.getTime())) {
+        if (
+          currentDate.getDate() === prevDate.getDate() &&
+          currentDate.getMonth() === prevDate.getMonth() &&
+          currentDate.getFullYear() === prevDate.getFullYear()
+        ) {
+          return null;
+        }
+      }
+    }
+
+    const now = new Date();
+    const isToday =
+      currentDate.getDate() === now.getDate() &&
+      currentDate.getMonth() === now.getMonth() &&
+      currentDate.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday =
+      currentDate.getDate() === yesterday.getDate() &&
+      currentDate.getMonth() === yesterday.getMonth() &&
+      currentDate.getFullYear() === yesterday.getFullYear();
+
+    let dateLabel = '';
+    if (isToday) {
+      dateLabel = t('Today') || 'Today';
+    } else if (isYesterday) {
+      dateLabel = t('Yesterday') || 'Yesterday';
+    } else {
+      dateLabel = currentDate.toLocaleDateString([], {
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric',
+        year: currentDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      });
+    }
+
+    return (
+      <View style={{ alignItems: 'center', marginVertical: 12 }}>
+        <View style={{ backgroundColor: isDark ? '#2C3E50' : '#EAECEE', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+          <Text style={{ fontSize: 11, fontWeight: '600', color: T.textMuted }}>{dateLabel}</Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderItem = ({ item, index }: { item: any; index: number }) => {
     const senderId = typeof item.senderId === 'object' && item.senderId ? (item.senderId._id || item.senderId.id) : item.senderId;
     const isMe = String(senderId) === String((user as any)?._id || (user as any)?.id);
@@ -301,13 +362,36 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     const isImage = firstAtt?.type === 'image';
     const isVideo = firstAtt?.type === 'video';
 
+    // Grouping / bubble tail calculations
+    const currentMsgDate = new Date(item.createdAt || item.created_at);
+
+    const nextMsg = index < chat.messages.length - 1 ? chat.messages[index + 1] : null;
+    const nextSenderId = nextMsg ? (typeof nextMsg.senderId === 'object' && nextMsg.senderId ? (nextMsg.senderId._id || nextMsg.senderId.id) : nextMsg.senderId) : null;
+    const isNextFromSameSender = nextMsg && String(nextSenderId) === String(senderId);
+    const nextMsgDate = nextMsg ? new Date(nextMsg.createdAt || nextMsg.created_at) : null;
+    const isNextCloseInTime = nextMsgDate && !isNaN(nextMsgDate.getTime()) && !isNaN(currentMsgDate.getTime()) && (nextMsgDate.getTime() - currentMsgDate.getTime() < 60000);
+    const shouldGroup = isNextFromSameSender && isNextCloseInTime;
+
+    const prevMsg = index > 0 ? chat.messages[index - 1] : null;
+    const prevSenderId = prevMsg ? (typeof prevMsg.senderId === 'object' && prevMsg.senderId ? (prevMsg.senderId._id || prevMsg.senderId.id) : prevMsg.senderId) : null;
+    const isPrevFromSameSender = prevMsg && String(prevSenderId) === String(senderId);
+    const prevMsgDate = prevMsg ? new Date(prevMsg.createdAt || prevMsg.created_at) : null;
+    const isPrevCloseInTime = prevMsgDate && !isNaN(prevMsgDate.getTime()) && !isNaN(currentMsgDate.getTime()) && (currentMsgDate.getTime() - prevMsgDate.getTime() < 60000);
+    const isContinuation = isPrevFromSameSender && isPrevCloseInTime;
+
     const bubbleStyle = isMe
-      ? (item.id === highlightedMsgId
-          ? [styles.bubbleRight, { backgroundColor: isDark ? '#196F3D' : '#27AE60', transform: [{ scale: 1.02 }] }]
-          : styles.bubbleRight)
-      : (item.id === highlightedMsgId
-          ? [styles.bubbleLeft, { backgroundColor: isDark ? '#2E4053' : '#D5F5E3', transform: [{ scale: 1.02 }] }]
-          : styles.bubbleLeft);
+      ? [
+          item.id === highlightedMsgId
+            ? [styles.bubbleRight, { backgroundColor: isDark ? '#196F3D' : '#27AE60', transform: [{ scale: 1.02 }] }]
+            : styles.bubbleRight,
+          { borderBottomRightRadius: shouldGroup ? 18 : 4 }
+        ]
+      : [
+          item.id === highlightedMsgId
+            ? [styles.bubbleLeft, { backgroundColor: isDark ? '#2E4053' : '#D5F5E3', transform: [{ scale: 1.02 }] }]
+            : styles.bubbleLeft,
+          { borderBottomLeftRadius: shouldGroup ? 18 : 4 }
+        ];
 
     // Reaction pills shared between bubble types
     const reactionPills = item.reactionCounts && Object.keys(item.reactionCounts).length > 0 ? (
@@ -473,7 +557,11 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       }
     };
 
+    const showAvatar = !isMe && !dmPartnerId && !shouldGroup;
+    const showAvatarPlaceholder = !isMe && !dmPartnerId && shouldGroup;
+
     return (
+<<<<<<< HEAD
       <AnimatedReanimated.View
         entering={enteringAnimation}
         style={[styles.row, { justifyContent: isMe ? 'flex-end' : 'flex-start' }]}
@@ -481,6 +569,16 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         {!isMe && (
           <TouchableOpacity onPress={() => senderId && chat.openUserProfile(senderId)} activeOpacity={0.8}>
             {avatarUrl ? (
+=======
+      <View>
+        {renderDateSeparator(item, prevMsg)}
+        <AnimatedReanimated.View
+          entering={enteringAnimation}
+          style={[styles.row, { justifyContent: isMe ? 'flex-end' : 'flex-start' }]}
+        >
+          {showAvatar && (
+            avatarUrl ? (
+>>>>>>> dc9ec00fcb88f59aa4ede49c8b36eae1c3ceacca
               <Image source={{ uri: avatarUrl }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, { backgroundColor: T.surfaceAlt, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: T.divider }]}>
@@ -488,6 +586,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   {String(item.senderName || 'A').charAt(0).toUpperCase()}
                 </Text>
               </View>
+<<<<<<< HEAD
             )}
           </TouchableOpacity>
         )}
@@ -510,35 +609,62 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             <Text style={{ fontSize: 11, fontWeight: '600', color: T.green || '#2ECC71', marginBottom: 3, marginLeft: 6 }}>
               {item.senderName || 'User'}
             </Text>
+=======
+            )
+          )}
+          {showAvatarPlaceholder && (
+            <View style={styles.avatar} />
+>>>>>>> dc9ec00fcb88f59aa4ede49c8b36eae1c3ceacca
           )}
 
-          <TouchableOpacity
-            activeOpacity={0.92}
-            onLongPress={longPressHandler}
-            onPress={pressHandler}
-            style={bubbleStyle}
-          >
-            {replyPreview}
-            {renderBubbleContent()}
-            {reactionPills}
-          </TouchableOpacity>
+          {/* Optimistic send status indicators */}
+          {isMe && item.status === 'failed' && (
+            <TouchableOpacity onPress={() => chat.handleRetrySend(item)} style={{ marginRight: 6, alignSelf: 'center', padding: 4 }} accessibilityLabel="Retry sending">
+              <Ionicons name="alert-circle" size={20} color="#E74C3C" />
+            </TouchableOpacity>
+          )}
+          {isMe && item.status === 'sending' && (
+            <View style={{ marginRight: 6, alignSelf: 'center', padding: 4 }}>
+              <ActivityIndicator size="small" color={T.textMuted} />
+            </View>
+          )}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, marginHorizontal: 6 }}>
-            {!!item.pinned && (
-              <Ionicons name="pin" size={11} color={T.green || '#2ECC71'} style={{ marginRight: 4 }} />
+          <View style={[styles.messageBlock, isMe ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }]}>
+            {/* Only show sender name in GROUP conversations for the first message of a group */}
+            {!isMe && !dmPartnerId && !isContinuation && (
+              <Text style={{ fontSize: 11, fontWeight: '600', color: T.green || '#2ECC71', marginBottom: 3, marginLeft: 6 }}>
+                {item.senderName || 'User'}
+              </Text>
             )}
-            <Text style={{ fontSize: 10, color: T.textMuted }}>
-              {formatMessageTime(item.createdAt || item.created_at)}
-            </Text>
-            {isMe && !isTemp && (
-              <Ionicons name="checkmark-done" size={13} color={T.green || '#2ECC71'} style={{ marginLeft: 3 }} />
-            )}
-            {!!item.editedAt && (
-              <Text style={{ fontSize: 9, color: T.textMuted, marginLeft: 4, fontStyle: 'italic' }}>{t('edited')}</Text>
-            )}
+
+            <TouchableOpacity
+              activeOpacity={0.92}
+              onLongPress={longPressHandler}
+              onPress={pressHandler}
+              style={bubbleStyle}
+            >
+              {replyPreview}
+              {renderBubbleContent()}
+              {reactionPills}
+            </TouchableOpacity>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3, marginHorizontal: 6 }}>
+              {!!item.pinned && (
+                <Ionicons name="pin" size={11} color={T.green || '#2ECC71'} style={{ marginRight: 4 }} />
+              )}
+              <Text style={{ fontSize: 10, color: T.textMuted }}>
+                {formatMessageTime(item.createdAt || item.created_at)}
+              </Text>
+              {isMe && !isTemp && (
+                <Ionicons name="checkmark-done" size={13} color={T.green || '#2ECC71'} style={{ marginLeft: 3 }} />
+              )}
+              {!!item.editedAt && (
+                <Text style={{ fontSize: 9, color: T.textMuted, marginLeft: 4, fontStyle: 'italic' }}>{t('edited')}</Text>
+              )}
+            </View>
           </View>
-        </View>
-      </AnimatedReanimated.View>
+        </AnimatedReanimated.View>
+      </View>
     );
   };
 
@@ -591,8 +717,13 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                     </Text>
                   </View>
                 )}
+<<<<<<< HEAD
                 <View style={[styles.presenceDot, { backgroundColor: partnerOnline ? '#27AE60' : '#9E9E9E' }]} />
               </TouchableOpacity>
+=======
+                <OnlineDot isOnline={partnerOnline} size={12} />
+              </View>
+>>>>>>> dc9ec00fcb88f59aa4ede49c8b36eae1c3ceacca
 
               {/* Name + status */}
               <View style={styles.headerMeta}>
@@ -749,9 +880,28 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
           data={chat.messages}
           keyExtractor={(i) => String(i.id || i._id || Math.random())}
           renderItem={renderItem}
-          contentContainerStyle={[styles.listContent, { paddingBottom: 120 + insets.bottom }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: 120 + insets.bottom },
+            chat.messages.length === 0 && { flexGrow: 1, justifyContent: 'center' }
+          ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          ListEmptyComponent={
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
+              <Ionicons name="chatbubbles-outline" size={64} color={T.textMuted} style={{ marginBottom: 12, opacity: 0.5 }} />
+              <Text style={{ fontSize: 16, fontWeight: '600', color: T.text, textAlign: 'center' }}>
+                {dmPartnerId 
+                  ? `${t('Say hi to')} ${display.name} 👋` 
+                  : t('Start the conversation!')}
+              </Text>
+              <Text style={{ fontSize: 13, color: T.textMuted, textAlign: 'center', marginTop: 4, paddingHorizontal: 40 }}>
+                {dmPartnerId 
+                  ? t('Send a message to start direct messaging')
+                  : t('No messages in this group yet')}
+              </Text>
+            </View>
+          }
         />
       )}
 
