@@ -8,7 +8,6 @@ import { useSocket } from '../../../../shared/context/socket.context';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCommunityChat } from '../../hooks/useCommunityChat';
 import { usePresence } from '../../../../shared/hooks/usePresence';
-import { useSocket } from '../../../../shared/context/socket.context';
 import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, SlideInRight, useReducedMotion } from 'react-native-reanimated';
 

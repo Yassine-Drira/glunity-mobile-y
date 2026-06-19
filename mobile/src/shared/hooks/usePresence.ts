@@ -51,7 +51,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           if (response.statuses) {
             setPresenceMap((prev) => {
               const next = new Map(prev);
-              Object.entries(response.statuses).forEach(([uid, online]) => {
+              Object.entries(response.statuses || {}).forEach(([uid, online]) => {
                 next.set(uid, online);
               });
               return next;
@@ -60,7 +60,7 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
           if (response.lastSeens) {
             setLastSeenMap((prev) => {
               const next = new Map(prev);
-              Object.entries(response.lastSeens).forEach(([uid, lastSeen]) => {
+              Object.entries(response.lastSeens || {}).forEach(([uid, lastSeen]) => {
                 if (lastSeen) {
                   next.set(uid, lastSeen);
                 }
