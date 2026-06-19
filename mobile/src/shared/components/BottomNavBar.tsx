@@ -171,15 +171,15 @@ export function BottomNavBar({
           style={styles.navItem}
           activeOpacity={0.8}
           onPress={() => handleTabPress(onPressReels)}
-          id={`${idPrefix}-community`}
+          id={`${idPrefix}-reels`}
           accessibilityRole="tab"
-          accessibilityLabel={t('Community')}
-          accessibilityState={{ selected: activeTab === 'community' }}
+          accessibilityLabel={t('Reels')}
+          accessibilityState={{ selected: activeTab === 'reels' || activeTab === 'community' }}
         >
-          <View style={getIconFrameStyle('community')}>
-            <Ionicons name="chatbubbles-outline" size={24} color={getIconColor('community')} />
+          <View style={[styles.iconFrame, (activeTab === 'reels' || activeTab === 'community') ? styles.iconFrameActive : null]}>
+            <MaterialCommunityIcons name="movie-play-outline" size={24} color={(activeTab === 'reels' || activeTab === 'community') ? C.green : C.textMuted} />
           </View>
-          <Text style={getLabelStyle('community')} numberOfLines={1} allowFontScaling={false}>{t('Community')}</Text>
+          <Text style={[styles.navLabel, (activeTab === 'reels' || activeTab === 'community') ? styles.navLabelActive : null]} numberOfLines={1} allowFontScaling={false}>{t('Reels')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
