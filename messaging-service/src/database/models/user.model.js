@@ -20,6 +20,9 @@ const userSchema = new Schema(
     pinnedGroups: [{ type: Schema.Types.ObjectId, ref: 'Channel' }],
     isActive:    { type: Boolean, default: true, index: true },
     emailVerified: { type: Boolean, default: false },
+    onlineStatus: { type: String, enum: ['online', 'offline'], default: 'offline', index: true },
+    lastSeenAt:   { type: Date, default: null },
+    lastActiveAt: { type: Date, default: null, index: true },
   },
   { timestamps: true }
 );

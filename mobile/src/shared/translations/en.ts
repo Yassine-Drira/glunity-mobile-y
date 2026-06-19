@@ -661,6 +661,23 @@ const en = {
   'Community Chat': 'Community Chat',
   'Welcome to the community chat. Treat this as the group space for tips, questions and discovery.': 'Welcome to the community chat. Treat this as the group space for tips, questions and discovery.',
   'Leave community (dev)': 'Leave community (dev)',
+  'Last seen {{count}}m ago': 'Last seen {{count}}m ago',
+  'Last seen {{count}}h ago': 'Last seen {{count}}h ago',
+  'Last seen on {{date}}': 'Last seen on {{date}}',
+  'Just now': 'Just now',
+  'Edit': 'Edit',
+  'Share': 'Share',
+  'MEMBERS': 'MEMBERS',
+  'Members': 'Members',
+  'members': 'members',
+  'Administrators': 'Administrators',
+  'Member list': 'Member list',
+  'Direct Message': 'Direct Message',
+  'Reactions': 'Reactions',
+  'No reactions yet': 'No reactions yet',
+  'Gluten Sensitive': 'Gluten Sensitive',
+  'Allergy': 'Allergy',
+  'Pro': 'Pro',
 };
 
 export default en;

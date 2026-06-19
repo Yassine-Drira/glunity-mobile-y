@@ -521,7 +521,7 @@ export function UserProfileBottomSheet({
                       borderColor: isDark ? '#333' : '#D5DDD8',
                     }}
                   >
-                    <Text style={{ fontSize: 26, marginBottom: 6 }}>🏅</Text>
+                    <Ionicons name="medal-outline" size={36} color={T.textMuted} style={{ marginBottom: 8 }} />
                     <Text
                       style={{
                         color: T.textMuted,
@@ -576,7 +576,7 @@ export function UserProfileBottomSheet({
           </View>
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 28, marginBottom: 8 }}>⚠️</Text>
+            <Ionicons name="warning-outline" size={48} color={T.textMuted} style={{ marginBottom: 12 }} />
             <Text style={{ color: T.text, fontWeight: '800', fontSize: 16, fontFamily: 'Poppins_700Bold' }}>
               {t('Profile not found')}
             </Text>

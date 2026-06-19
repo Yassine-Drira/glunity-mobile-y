@@ -1,12 +1,15 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useTheme } from '../context/theme.context';
 
 interface OnlineDotProps {
   isOnline: boolean;
   size?: number; // default 10
+  borderColor?: string;
 }
 
-export default function OnlineDot({ isOnline, size = 10 }: OnlineDotProps) {
+export default function OnlineDot({ isOnline, size = 10, borderColor }: OnlineDotProps) {
+  const { theme } = useTheme();
   if (!isOnline) return null;
 
   return (
@@ -17,6 +20,7 @@ export default function OnlineDot({ isOnline, size = 10 }: OnlineDotProps) {
           width: size,
           height: size,
           borderRadius: size / 2,
+          borderColor: borderColor || theme.surface,
         },
       ]}
     />
@@ -29,7 +33,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     right: 0,
     backgroundColor: '#22C55E',
-    borderColor: '#FFFFFF',
     borderWidth: 2,
   },
 });

@@ -54,6 +54,10 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
 
+  // Pagination states
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Audio recording
   const [isRecording, setIsRecordingState] = useState(false);
   const isRecordingRef = useRef(false);
@@ -189,6 +193,54 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     return () => { mounted = false; };
   }, [initialChannel, initialChannelId]);
 
+  const markAsRead = useCallback(async (channelId: string, lastMsgId: string) => {
+    if (!channelId || !lastMsgId || String(channelId).startsWith('local-')) return;
+    try {
+      await messagingHttp.post(`/channels/${channelId}/read`, { lastReadMsgId: lastMsgId });
+    } catch (err) {
+      console.warn('[community] Failed to persist read status', err);
+    }
+  }, []);
+
+  const loadMoreMessages = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || !channel) return;
+    const targetId = channel.id || channel._id;
+    if (typeof targetId === 'string' && targetId.startsWith('local-')) return;
+    if (messages.length === 0) return;
+
+    const oldestMsg = messages[0];
+    const cursor = oldestMsg._id || oldestMsg.id;
+    if (!cursor) return;
+
+    setLoadingMore(true);
+    try {
+      const res = await messagingHttp.get(`/channels/${targetId}/messages`, {
+        params: {
+          limit: 30,
+          cursor,
+          direction: 'before',
+        },
+      });
+
+      const older = res.data?.data || [];
+      if (older.length < 30) {
+        setHasMore(false);
+      }
+
+      if (older.length > 0) {
+        setMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m._id || m.id));
+          const uniqueOlder = older.filter((m: any) => !existingIds.has(m._id || m.id));
+          return [...uniqueOlder, ...prev];
+        });
+      }
+    } catch (err) {
+      console.warn('[community] Failed to load older messages', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [channel, messages, loading, loadingMore, hasMore]);
+
   // Fetch Message History with Cache-Aside strategy
   useEffect(() => {
     if (!channel) return;
@@ -200,6 +252,10 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         setLoading(false);
         return;
       }
+
+      // Reset hasMore/loadingMore when initial history loads
+      setHasMore(true);
+      setLoadingMore(false);
 
       // 1. Try to load from cache first for instant UI response
       try {
@@ -221,10 +277,21 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
         const fresh = res.data?.data || [];
         setMessages(fresh);
+        if (fresh.length < 60) {
+          setHasMore(false);
+        }
 
         // 3. Update the local cache
         await ChatCacheService.saveMessages(targetId, fresh);
         setTimeout(() => listRef.current?.scrollToEnd({ animated: false }), 120);
+
+        if (fresh.length > 0) {
+          const lastMsg = fresh[fresh.length - 1];
+          const lastMsgId = lastMsg.id || lastMsg._id;
+          if (lastMsgId) {
+            markAsRead(targetId, lastMsgId);
+          }
+        }
       } catch (err) {
         console.warn('[community] loadHistory failed', err);
       } finally {
@@ -239,7 +306,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     } catch (e) { }
 
     return () => { mounted = false; };
-  }, [channel]);
+  }, [channel, markAsRead]);
 
   // Synchronize state mutations (new WS messages, reactions, edits, deletions) to cache
   useEffect(() => {
@@ -313,6 +380,13 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
         return [...prev, message];
       });
+
+      // Mark the incoming message as read if it is from someone else
+      if (String(message.senderId) !== String(user?._id)) {
+        markAsRead(thisChannelId, message.id || message._id);
+        setTypingUser(null);
+      }
+
       shouldScrollToEndRef.current = true;
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
     };
@@ -388,6 +462,20 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
     };
 
+    const handleChannelRead = ({ userId, lastReadAt }: any) => {
+      setChannel((prev: any) => {
+        if (!prev) return prev;
+        const participants = (prev.participants || []).map((p: any) => {
+          const pId = p.userId?._id || p.userId || p._id || p.id;
+          if (String(pId) === String(userId)) {
+            return { ...p, lastReadAt: lastReadAt ? new Date(lastReadAt) : new Date() };
+          }
+          return p;
+        });
+        return { ...prev, participants };
+      });
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('reaction:updated', handleReactionUpdated);
     socket.on('message:edited', handleMessageEdited);
@@ -396,6 +484,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     socket.on('message:unpinned', handleMessageUnpinned);
     socket.on('channel:deleted', handleChannelDeleted);
     socket.on('channel:cleared', handleChannelCleared);
+    socket.on('channel:read', handleChannelRead);
 
     return () => {
       if (typeof targetId === 'string' && !targetId.startsWith('local-')) {
@@ -409,8 +498,9 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       socket.off('message:unpinned', handleMessageUnpinned);
       socket.off('channel:deleted', handleChannelDeleted);
       socket.off('channel:cleared', handleChannelCleared);
+      socket.off('channel:read', handleChannelRead);
     };
-  }, [channel, socket]);
+  }, [channel, socket, markAsRead, user?._id]);
 
   // Clean up any playing audio and recording timers when the hook unmounts
   useEffect(() => {
@@ -1538,5 +1628,10 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     openUserProfile,
     closeUserProfile,
     startDirectMessage,
+
+    // pagination
+    loadingMore,
+    hasMore,
+    loadMoreMessages,
   };
 }

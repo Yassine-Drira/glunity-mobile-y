@@ -182,6 +182,12 @@ const userSchema = new Schema(
       default: null,
     },
 
+    lastActiveAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
     // ── Soft delete ───────────────────────────────────────────────────────────
     isActive: {
       type: Boolean,

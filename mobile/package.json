@@ -49,5 +49,8 @@
     "react-native-worklets": "0.7.4",
     "socket.io-client": "^4.8.3",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "react-native-worklets": "0.7.4"
   }
 }

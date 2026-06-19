@@ -108,6 +108,52 @@ function reactionHandler(io, socket) {
       if (callback) callback({ ok: false, error: err.message });
     }
   });
+
+  socket.on('reaction:get_reactors', async ({ messageId, emoji }, callback) => {
+    try {
+      const msg = await Message.findById(messageId);
+      if (!msg) throw new Error('Message not found');
+
+      const channelId = msg.channelId.toString();
+      const channel = await Channel.findById(channelId).lean();
+      if (!channel) throw new Error('Channel not found');
+
+      const isPublic = !channel.isPrivate;
+      if (!isPublic) {
+        const hasAccess = channel.participants && channel.participants.some(p => {
+          if (!p) return false;
+          const pId = p.userId ? p.userId.toString() : p.toString();
+          return pId === userId;
+        });
+        if (!hasAccess) throw new Error('Forbidden');
+      }
+
+      const query = { messageId };
+      if (emoji) query.emoji = emoji;
+
+      const reactions = await Reaction.find(query)
+        .populate({
+          path: 'userId',
+          select: '_id fullName name avatarUrl profileType'
+        })
+        .lean();
+
+      const reactors = reactions
+        .filter(r => r.userId)
+        .map(r => ({
+          userId: r.userId._id.toString(),
+          fullName: r.userId.fullName || r.userId.name,
+          avatarUrl: r.userId.avatarUrl,
+          profileType: r.userId.profileType,
+          emoji: r.emoji
+        }));
+
+      if (callback) callback({ ok: true, reactors });
+    } catch (err) {
+      logger.error('[socket:reaction] Get reactors failed', { err: err.message });
+      if (callback) callback({ ok: false, error: err.message });
+    }
+  });
 }
 
 module.exports = reactionHandler;

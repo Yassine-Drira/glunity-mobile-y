@@ -38,6 +38,14 @@ const readReceiptController = {
         channelId: channelId.toString(),
         unreadCount: 0
       });
+
+      // Broadcast read receipt update to other participants in the channel
+      io.to(`channel:${channelId}`).emit('channel:read', {
+        channelId: channelId.toString(),
+        userId: req.user._id.toString(),
+        lastReadMsgId: receipt.lastReadMsgId.toString(),
+        lastReadAt: receipt.lastReadAt,
+      });
     }
 
     res.status(200).json({

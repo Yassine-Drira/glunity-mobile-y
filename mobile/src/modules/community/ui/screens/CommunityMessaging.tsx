@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Animated, useWindowDimensions, Alert, Linking, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../auth/state/auth.context';
@@ -19,6 +19,7 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { ReactionsOverlayModal } from '../components/ReactionsOverlayModal';
 import { UserProfileBottomSheet } from '../components/UserProfileBottomSheet';
+import { ReactorsBottomSheet } from '../components/ReactorsBottomSheet';
 
 // Optional native BlurView
 let BlurView: any = null;
@@ -26,6 +27,7 @@ try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
 
 export default function CommunityMessaging({ initialChannel, initialChannelId, navigation }: any) {
   const { user } = useAuth();
+  const { isConnected } = useSocket();
   const { theme: T, isDark } = useTheme();
   const { t, isRTL } = useLanguage();
   const { socket } = useSocket();
@@ -58,7 +60,11 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
   // Extract all states and operations from our state controller
   const chat = useCommunityChat(initialChannel, initialChannelId, navigation);
-  const { isOnline, fetchStatuses } = usePresence();
+  const { isOnline, getLastSeen, fetchStatuses } = usePresence();
+
+  const [reactorsSheetVisible, setReactorsSheetVisible] = useState(false);
+  const [reactorsMsgId, setReactorsMsgId] = useState<string | null>(null);
+  const [reactorsCounts, setReactorsCounts] = useState<Record<string, number> | null>(null);
 
   // Pulsing recording indicator animation
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
@@ -108,6 +114,23 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   }, [chat.channel]);
 
   const partnerOnline = dmPartnerId ? isOnline(dmPartnerId) : false;
+
+  const formatLastSeen = useMemo(() => {
+    return (pId: string): string => {
+      const lastSeen = getLastSeen(pId);
+      if (!lastSeen) return t('Offline');
+      const date = new Date(lastSeen);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+
+      if (diffMins < 1) return t('Just now');
+      if (diffMins < 60) return t('Last seen {{count}}m ago').replace('{{count}}', String(diffMins));
+      if (diffHours < 24) return t('Last seen {{count}}h ago').replace('{{count}}', String(diffHours));
+      return t('Last seen on {{date}}').replace('{{date}}', date.toLocaleDateString());
+    };
+  }, [getLastSeen, t]);
 
   React.useEffect(() => {
     if (dmPartnerId) {
@@ -413,6 +436,11 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
           <TouchableOpacity
             key={emoji}
             onPress={() => chat.handleToggleReaction(item.id || item._id, emoji)}
+            onLongPress={() => {
+              setReactorsMsgId(item.id || item._id);
+              setReactorsCounts(item.reactionCounts);
+              setReactorsSheetVisible(true);
+            }}
             style={{ backgroundColor: 'rgba(0,0,0,0.07)', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, marginRight: 5, marginBottom: 3, flexDirection: 'row', alignItems: 'center' }}
           >
             <Text style={{ fontSize: 13 }}>{emoji}</Text>
@@ -441,13 +469,15 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         </Text>
       </View>
     ) : null;
-
     const renderBubbleContent = () => {
       if (item.deletedAt) {
         return (
-          <Text style={[styles.msgText, { fontStyle: 'italic', opacity: 0.55, color: isMe ? '#fff' : T.textMuted }]}>
-            🗑 {t('Message deleted')}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name="trash-outline" size={14} color={isMe ? '#fff' : T.textMuted} style={{ opacity: 0.55 }} />
+            <Text style={[styles.msgText, { fontStyle: 'italic', opacity: 0.55, color: isMe ? '#fff' : T.textMuted }]}>
+              {t('Message deleted')}
+            </Text>
+          </View>
         );
       }
 
@@ -640,9 +670,38 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
               <Text style={{ fontSize: 10, color: T.textMuted }}>
                 {formatMessageTime(item.createdAt || item.created_at)}
               </Text>
-              {isMe && !isTemp && (
-                <Ionicons name="checkmark-done" size={13} color={T.green || '#2ECC71'} style={{ marginLeft: 3 }} />
-              )}
+              {isMe && !isTemp && (() => {
+                const isRead = (() => {
+                  const ch = chat.channel;
+                  if (!ch) return false;
+                  const parts = ch.participants || ch.members || [];
+                  const msgTime = new Date(item.createdAt || item.created_at).getTime();
+                  
+                  if (isDMChannel) {
+                    const partner = parts.find((p: any) => {
+                      const pId = p.userId?._id || p.userId || p._id || p.id;
+                      return pId && String(pId) !== String(user?._id);
+                    });
+                    if (!partner || !partner.lastReadAt) return false;
+                    return new Date(partner.lastReadAt).getTime() >= msgTime;
+                  } else {
+                    return parts.some((p: any) => {
+                      const pId = p.userId?._id || p.userId || p._id || p.id;
+                      return pId && String(pId) !== String(user?._id) && p.lastReadAt && new Date(p.lastReadAt).getTime() >= msgTime;
+                    });
+                  }
+                })();
+
+                if (isRead) {
+                  return (
+                    <Ionicons name="checkmark-done" size={13} color={T.green || '#2ECC71'} style={{ marginLeft: 3 }} />
+                  );
+                } else {
+                  return (
+                    <Ionicons name="checkmark" size={13} color={T.textMuted || '#888'} style={{ marginLeft: 3 }} />
+                  );
+                }
+              })()}
               {!!item.editedAt && (
                 <Text style={{ fontSize: 9, color: T.textMuted, marginLeft: 4, fontStyle: 'italic' }}>{t('edited')}</Text>
               )}
@@ -717,7 +776,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   <Text style={styles.headerSubOnline}>{t('typing...')}</Text>
                 ) : (
                   <Text style={partnerOnline ? styles.headerSubOnline : styles.headerSub}>
-                    {partnerOnline ? t('Online') : t('Offline')}
+                    {partnerOnline ? t('Online') : formatLastSeen(dmPartnerId || '')}
                   </Text>
                 )}
               </View>
@@ -762,6 +821,25 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
           </TouchableOpacity>
         </View>
       </View>
+
+      {!isConnected && (
+        <AnimatedReanimated.View 
+          entering={FadeInDown.duration(300)}
+          style={{ 
+            backgroundColor: '#D35400', 
+            paddingVertical: 5, 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 6
+          }}
+        >
+          <ActivityIndicator size="small" color="#fff" style={{ transform: [{ scale: 0.8 }] }} />
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+            {t('Reconnecting...')}
+          </Text>
+        </AnimatedReanimated.View>
+      )}
 
       {/* Pinned Messages Banner */}
       {pinnedMessages.length > 0 && (() => {
@@ -872,6 +950,19 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             ]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
+            onScroll={(event) => {
+              const { contentOffset } = event.nativeEvent;
+              if (contentOffset.y <= 10) {
+                chat.loadMoreMessages();
+              }
+            }}
+            ListHeaderComponent={
+              chat.loadingMore ? (
+                <View style={{ paddingVertical: 12, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={T.green || '#2ECC71'} />
+                </View>
+              ) : null
+            }
             onContentSizeChange={() => {
               if (chat.shouldScrollToEndRef.current) {
                 chat.listRef.current?.scrollToEnd({ animated: true });
@@ -1173,6 +1264,20 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         BlurView={BlurView}
         t={t}
         onStartChat={chat.startDirectMessage}
+      />
+
+      {/* Reactors Bottom Sheet */}
+      <ReactorsBottomSheet
+        visible={reactorsSheetVisible}
+        onClose={() => setReactorsSheetVisible(false)}
+        messageId={reactorsMsgId}
+        reactionCounts={reactorsCounts}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        isRTL={isRTL}
+        onPressUser={(userId) => chat.openUserProfile(userId)}
       />
     </SafeAreaView>
   );

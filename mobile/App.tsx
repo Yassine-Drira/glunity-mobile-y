@@ -4,6 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, TextInput, View, Platform } from '
 import './src/shared/utils/text-scaling';
 import { AuthProvider } from './src/modules/auth/state/auth.context';
 import { SocketProvider } from './src/shared/context/socket.context';
+import { PresenceProvider } from './src/shared/hooks/usePresence';
 import { LanguageProvider } from './src/shared/context/language.context';
 import { ThemeProvider } from './src/shared/context/theme.context';
 import { ThemedNavigationContainer } from './src/shared/components/ThemedNavigationContainer';
@@ -97,14 +98,16 @@ export default function App() {
     <GestureHandlerRootView style={styles.root}>
       <AuthProvider>
         <SocketProvider>
-          <LanguageProvider>
-            <ThemeProvider>
-              <ThemedNavigationContainer linking={linking as any}>
-                <RootNavigator />
-                <StartupPrefetch />
-              </ThemedNavigationContainer>
-            </ThemeProvider>
-          </LanguageProvider>
+          <PresenceProvider>
+            <LanguageProvider>
+              <ThemeProvider>
+                <ThemedNavigationContainer linking={linking as any}>
+                  <RootNavigator />
+                  <StartupPrefetch />
+                </ThemedNavigationContainer>
+              </ThemeProvider>
+            </LanguageProvider>
+          </PresenceProvider>
         </SocketProvider>
       </AuthProvider>
     </GestureHandlerRootView>

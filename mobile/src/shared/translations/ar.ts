@@ -667,6 +667,23 @@ const ar = {
   'Community Chat': 'دردشة المجتمع',
   'Welcome to the community chat. Treat this as the group space for tips, questions and discovery.': 'مرحبًا بك في دردشة المجتمع. اعتبر هذه المساحة مخصصة لمشاركة النصائح والأسئلة والاكتشافات.',
   'Leave community (dev)': 'مغادرة المجتمع (تطوير)',
+  'Last seen {{count}}m ago': 'نشط منذ {{count}} دقيقة',
+  'Last seen {{count}}h ago': 'نشط منذ {{count}} ساعة',
+  'Last seen on {{date}}': 'آخر ظهور في {{date}}',
+  'Just now': 'الآن',
+  'Edit': 'تعديل',
+  'Share': 'مشاركة',
+  'MEMBERS': 'الأعضاء',
+  'Members': 'الأعضاء',
+  'members': 'أعضاء',
+  'Administrators': 'المسؤولين',
+  'Member list': 'قائمة الأعضاء',
+  'Direct Message': 'رسالة مباشرة',
+  'Reactions': 'التفاعلات',
+  'No reactions yet': 'لا توجد تفاعلات بعد',
+  'Gluten Sensitive': 'حساس للغلوتين',
+  'Allergy': 'حساسية أخرى',
+  'Pro': 'حساب تجاري',
 };
 
 export default ar;

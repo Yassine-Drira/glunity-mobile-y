@@ -164,7 +164,7 @@ export default function CreateGroupScreen({ navigation }: any) {
     groupRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 12 },
     groupAvatarWrap: { width: 96, height: 96, borderRadius: 48, backgroundColor: T.surfaceAlt, justifyContent: 'center', alignItems: 'center', marginRight: 12, borderWidth: 1, borderColor: T.divider },
     groupAvatarImg: { width: 96, height: 96, borderRadius: 48 },
-    cameraBadge: { position: 'absolute', bottom: -4, right: -4, width: 36, height: 36, borderRadius: 18, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, elevation: 2, borderWidth: 1, borderColor: T.divider },
+    cameraBadge: { position: 'absolute', bottom: -4, right: -4, width: 36, height: 36, borderRadius: 18, backgroundColor: T.surface, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, elevation: 2, borderWidth: 1, borderColor: T.divider },
     groupNameInput: { flex: 1, backgroundColor: T.surface, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: T.text, height: 52 },
     userCard: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: T.surface, padding: 12, borderRadius: 12, marginBottom: 10, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 },
     avatar: { width: 56, height: 56, borderRadius: 28, marginRight: 12 },

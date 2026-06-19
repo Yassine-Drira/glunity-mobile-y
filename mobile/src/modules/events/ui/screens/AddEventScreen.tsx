@@ -138,7 +138,7 @@ export default function AddEventScreen({ navigation }: Props) {
       width: '100%',
       height: 160,
       borderRadius: 20,
-      backgroundColor: T.surfaceAlt || '#F4F5F7',
+      backgroundColor: T.surfaceAlt,
       borderWidth: 1,
       borderColor: T.border,
       borderStyle: 'dashed',
@@ -197,7 +197,7 @@ export default function AddEventScreen({ navigation }: Props) {
     },
     inputError: {
       borderColor: T.red || '#EF4444',
-      backgroundColor: '#FFF5F5',
+      backgroundColor: T.errorLight || 'rgba(200,16,46,0.09)',
     },
     errorText: {
       fontSize: 11,
@@ -254,7 +254,7 @@ export default function AddEventScreen({ navigation }: Props) {
 
     // Location Fields Group
     locationGroup: {
-      backgroundColor: T.surfaceAlt || '#F4F5F7',
+      backgroundColor: T.surfaceAlt,
       borderRadius: 18,
       padding: 16,
       marginBottom: 20,
