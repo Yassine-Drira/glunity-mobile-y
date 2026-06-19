@@ -32,6 +32,14 @@ const readReceiptController = {
       lastReadMsgId
     );
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(req.user._id.toString()).emit('conversation:updated', {
+        channelId: channelId.toString(),
+        unreadCount: 0
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: {

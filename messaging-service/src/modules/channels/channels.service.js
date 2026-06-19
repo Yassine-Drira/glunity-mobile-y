@@ -37,7 +37,31 @@ const channelsService = {
    * sorted by last message activity (newest first).
    */
   async listForUser(userId) {
-    return repository.findForUser(userId, { limit: 50 });
+    const channels = await repository.findForUser(userId, { limit: 50 });
+    const User = require('../../database/models/user.model');
+    const userObj = await User.findById(userId).select('pinnedGroups').lean();
+    const pinnedIds = (userObj && userObj.pinnedGroups) ? userObj.pinnedGroups.map(id => id.toString()) : [];
+
+    const Message = require('../../database/models/message.model');
+    return Promise.all(
+      channels.map(async (channel) => {
+        const myEntry = (channel.participants ?? []).find(
+          (p) => p.userId?.toString() === userId.toString()
+        );
+        const lastReadAt = myEntry?.lastReadAt || new Date(0);
+        const unreadCount = await Message.countDocuments({
+          channelId: channel._id,
+          deletedAt: { $in: [null, undefined] },
+          createdAt: { $gt: lastReadAt },
+        });
+        const channelIdStr = channel._id.toString();
+        return {
+          ...channel,
+          unreadCount,
+          isPinned: pinnedIds.includes(channelIdStr),
+        };
+      })
+    );
   },
 
   // ── POST /api/channels ─────────────────────────────────────────────────────
@@ -76,6 +100,20 @@ const channelsService = {
       participants,
       createdById: userId,
     });
+  },
+
+  // ── GET /api/channels/:id ─────────────────────────────────────────────────
+  /**
+   * Return a single channel by ID. Caller must be a participant.
+   */
+  async getById(channelId, requesterId) {
+    if (!mongoose.Types.ObjectId.isValid(String(channelId))) {
+      throw createError('Invalid channelId', 400, 'VALIDATION_ERROR');
+    }
+    const channel = await repository.findById(channelId);
+    if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
+    assertParticipant(channel, requesterId, 'You are not a participant of this channel');
+    return channel;
   },
 
   // ── POST /api/channels/dm ──────────────────────────────────────────────────
@@ -185,6 +223,137 @@ const channelsService = {
     if (!updated) throw createError('Role update failed unexpectedly', 500, 'INTERNAL_ERROR');
 
     return updated;
+  },
+
+  // ── POST /api/channels/:id/members ────────────────────────────────────────
+  /**
+   * Add one or more members to a group channel.
+   * Caller must be owner or admin.
+   * Already-present participants are silently skipped (idempotent).
+   *
+   * Body: { memberIds: ObjectId[] }
+   */
+  async addMembers(channelId, requesterId, memberIds = []) {
+    if (!mongoose.Types.ObjectId.isValid(String(channelId))) {
+      throw createError('Invalid channelId', 400, 'VALIDATION_ERROR');
+    }
+    const channel = await repository.findById(channelId);
+    if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
+    if (channel.type === 'direct') {
+      throw createError('Cannot add members to a DM channel', 403, 'FORBIDDEN');
+    }
+
+    const requester = assertParticipant(channel, requesterId, 'You are not a participant of this channel');
+    const isChannelOwner = channel.createdById && channel.createdById.toString() === requesterId.toString();
+    const hasAdminRights = ['owner', 'admin'].includes(requester.role) || isChannelOwner;
+    if (!hasAdminRights) {
+      throw createError('Only admins or owners can add members', 403, 'FORBIDDEN');
+    }
+
+    const existing = new Set(channel.participants.map((p) => p.userId.toString()));
+    const toAdd = memberIds
+      .filter((id) => mongoose.Types.ObjectId.isValid(String(id)) && !existing.has(String(id)))
+      .map((id) => ({ userId: new mongoose.Types.ObjectId(String(id)), role: 'member' }));
+
+    if (toAdd.length === 0) return channel; // nothing to add
+
+    const Channel = require('../../database/models/channel.model');
+    const updated = await Channel.findByIdAndUpdate(
+      channelId,
+      { $push: { participants: { $each: toAdd } } },
+      { new: true }
+    );
+    return updated;
+  },
+
+  // ── DELETE /api/channels/:id/members/:uid ─────────────────────────────────
+  /**
+   * Remove a participant from a group channel.
+   * Caller must be owner or admin. Owner cannot be removed.
+   *
+   * Params: uid – the userId to remove
+   */
+  async removeMember(channelId, requesterId, targetUserId) {
+    if (!mongoose.Types.ObjectId.isValid(String(channelId))) {
+      throw createError('Invalid channelId', 400, 'VALIDATION_ERROR');
+    }
+    if (!mongoose.Types.ObjectId.isValid(String(targetUserId))) {
+      throw createError('Invalid targetUserId', 400, 'VALIDATION_ERROR');
+    }
+
+    const channel = await repository.findById(channelId);
+    if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
+    if (channel.type === 'direct') {
+      throw createError('Cannot remove members from a DM channel', 403, 'FORBIDDEN');
+    }
+
+    const requester = assertParticipant(channel, requesterId, 'You are not a participant of this channel');
+
+    // Allow self-leave (any role) or admin/owner removing others
+    const isSelf = requesterId.toString() === targetUserId.toString();
+    const isChannelOwner = channel.createdById && channel.createdById.toString() === requesterId.toString();
+    const hasAdminRights = ['owner', 'admin'].includes(requester.role) || isChannelOwner;
+    if (!isSelf && !hasAdminRights) {
+      throw createError('Only admins or owners can remove members', 403, 'FORBIDDEN');
+    }
+
+    const target = channel.participants.find((p) => p.userId.toString() === targetUserId.toString());
+    if (!target) throw createError('Target user is not a participant', 404, 'NOT_FOUND');
+    if (target.role === 'owner' && !isSelf) {
+      throw createError('Cannot remove the channel owner', 403, 'FORBIDDEN');
+    }
+
+    const Channel = require('../../database/models/channel.model');
+    const updated = await Channel.findByIdAndUpdate(
+      channelId,
+      { $pull: { participants: { userId: new mongoose.Types.ObjectId(String(targetUserId)) } } },
+      { new: true }
+    );
+    return updated;
+  },
+
+  // ── PATCH /api/channels/:id ────────────────────────────────────────────────
+
+  /**
+   * Update a group channel's name and/or avatar photo.
+   * Caller must be owner or admin.
+   *
+   * @param {string} channelId
+   * @param {string} userId       – requester (must be owner or admin)
+   * @param {object} updates      – { name?, avatarUrl? }
+   * @returns {Channel}           – updated channel document
+   */
+  async updateChannel(channelId, userId, updates = {}) {
+    const Channel = require('../../database/models/channel.model');
+    const channel = await Channel.findById(channelId);
+    if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
+
+    const participant = channel.participants.find(
+      (p) => p.userId.toString() === userId.toString()
+    );
+    if (!participant) throw createError('Forbidden', 403, 'FORBIDDEN');
+    
+    const isChannelOwner = channel.createdById && channel.createdById.toString() === userId.toString();
+    const hasAdminRights = ['owner', 'admin'].includes(participant.role) || isChannelOwner;
+    if (!hasAdminRights) {
+      throw createError('Only admins or owners can update channel info', 403, 'FORBIDDEN');
+    }
+
+    const { name, avatarUrl } = updates;
+
+    if (name !== undefined) {
+      const trimmed = (name || '').trim();
+      if (!trimmed) throw createError('Group name cannot be empty', 400, 'VALIDATION_ERROR');
+      if (trimmed.length > 100) throw createError('Group name cannot exceed 100 characters', 400, 'VALIDATION_ERROR');
+      channel.name = trimmed;
+    }
+
+    if (avatarUrl !== undefined && avatarUrl !== null) {
+      channel.avatarUrl = avatarUrl.trim();
+    }
+
+    await channel.save();
+    return channel;
   },
 
   async deleteChannel(channelId, userId) {

@@ -51,13 +51,16 @@ const channelSchema = new Schema(
     name:        { type: String, trim: true },
     description: { type: String, trim: true, maxlength: 500 },
 
+    /** Profile photo URL for group channels (stored on Cloudinary). */
+    avatarUrl: { type: String, trim: true, default: null },
+
     /** 'group' for multi-user rooms; 'DM' for 1-to-1 direct messages;
      *  'social' kept for backwards-compat with the social-feed feed feature. */
     type: {
       type:     String,
       enum:     ['DM', 'direct', 'group', 'social'],
       required: true,
-      default:  'direct',
+      default:  'group',
     },
 
     /** When true, only participants may read messages (enforced in service layer). */
@@ -114,9 +117,12 @@ channelSchema.index({ deletedAt: 1 }, { sparse: true });
  * @param {string|ObjectId} channelId
  * @param {object} message  – saved Mongoose document
  */
-channelSchema.statics.updateLastMessage = function (channelId, message) {
-  return this.findByIdAndUpdate(
-    channelId,
+channelSchema.statics.updateLastMessage = async function (channelId, message) {
+  let updated = await this.findOneAndUpdate(
+    {
+      _id: channelId,
+      'participants.userId': message.senderId,
+    },
     {
       $set: {
         lastMessage: {
@@ -126,11 +132,32 @@ channelSchema.statics.updateLastMessage = function (channelId, message) {
           type:       message.type,
           createdAt:  message.createdAt || new Date(),
         },
+        'participants.$.lastReadAt': message.createdAt || new Date(),
       },
       $inc: { messageCount: 1 },
     },
-    { returnDocument: 'after', timestamps: false }  // don't bump updatedAt just for lastMessage
+    { returnDocument: 'after', timestamps: false }
   );
+
+  if (!updated) {
+    updated = await this.findByIdAndUpdate(
+      channelId,
+      {
+        $set: {
+          lastMessage: {
+            messageId:  message._id,
+            senderId:   message.senderId,
+            content:    (message.content || '').substring(0, 200),
+            type:       message.type,
+            createdAt:  message.createdAt || new Date(),
+          },
+        },
+        $inc: { messageCount: 1 },
+      },
+      { returnDocument: 'after', timestamps: false }
+    );
+  }
+  return updated;
 };
 
 module.exports = model('Channel', channelSchema);

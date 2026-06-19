@@ -72,6 +72,20 @@ router.post('/:id/read', auth, readReceiptController.markRead);
 router.post('/:id/reels', auth, reelShareController.shareReel);
 
 /**
+ * GET /api/channels/:id
+ * Fetch a single channel by ID. Caller must be a participant.
+ */
+router.get('/:id', auth, controller.getById);
+
+/**
+ * PATCH /api/channels/:id
+ * Update a group channel's name and/or avatar photo.
+ * Body: { name?: string, avatarUrl?: string }
+ * Caller must be owner or admin.
+ */
+router.patch('/:id', auth, controller.updateChannel);
+
+/**
  * DELETE /api/channels/:id
  * Soft-delete a DM channel (both sides). Also works for groups if user is creator.
  */
@@ -89,9 +103,24 @@ router.delete('/:id/messages', auth, controller.clearMessages);
  */
 router.post('/:id/mute', auth, controller.toggleMute);
 
-// ── Messages sub-resource ─────────────────────────────────────────────────────
+  /**
+ * POST /api/channels/:id/members
+ * Add one or more members to a group channel.
+ * Body: { memberIds: ObjectId[] } or { members: ObjectId[] }
+ * Caller must be owner or admin.
+ */
+router.post('/:id/members', auth, controller.addMembers);
 
 /**
+ * DELETE /api/channels/:id/members/:uid
+ * Remove a participant from a group channel.
+ * Caller must be owner or admin (or self-leave).
+ */
+router.delete('/:id/members/:uid', auth, controller.removeMember);
+
+// ── Messages sub-resource ─────────────────────────────────────────────────────
+
+  /**
  * GET  /api/channels/:channelId/messages?cursor=<id>&limit=50&direction=before
  * POST /api/channels/:channelId/messages/:messageId/pin
  * DELETE /api/channels/:channelId/messages/:messageId/pin

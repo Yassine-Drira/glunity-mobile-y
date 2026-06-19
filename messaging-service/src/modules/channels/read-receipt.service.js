@@ -53,14 +53,20 @@ const readReceiptService = {
     }
 
     // Verify the message belongs to this channel (prevents poisoning the receipt)
-    const msgExists = await Message.exists({
+    const msg = await Message.findOne({
       _id: lastReadMsgId,
       channelId,
       deletedAt: { $in: [null, undefined] },
-    });
-    if (!msgExists) {
+    }).lean();
+    if (!msg) {
       throw createError('Message not found in this channel', 404, 'NOT_FOUND');
     }
+
+    // Update the participant's lastReadAt in the Channel document
+    await Channel.updateOne(
+      { _id: channelId, 'participants.userId': userId },
+      { $set: { 'participants.$.lastReadAt': msg.createdAt || new Date() } }
+    );
 
     // Only advance the pointer — never move it backwards
     return ReadReceipt.findOneAndUpdate(
@@ -95,7 +101,7 @@ const readReceiptService = {
           },
         },
       ],
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true, updatePipeline: true }
     );
   },
 

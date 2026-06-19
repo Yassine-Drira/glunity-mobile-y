@@ -1,5 +1,6 @@
 'use strict';
 
+const mongoose = require('mongoose');
 const Channel  = require('../../database/models/channel.model');
 const Message  = require('../../database/models/message.model');
 const emitter  = require('../emitters/channel.emitter');
@@ -36,6 +37,31 @@ function messageHandler(io, socket) {
     }
   }
 
+  // Calculate unread count for each participant and emit conversation:updated
+  async function broadcastConversationUpdate(channel) {
+    if (!channel || !channel.participants) return;
+    for (const p of channel.participants) {
+      const pId = (p.userId || p).toString();
+      const unreadCount = await Message.countDocuments({
+        channelId: channel._id,
+        deletedAt: { $in: [null, undefined] },
+        createdAt: { $gt: p.lastReadAt || new Date(0) }
+      });
+
+      io.to(pId).emit('conversation:updated', {
+        channelId: channel._id.toString(),
+        lastMessage: channel.lastMessage ? {
+          messageId: channel.lastMessage.messageId.toString(),
+          senderId: channel.lastMessage.senderId.toString(),
+          senderName: channel.lastMessage.senderName,
+          content: channel.lastMessage.content,
+          createdAt: channel.lastMessage.createdAt,
+        } : null,
+        unreadCount
+      });
+    }
+  }
+
   // Send message
   socket.on('message:send', async ({ channelId, content, type, attachments, reelRef, replyTo }, callback) => {
     try {
@@ -63,18 +89,39 @@ function messageHandler(io, socket) {
 
       await msg.save();
 
-      // Denormalize on Channel: atomics
-      const updatedChannel = await Channel.findByIdAndUpdate(channelId, {
-        $set: {
-          lastMessage: {
-            messageId: msg._id,
-            senderId: user._id,
-            senderName: user.fullName,
-            content: msg.type === 'text' ? msg.content : `[${msg.type}]`,
-            createdAt: msg.createdAt,
+      // Denormalize on Channel: atomics (updates lastMessage and sets sender's lastReadAt)
+      let updatedChannel = await Channel.findOneAndUpdate(
+        { _id: channelId, 'participants.userId': user._id },
+        {
+          $set: {
+            lastMessage: {
+              messageId: msg._id,
+              senderId: user._id,
+              senderName: user.fullName,
+              content: msg.type === 'text' ? msg.content : `[${msg.type}]`,
+              createdAt: msg.createdAt,
+            },
+            'participants.$.lastReadAt': msg.createdAt,
           },
+          $inc: { messageCount: 1 },
         },
-      }, { returnDocument: 'after' }).lean();
+        { returnDocument: 'after' }
+      ).lean();
+
+      if (!updatedChannel) {
+        updatedChannel = await Channel.findByIdAndUpdate(channelId, {
+          $set: {
+            lastMessage: {
+              messageId: msg._id,
+              senderId: user._id,
+              senderName: user.fullName,
+              content: msg.type === 'text' ? msg.content : `[${msg.type}]`,
+              createdAt: msg.createdAt,
+            },
+          },
+          $inc: { messageCount: 1 },
+        }, { returnDocument: 'after' }).lean();
+      }
 
       // Populate sender info for clients
       const populated = {
@@ -99,28 +146,12 @@ function messageHandler(io, socket) {
       emitter.messageNew(io, channelId, populated);
 
       // Broadcast conversation updates and new message notifications to participants
-      if (updatedChannel && updatedChannel.participants) {
-        for (const p of updatedChannel.participants) {
-          const pId = (p.userId || p).toString();
-          
-          // Count unread messages for this participant
-          const unreadCount = await Message.countDocuments({
-            channelId,
-            createdAt: { $gt: p.lastReadAt || new Date(0) }
-          });
+      if (updatedChannel) {
+        await broadcastConversationUpdate(updatedChannel);
 
-          // Emit conversation:updated to the participant's room
-          io.to(pId).emit('conversation:updated', {
-            channelId,
-            lastMessage: {
-              messageId: msg._id.toString(),
-              senderId: userId,
-              senderName: user.fullName,
-              content: msg.type === 'text' ? msg.content : `[${msg.type}]`,
-              createdAt: msg.createdAt,
-            },
-            unreadCount
-          });
+        if (updatedChannel.participants) {
+          for (const p of updatedChannel.participants) {
+            const pId = (p.userId || p).toString();
 
             // If participant is not the sender, check if they are viewing the channel
             if (pId !== userId) {
@@ -133,24 +164,25 @@ function messageHandler(io, socket) {
                 }
               }
 
-            if (!isViewing) {
-              let conversationName = updatedChannel.name;
-              if (updatedChannel.type === 'direct') {
-                conversationName = user.fullName;
-              }
-              
-              const messagePreview = msg.type === 'text' 
-                ? (msg.content ? (msg.content.slice(0, 60) + (msg.content.length > 60 ? '...' : '')) : '') 
-                : `[${msg.type}]`;
+              if (!isViewing) {
+                let conversationName = updatedChannel.name;
+                if (updatedChannel.type === 'direct') {
+                  conversationName = user.fullName;
+                }
+                
+                const messagePreview = msg.type === 'text' 
+                  ? (msg.content ? (msg.content.slice(0, 60) + (msg.content.length > 60 ? '...' : '')) : '') 
+                  : `[${msg.type}]`;
 
-              io.to(pId).emit('notification:new', {
-                conversationId: channelId,
-                conversationName: conversationName || 'Chat',
-                senderName: user.fullName,
-                senderAvatar: user.avatar?.url || null,
-                messagePreview,
-                timestamp: msg.createdAt
-              });
+                io.to(pId).emit('notification:new', {
+                  conversationId: channelId,
+                  conversationName: conversationName || 'Chat',
+                  senderName: user.fullName,
+                  senderAvatar: user.avatar?.url || null,
+                  messagePreview,
+                  timestamp: msg.createdAt
+                });
+              }
             }
           }
         }
@@ -173,6 +205,14 @@ function messageHandler(io, socket) {
       msg.editedAt = new Date();
       await msg.save();
 
+      // Update Channel's lastMessage if this was the last message
+      const channel = await Channel.findById(msg.channelId);
+      if (channel && channel.lastMessage && channel.lastMessage.messageId.toString() === messageId.toString()) {
+        channel.lastMessage.content = msg.type === 'text' ? msg.content : `[${msg.type}]`;
+        const updatedChannel = await channel.save();
+        await broadcastConversationUpdate(updatedChannel);
+      }
+
       emitter.messageEdited(io, msg.channelId.toString(), msg._id.toString(), msg.content, msg.editedAt);
       if (callback) callback({ ok: true });
     } catch (err) {
@@ -189,6 +229,30 @@ function messageHandler(io, socket) {
 
       msg.deletedAt = new Date();
       await msg.save();
+
+      // Revert Channel's lastMessage if this was the deleted message
+      const channel = await Channel.findById(msg.channelId);
+      if (channel && channel.lastMessage && channel.lastMessage.messageId.toString() === messageId.toString()) {
+        const previousMsg = await Message.findOne({
+          channelId: msg.channelId,
+          deletedAt: { $in: [null, undefined] }
+        }).sort({ createdAt: -1 });
+
+        if (previousMsg) {
+          const sender = await mongoose.model('User').findById(previousMsg.senderId).lean();
+          channel.lastMessage = {
+            messageId: previousMsg._id,
+            senderId: previousMsg.senderId,
+            senderName: sender ? sender.fullName : 'User',
+            content: previousMsg.type === 'text' ? previousMsg.content : `[${previousMsg.type}]`,
+            createdAt: previousMsg.createdAt
+          };
+        } else {
+          channel.lastMessage = null;
+        }
+        const updatedChannel = await channel.save();
+        await broadcastConversationUpdate(updatedChannel);
+      }
 
       emitter.messageDeleted(io, msg.channelId.toString(), msg._id.toString());
       if (callback) callback({ ok: true });
