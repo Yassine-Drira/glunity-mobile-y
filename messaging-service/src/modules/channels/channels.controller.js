@@ -122,7 +122,14 @@ const channelsController = {
 
   deleteChannel: asyncHandler(async (req, res) => {
     const { id: channelId } = req.params;
-    await service.deleteChannel(channelId, req.user._id);
+    const channel = await service.deleteChannel(channelId, req.user._id);
+
+    // Emit socket event for real-time deletion sync to the requesting user only
+    const io = req.app.get('io');
+    if (io) {
+      io.to(req.user._id.toString()).emit('channel:deleted', { channelId });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Channel deleted successfully',
@@ -132,6 +139,13 @@ const channelsController = {
   clearMessages: asyncHandler(async (req, res) => {
     const { id: channelId } = req.params;
     const channel = await service.clearMessages(channelId, req.user._id);
+
+    // Emit socket event for real-time clear sync to the requesting user only
+    const io = req.app.get('io');
+    if (io) {
+      io.to(req.user._id.toString()).emit('channel:cleared', { channelId });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Messages cleared successfully',

@@ -383,7 +383,7 @@ const usersController = {
 
   /** GET /api/users/:id — get user/seller profile by ID */
   getById: asyncHandler(async (req, res) => {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).populate('badges');
     if (!user) throw AppError.notFound('User');
 
     res.status(200).json({

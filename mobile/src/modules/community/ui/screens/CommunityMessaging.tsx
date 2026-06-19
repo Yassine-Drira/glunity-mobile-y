@@ -15,7 +15,9 @@ import { OptionsActionMenu } from '../components/OptionsActionMenu';
 import { MembersBottomSheet } from '../components/MembersBottomSheet';
 import { EditGroupModal } from '../components/EditGroupModal';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { ReactionsOverlayModal } from '../components/ReactionsOverlayModal';
+import { UserProfileBottomSheet } from '../components/UserProfileBottomSheet';
 
 // Optional native BlurView
 let BlurView: any = null;
@@ -81,15 +83,27 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   const dmPartnerId = useMemo(() => {
     const ch = chat.channel;
     if (!ch) return null;
-    const isDM = ch.name?.startsWith('DM-') || ch.type === 'direct' || ch.type === 'dm';
+    const parts = ch.participants || ch.members || ch.userIds || ch.participantIds || [];
+    const isDM = ch.name?.startsWith('DM-') || ch.type === 'direct' || ch.type === 'dm' || (Array.isArray(parts) && parts.length === 2);
     if (!isDM) return null;
-    const parts = ch.participants || ch.members || [];
     for (const p of parts) {
       const id = p.userId ? String(p.userId) : String(p._id || p.id || p);
       if (id && id !== String(user?._id)) return id;
     }
     return null;
   }, [chat.channel, user?._id]);
+
+  const isDMChannel = React.useMemo(() => {
+    const ch = chat.channel;
+    if (!ch) return false;
+    const parts = ch.participants || ch.members || ch.userIds || ch.participantIds || [];
+    return Boolean(
+      ch.name?.startsWith('DM-') ||
+      ch.type === 'direct' ||
+      ch.type === 'dm' ||
+      (Array.isArray(parts) && parts.length === 2)
+    );
+  }, [chat.channel]);
 
   const partnerOnline = dmPartnerId ? isOnline(dmPartnerId) : false;
 
@@ -233,7 +247,6 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     timeText: { fontSize: 10, color: T.textMuted, marginTop: 2 },
     messageBlock: { flexDirection: 'column', alignItems: 'flex-start' },
     inputBar: {
-      position: 'absolute', left: 0, right: 0, bottom: 0,
       padding: 12, backgroundColor: T.surface,
       borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.divider,
     },
@@ -646,7 +659,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             <Ionicons name={isRTL ? 'arrow-forward-outline' : 'arrow-back-outline'} size={22} color={T.text} />
           </TouchableOpacity>
 
-          {dmPartnerId ? (
+          {isDMChannel ? (
             /* ── DM Header ──────────────────────────────────────────────────── */
             <TouchableOpacity
               onPress={() => chat.setMembersSheetVisible(true)}
@@ -654,7 +667,11 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
               activeOpacity={0.75}
             >
               {/* Avatar with presence dot */}
-              <View style={{ position: 'relative' }}>
+              <TouchableOpacity
+                onPress={() => dmPartnerId && chat.openUserProfile(dmPartnerId)}
+                activeOpacity={0.8}
+                style={{ position: 'relative' }}
+              >
                 {display.avatar ? (
                   <Image source={{ uri: display.avatar }} style={styles.dmAvatar} />
                 ) : (
@@ -665,7 +682,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   </View>
                 )}
                 <OnlineDot isOnline={partnerOnline} size={12} />
-              </View>
+              </TouchableOpacity>
 
               {/* Name + status */}
               <View style={styles.headerMeta}>
@@ -813,50 +830,65 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         );
       })()}
 
-      {/* Messages List */}
-      {chat.loading && chat.messages.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>
-      ) : (
-        <FlatList
-          ref={chat.listRef}
-          data={chat.messages}
-          keyExtractor={(i) => String(i.id || i._id || Math.random())}
-          renderItem={renderItem}
-          contentContainerStyle={[
-            styles.listContent,
-            { paddingBottom: 120 + insets.bottom },
-            chat.messages.length === 0 && { flexGrow: 1, justifyContent: 'center' }
-          ]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          ListEmptyComponent={
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
-              <Ionicons name="chatbubbles-outline" size={64} color={T.textMuted} style={{ marginBottom: 12, opacity: 0.5 }} />
-              <Text style={{ fontSize: 16, fontWeight: '600', color: T.text, textAlign: 'center' }}>
-                {dmPartnerId 
-                  ? `${t('Say hi to')} ${display.name} 👋` 
-                  : t('Start the conversation!')}
-              </Text>
-              <Text style={{ fontSize: 13, color: T.textMuted, textAlign: 'center', marginTop: 4, paddingHorizontal: 40 }}>
-                {dmPartnerId 
-                  ? t('Send a message to start direct messaging')
-                  : t('No messages in this group yet')}
-              </Text>
-            </View>
-          }
-        />
-      )}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 + insets.top : 0}
+      >
+        {/* Messages List */}
+        {chat.loading && chat.messages.length === 0 ? (
+          <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator /></View>
+        ) : (
+          <FlatList
+            ref={chat.listRef}
+            data={chat.messages}
+            keyExtractor={(i) => String(i.id || i._id || Math.random())}
+            renderItem={renderItem}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: 16 },
+              chat.messages.length === 0 && { flexGrow: 1, justifyContent: 'center' }
+            ]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onContentSizeChange={() => {
+              if (chat.shouldScrollToEndRef.current) {
+                chat.listRef.current?.scrollToEnd({ animated: true });
+                chat.shouldScrollToEndRef.current = false;
+              }
+            }}
+            onLayout={() => {
+              if (chat.messages.length > 0) {
+                chat.listRef.current?.scrollToEnd({ animated: true });
+              }
+            }}
+            ListEmptyComponent={
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
+                <Ionicons name="chatbubbles-outline" size={64} color={T.textMuted} style={{ marginBottom: 12, opacity: 0.5 }} />
+                <Text style={{ fontSize: 16, fontWeight: '600', color: T.text, textAlign: 'center' }}>
+                  {dmPartnerId 
+                    ? `${t('Say hi to')} ${display.name} 👋` 
+                    : t('Start the conversation!')}
+                </Text>
+                <Text style={{ fontSize: 13, color: T.textMuted, textAlign: 'center', marginTop: 4, paddingHorizontal: 40 }}>
+                  {dmPartnerId 
+                    ? t('Send a message to start direct messaging')
+                    : t('No messages in this group yet')}
+                </Text>
+              </View>
+            }
+          />
+        )}
 
-      {/* Emoji pop animation */}
-      {chat.popEmoji ? (
-        <Animated.View pointerEvents="none" style={{ position: 'absolute', right: 36, bottom: 120, transform: [{ scale: chat.popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1.15] }) }], opacity: chat.popAnim.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0, 1, 0] }) }}>
-          <Text style={{ fontSize: 40 }}>{chat.popEmoji}</Text>
-        </Animated.View>
-      ) : null}
+        {/* Emoji pop animation */}
+        {chat.popEmoji ? (
+          <Animated.View pointerEvents="none" style={{ position: 'absolute', right: 36, bottom: 80, transform: [{ scale: chat.popAnim.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1.15] }) }], opacity: chat.popAnim.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0, 1, 0] }) }}>
+            <Text style={{ fontSize: 40 }}>{chat.popEmoji}</Text>
+          </Animated.View>
+        ) : null}
 
-      {/* Messaging Input Bar */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 90 + insets.bottom : 0}>
-        <View style={[styles.inputBar, { bottom: insets.bottom }]}>
+        {/* Messaging Input Bar */}
+        <View style={[styles.inputBar, { paddingBottom: chat.isRecording ? 12 : insets.bottom + 12 }]}>
           {chat.typingUser ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, paddingLeft: 8 }}>
               <Text style={{ color: T.textMuted, fontSize: 12, fontStyle: 'italic' }}>
@@ -970,9 +1002,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
       {/* Options Menu Modal */}
       <OptionsActionMenu
-        visible={chat.menuVisible}
-        onRequestClose={() => chat.setMenuVisible(false)}
-        isDM={!!dmPartnerId}
+    visible={chat.menuVisible}
+    onRequestClose={() => chat.setMenuVisible(false)}
+    isDM={!!isDMChannel}
         isMuted={!!chat.channel?.myMuted}
         onOpenMembers={() => chat.setMembersSheetVisible(true)}
         onOpenEditGroup={() => chat.setEditSheetVisible(true)}
@@ -1011,6 +1043,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         t={t}
         isDark={isDark}
         BlurView={BlurView}
+        onPressMemberAvatar={chat.openUserProfile}
       />
 
       {/* Edit Group Info Modal */}
@@ -1051,6 +1084,42 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         overlayFallback={overlayFallback}
       />
 
+      {/* Clear Chat Confirmation Modal */}
+      <ConfirmationModal
+        visible={chat.confirmClearVisible}
+        onClose={() => chat.setConfirmClearVisible(false)}
+        title={t('Clear Chat')}
+        message={t('All messages in this conversation will be permanently deleted for you. This cannot be undone.')}
+        confirmLabel={t('Clear')}
+        onConfirm={chat.performClearChat}
+        loading={chat.clearingChat}
+        isDestructive={true}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        modalBg={modalBg}
+        overlayFallback={overlayFallback}
+      />
+
+      {/* Delete Conversation Confirmation Modal */}
+      <ConfirmationModal
+        visible={chat.confirmDeleteDMVisible}
+        onClose={() => chat.setConfirmDeleteDMVisible(false)}
+        title={t('Delete Conversation')}
+        message={t('This conversation and all its messages will be permanently deleted for you. This cannot be undone.')}
+        confirmLabel={t('Delete')}
+        onConfirm={chat.performDeleteDM}
+        loading={chat.deletingDM}
+        isDestructive={true}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        modalBg={modalBg}
+        overlayFallback={overlayFallback}
+      />
+
       {/* Reactions Overlay Modal */}
       <ReactionsOverlayModal
         visible={!!chat.reactionMsgId}
@@ -1071,6 +1140,18 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         t={t}
         modalBg={modalBg}
         overlayFallback={overlayFallback}
+      />
+
+      {/* User Profile Bottom Sheet */}
+      <UserProfileBottomSheet
+        visible={chat.profileSheetVisible}
+        onClose={chat.closeUserProfile}
+        userId={chat.selectedProfileUserId}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        onStartChat={chat.startDirectMessage}
       />
     </SafeAreaView>
   );

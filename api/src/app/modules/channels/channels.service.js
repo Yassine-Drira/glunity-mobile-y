@@ -44,6 +44,23 @@ const channelsService = {
 					{ userId: user2Id, role: 'member' }
 				]
 			});
+		} else {
+			// If existing direct channel was found, restore deletedAt for BOTH participants to null if they were set
+			const Channel = require('../../../database/models/channel.model');
+			const channelObj = await Channel.findById(channel._id);
+			let needsSave = false;
+			if (channelObj && channelObj.participants) {
+				for (const p of channelObj.participants) {
+					if (p.deletedAt) {
+						p.deletedAt = null;
+						needsSave = true;
+					}
+				}
+				if (needsSave) {
+					await channelObj.save();
+					channel = channelObj.toObject();
+				}
+			}
 		}
 		return channel;
 	},

@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Animated, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Animated, Alert, Platform, TextInput, Modal, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import http from '../../../../core/network/http.client';
 import messagingEvents from '../../../../shared/utils/messagingEvents';
 import { useTheme } from '../../../../shared/context/theme.context';
+import { BottomNavBar } from '../../../../shared/components/BottomNavBar';
 import { useLanguage } from '../../../../shared/context/language.context';
 import { useAuth } from '../../../../modules/auth/state/auth.context';
 import { useSocket } from '../../../../shared/context/socket.context';
@@ -13,6 +14,10 @@ import { ChatCacheService } from '../../services/chat-cache.service';
 import { usePresence } from '../../../../shared/hooks/usePresence';
 import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
+import { UserProfileBottomSheet } from '../components/UserProfileBottomSheet';
+
+let BlurView: any = null;
+try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
 
 function formatTime(iso?: string) {
   if (!iso) return '';
@@ -34,6 +39,20 @@ export default function MessagingHome({ navigation }: any) {
   const hasPopulatedChannels = useRef(false);
   const hasPopulatedContacts = useRef(false);
   const reducedMotion = useReducedMotion();
+
+  // User Profile Bottom Sheet states
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [profileSheetVisible, setProfileSheetVisible] = useState(false);
+
+  const openUserProfile = useCallback((userId: string) => {
+    setProfileUserId(userId);
+    setProfileSheetVisible(true);
+  }, []);
+
+  const closeUserProfile = useCallback(() => {
+    setProfileSheetVisible(false);
+    setProfileUserId(null);
+  }, []);
 
   const [channels, setChannels] = useState<any[]>([]);
   // sortOrder: explicit ordered list of channelIds, most-recent first.
@@ -120,6 +139,8 @@ export default function MessagingHome({ navigation }: any) {
   );
 
   const [creatingContactFor, setCreatingContactFor] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   function isDMChannel(c: any) {
     if (!c) return false;
@@ -412,16 +433,33 @@ export default function MessagingHome({ navigation }: any) {
       });
     };
 
+    const handleChannelDeleted = ({ channelId }: any) => {
+      setChannels(prev => prev.filter(c => String(c._id || c.id) !== String(channelId)));
+    };
+
+    const handleChannelCleared = ({ channelId }: any) => {
+      setChannels((prev) => prev.map((c) => {
+        if (String(c._id || c.id) === String(channelId)) {
+          return { ...c, lastMessage: null, pinnedMessages: [] };
+        }
+        return c;
+      }));
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('message:edited', handleMessageEdited);
     socket.on('message:deleted', handleMessageDeleted);
     socket.on('conversation:updated', handleConversationUpdated);
+    socket.on('channel:deleted', handleChannelDeleted);
+    socket.on('channel:cleared', handleChannelCleared);
 
     return () => {
       socket.off('message:new', handleNewMessage);
       socket.off('message:edited', handleMessageEdited);
       socket.off('message:deleted', handleMessageDeleted);
       socket.off('conversation:updated', handleConversationUpdated);
+      socket.off('channel:deleted', handleChannelDeleted);
+      socket.off('channel:cleared', handleChannelCleared);
     };
   }, [socket, user]);
 
@@ -432,6 +470,15 @@ export default function MessagingHome({ navigation }: any) {
     };
     messagingEvents.on('channel:opened', onOpened);
     return () => { messagingEvents.off('channel:opened', onOpened); };
+  }, []);
+
+  // Handle local channel deletion (e.g. from CommunityChat screen) to update list instantly
+  useEffect(() => {
+    const onDeleted = (channelId: any) => {
+      setChannels(prev => prev.filter(c => String(c._id || c.id) !== String(channelId)));
+    };
+    messagingEvents.on('channel:deleted', onDeleted);
+    return () => { messagingEvents.off('channel:deleted', onDeleted); };
   }, []);
 
   // Also listen to local message events emitted by the chat screen to update list instantly
@@ -493,19 +540,22 @@ export default function MessagingHome({ navigation }: any) {
     unreadWrap: { justifyContent: 'center', alignItems: 'center', marginLeft: 8, paddingRight: 8 },
     contactBtn: { backgroundColor: '#8BC34A', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, alignItems: 'center', justifyContent: 'center', zIndex: 10, minWidth: 78, elevation: 4 },
     unreadText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-    fab: { position: 'absolute', right: 18, bottom: 28, width: 64, height: 64, borderRadius: 32, backgroundColor: '#8BC34A', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
+    fab: { position: 'absolute', right: 18, bottom: 96, width: 64, height: 64, borderRadius: 32, backgroundColor: '#8BC34A', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
+    bottomHandleWrap: { position: 'absolute', left: 0, right: 0, bottom: 18, alignItems: 'center' },
+    bottomHandle: { width: 64, height: 6, borderRadius: 6, backgroundColor: T.surface, opacity: 0.95, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 3 }
   }), [T, isRTL]);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.greetingWrap}>
-          <Text style={styles.hello}>Hello.</Text>
-          <Text style={styles.userName}>{user?.fullName?.split(' ')[0] || 'Johan'}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')} style={{ padding: 8 }}>
+            <Ionicons name="arrow-back" size={20} color={T.text} />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.searchIconWrap} onPress={() => { /* TODO: search */ }}>
+          <TouchableOpacity style={styles.searchIconWrap} onPress={() => { setSearchOpen(true); }}>
             <Ionicons name="search" size={18} color={T.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuIconWrap} onPress={() => { /* menu */ }}>
@@ -513,6 +563,48 @@ export default function MessagingHome({ navigation }: any) {
           </TouchableOpacity>
         </View>
       </View>
+      {/* Search modal/overlay */}
+      <Modal visible={searchOpen} animationType="slide" transparent onRequestClose={() => setSearchOpen(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', padding: 20 }}>
+            <View style={{ backgroundColor: T.bg, borderRadius: 12, padding: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TextInput
+                  placeholder={t('Search users') || 'Search users'}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  style={{ flex: 1, padding: 8, backgroundColor: T.surface, borderRadius: 8 }}
+                  autoFocus
+                />
+                <TouchableOpacity style={{ marginLeft: 8 }} onPress={() => { setSearchOpen(false); setSearchQuery(''); }}>
+                  <Ionicons name="close" size={22} color={T.text} />
+                </TouchableOpacity>
+              </View>
+              <View style={{ maxHeight: 300, marginTop: 8 }}>
+                {loadingUsers ? (
+                  <ActivityIndicator style={{ marginTop: 20 }} />
+                ) : (
+                  <FlatList
+                    data={users.filter(u => (u.fullName || u.name || u.displayName || '').toLowerCase().includes((searchQuery || '').toLowerCase()))}
+                    keyExtractor={(u) => String(u._id || u.id)}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }} onPress={() => { setSearchOpen(false); setSearchQuery(''); contactUser(item._id || item.id); }}>
+                        <TouchableOpacity onPress={() => { setSearchOpen(false); openUserProfile(item._id || item.id); }} activeOpacity={0.8}>
+                          <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                        </TouchableOpacity>
+                        <View>
+                          <Text style={{ fontWeight: '700', color: T.text }}>{item.fullName || item.name || item.displayName}</Text>
+                          <Text style={{ color: T.textMuted }}>{item.profileType || ''}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+                )}
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <View style={styles.tabsWrap}>
         <View style={[styles.tabsContainer, { width: '100%' }]} onLayout={(e) => setTabsWidth(e.nativeEvent.layout.width)}>
@@ -569,7 +661,9 @@ export default function MessagingHome({ navigation }: any) {
                   style={[styles.row, { justifyContent: 'space-between' }]}
                 >
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
-                    <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || 'U')}&background=8BC34A&color=fff` }} style={styles.avatar} />
+                    <TouchableOpacity onPress={() => openUserProfile(item._id || item.id)} activeOpacity={0.8}>
+                      <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || 'U')}&background=8BC34A&color=fff` }} style={styles.avatar} />
+                    </TouchableOpacity>
                     <View style={styles.rowContent}>
                       <Text style={styles.rowName}>{item.fullName}</Text>
                       <Text style={styles.rowSnippet}>{item.profileType || ''}</Text>
@@ -670,9 +764,34 @@ export default function MessagingHome({ navigation }: any) {
         />
       )}
 
+      <View style={styles.bottomHandleWrap} pointerEvents="none">
+        <View style={styles.bottomHandle} />
+      </View>
+
       <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('CreateGroup') }>
         <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
       </TouchableOpacity>
+
+      <BottomNavBar
+        activeTab="community"
+        onPressHome={() => navigation.navigate('Home')}
+        onPressEvents={() => navigation.navigate('Events')}
+        onPressCenter={() => navigation.navigate('Map')}
+        onPressReels={() => navigation.navigate('Community')}
+        onPressProfile={() => navigation.navigate('Profile')}
+      />
+
+      {/* User Profile Bottom Sheet */}
+      <UserProfileBottomSheet
+        visible={profileSheetVisible}
+        onClose={closeUserProfile}
+        userId={profileUserId}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        onStartChat={contactUser}
+      />
     </SafeAreaView>
   );
 }

@@ -47,6 +47,9 @@ const toChannelResponse = (channel, currentUserId) => {
       )
     : null;
 
+  const clearedAt = myEntry?.clearedAt;
+  const showLastMessage = channel.lastMessage && (!clearedAt || new Date(channel.lastMessage.createdAt) > new Date(clearedAt));
+
   return {
     id:             (channel._id ?? channel.id).toString(),
     name:           channel.name           ?? null,
@@ -56,7 +59,7 @@ const toChannelResponse = (channel, currentUserId) => {
     isPrivate:      channel.isPrivate      ?? true,
     messageCount:   channel.messageCount   ?? 0,
     participants:   (channel.participants  ?? []).map(toParticipant),
-    lastMessage:    toLastMessage(channel.lastMessage),
+    lastMessage:    showLastMessage ? toLastMessage(channel.lastMessage) : null,
     pinnedMessages: (channel.pinnedMessages ?? []).map(toPinnedMessage),
     unreadCount:    channel.unreadCount    ?? 0,
     isPinned:       channel.isPinned       ?? false,

@@ -11,7 +11,12 @@ const channelsRepository = {
    */
   async findForUser(userId, { limit = 50 } = {}) {
     return Channel.find({
-      'participants.userId': userId,
+      participants: {
+        $elemMatch: {
+          userId: userId,
+          deletedAt: { $in: [null, undefined] },
+        }
+      },
       deletedAt: { $in: [null, undefined] },
     })
       .sort({ 'lastMessage.createdAt': -1, updatedAt: -1 })

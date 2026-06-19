@@ -6,8 +6,25 @@ const Message = require('../../../database/models/message.model');
 const channelsRepository = {
 	findMany({ userId, limit = 50, skip = 0 } = {}) {
 		const query = userId
-			? { $or: [{ isPrivate: { $ne: true } }, { 'participants.userId': userId }] }
-			: { isPrivate: { $ne: true } };
+			? {
+					$and: [
+						{ deletedAt: { $in: [null, undefined] } },
+						{
+							$or: [
+								{ isPrivate: { $ne: true } },
+								{
+									participants: {
+										$elemMatch: {
+											userId: userId,
+											deletedAt: { $in: [null, undefined] }
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			: { isPrivate: { $ne: true }, deletedAt: { $in: [null, undefined] } };
 		return Channel.find(query)
 			.populate({
 				path: 'pinnedMessages.messageId',
@@ -20,7 +37,7 @@ const channelsRepository = {
 	},
 
 	findById(id) {
-		return Channel.findById(id)
+		return Channel.findOne({ _id: id, deletedAt: { $in: [null, undefined] } })
 			.populate({
 				path: 'pinnedMessages.messageId',
 				select: 'content senderId createdAt',
@@ -32,7 +49,8 @@ const channelsRepository = {
 	findDirectChannel(user1Id, user2Id) {
 		return Channel.findOne({
 			isPrivate: true,
-			'participants.userId': { $all: [user1Id, user2Id] }
+			'participants.userId': { $all: [user1Id, user2Id] },
+			deletedAt: { $in: [null, undefined] }
 		}).lean();
 	},
 

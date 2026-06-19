@@ -26,6 +26,7 @@ interface MembersBottomSheetProps {
   t: (key: string) => string;
   isDark: boolean;
   BlurView: any;
+  onPressMemberAvatar?: (userId: string) => void;
 }
 
 export function MembersBottomSheet({
@@ -51,7 +52,8 @@ export function MembersBottomSheet({
   isRTL,
   t,
   isDark,
-  BlurView
+  BlurView,
+  onPressMemberAvatar,
 }: MembersBottomSheetProps) {
   const SHEET_HEIGHT = Dimensions.get('window').height * 0.8;
   const sheetAnim = useRef(new Animated.Value(0)).current; // 0 closed, 1 open
@@ -166,7 +168,9 @@ export function MembersBottomSheet({
               style={{ flex: 1 }}
               renderItem={({ item }) => (
                 <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.divider }}>
-                  <Image source={{ uri: item.avatarUrl || item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
+                  <TouchableOpacity onPress={() => { handleClose(); onPressMemberAvatar?.(item._id || item.id); }} activeOpacity={0.8}>
+                    <Image source={{ uri: item.avatarUrl || item.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
+                  </TouchableOpacity>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: T.text, fontWeight: '700' }}>{item.fullName || item.name || item.displayName || item._id}</Text>
                     <Text style={{ color: T.textMuted, fontSize: 12 }}>{item.role || item.profileType || 'Membre'}</Text>
@@ -208,7 +212,9 @@ export function MembersBottomSheet({
                       const isSel = selectedToAdd.includes(String(item._id || item.id));
                       return (
                         <TouchableOpacity onPress={() => toggleSelectToAdd(String(item._id || item.id))} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
-                          <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
+                          <TouchableOpacity onPress={() => { handleClose(); onPressMemberAvatar?.(item._id || item.id); }} activeOpacity={0.8}>
+                            <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 44, height: 44, borderRadius: 22, marginRight: 12 }} />
+                          </TouchableOpacity>
                           <View style={{ flex: 1 }}>
                             <Text style={{ color: T.text, fontWeight: '700' }}>{item.fullName || item.name}</Text>
                             <Text style={{ color: T.textMuted, fontSize: 12 }}>{item.profileType || ''}</Text>

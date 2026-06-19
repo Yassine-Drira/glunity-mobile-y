@@ -42,10 +42,11 @@ function messageHandler(io, socket) {
     if (!channel || !channel.participants) return;
     for (const p of channel.participants) {
       const pId = (p.userId || p).toString();
+      const startFrom = [p.lastReadAt, p.clearedAt].filter(Boolean).sort((a, b) => b - a)[0] || new Date(0);
       const unreadCount = await Message.countDocuments({
         channelId: channel._id,
         deletedAt: { $in: [null, undefined] },
-        createdAt: { $gt: p.lastReadAt || new Date(0) }
+        createdAt: { $gt: startFrom }
       });
 
       io.to(pId).emit('conversation:updated', {
@@ -108,6 +109,18 @@ function messageHandler(io, socket) {
         { returnDocument: 'after' }
       ).lean();
 
+      if (updatedChannel) {
+        await Channel.updateOne(
+          { _id: channelId },
+          { $set: { 'participants.$[].deletedAt': null } }
+        );
+        if (updatedChannel.participants) {
+          updatedChannel.participants.forEach(p => {
+            p.deletedAt = null;
+          });
+        }
+      }
+
       if (!updatedChannel) {
         updatedChannel = await Channel.findByIdAndUpdate(channelId, {
           $set: {
@@ -164,7 +177,8 @@ function messageHandler(io, socket) {
                 }
               }
 
-              if (!isViewing) {
+              // Only send toast notification if participant is not viewing the channel and has not muted notifications
+              if (!isViewing && !p.muted) {
                 let conversationName = updatedChannel.name;
                 if (updatedChannel.type === 'direct') {
                   conversationName = user.fullName;

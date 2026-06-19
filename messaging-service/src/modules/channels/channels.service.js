@@ -137,7 +137,23 @@ const channelsService = {
     }
 
     const existing = await repository.findDM(userId, targetUserId);
-    if (existing) return { channel: existing, created: false };
+    if (existing) {
+      const Channel = require('../../database/models/channel.model');
+      const channelObj = await Channel.findById(existing._id);
+      let needsSave = false;
+      if (channelObj && channelObj.participants) {
+        const p = channelObj.participants.find(part => part.userId.toString() === userId.toString());
+        if (p && p.deletedAt) {
+          p.deletedAt = null;
+          needsSave = true;
+        }
+      }
+      if (needsSave) {
+        await channelObj.save();
+        return { channel: channelObj.toObject(), created: false };
+      }
+      return { channel: existing, created: false };
+    }
 
     const channel = await repository.create({
       type:        'direct',
@@ -362,12 +378,13 @@ const channelsService = {
     if (!channel) {
       throw createError('Channel not found', 404, 'NOT_FOUND');
     }
-    const isMember = channel.participants.some(p => p.userId.toString() === userId.toString());
-    if (!isMember) {
+    const participant = channel.participants.find(p => p.userId.toString() === userId.toString());
+    if (!participant) {
       throw createError('Forbidden', 403, 'FORBIDDEN');
     }
 
-    channel.deletedAt = new Date();
+    participant.deletedAt = new Date();
+    participant.clearedAt = new Date();
     await channel.save();
     return channel;
   },
@@ -378,17 +395,12 @@ const channelsService = {
     if (!channel) {
       throw createError('Channel not found', 404, 'NOT_FOUND');
     }
-    const isMember = channel.participants.some(p => p.userId.toString() === userId.toString());
-    if (!isMember) {
+    const participant = channel.participants.find(p => p.userId.toString() === userId.toString());
+    if (!participant) {
       throw createError('Forbidden', 403, 'FORBIDDEN');
     }
 
-    const Message = require('../../database/models/message.model');
-    await Message.deleteMany({ channelId });
-
-    channel.lastMessage = null;
-    channel.messageCount = 0;
-    channel.pinnedMessages = [];
+    participant.clearedAt = new Date();
     await channel.save();
     return channel;
   },

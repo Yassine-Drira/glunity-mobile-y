@@ -154,7 +154,7 @@ export default function CreateGroupScreen({ navigation }: any) {
 
   const styles = useMemo(() => StyleSheet.create({
     container: { flex: 1, backgroundColor: T.bg },
-    inner: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 },
+    inner: { flex: 1, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 16 },
     header: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginBottom: 12 },
     title: { fontSize: 20, fontWeight: '800', color: T.text },
     search: { backgroundColor: T.surface, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: T.text, marginBottom: 12, height: 44, shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 6, elevation: 1 },

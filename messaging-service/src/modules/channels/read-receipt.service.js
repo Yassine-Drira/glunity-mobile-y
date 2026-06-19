@@ -129,11 +129,39 @@ const readReceiptService = {
       // ── Stage 1: channels where user is a participant ──────────────────
       {
         $match: {
-          'participants.userId': userObjId,
+          participants: {
+            $elemMatch: {
+              userId: userObjId,
+              deletedAt: { $in: [null, undefined] },
+            }
+          },
           deletedAt: { $in: [null, undefined] },
         },
       },
-      { $project: { _id: 1 } },
+      {
+        $project: {
+          _id: 1,
+          clearedAt: {
+            $let: {
+              vars: {
+                p: {
+                  $arrayElemAt: [
+                    {
+                      $filter: {
+                        input: '$participants',
+                        as: 'part',
+                        cond: { $eq: ['$$part.userId', userObjId] },
+                      },
+                    },
+                    0,
+                  ],
+                },
+              },
+              in: '$$p.clearedAt',
+            },
+          },
+        },
+      },
 
       // ── Stage 2: left-join the user's read receipt ─────────────────────
       {
@@ -167,7 +195,7 @@ const readReceiptService = {
       {
         $lookup: {
           from:     'messages',
-          let:      { channelId: '$_id', lastRead: '$lastReadMsgId' },
+          let:      { channelId: '$_id', lastRead: '$lastReadMsgId', clearedAt: '$clearedAt' },
           pipeline: [
             {
               $match: {
@@ -175,6 +203,13 @@ const readReceiptService = {
                   $and: [
                     { $eq: ['$channelId', '$$channelId'] },
                     { $in: ['$deletedAt', [null, undefined]] },
+                    {
+                      $cond: {
+                        if:   { $ifNull: ['$$clearedAt', false] },
+                        then: { $gt: ['$createdAt', '$$clearedAt'] },
+                        else: true,
+                      },
+                    },
                     // When no receipt exists (lastRead = undefined/null)
                     // ALL messages are unread → skip the _id filter.
                     {

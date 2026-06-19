@@ -33,6 +33,22 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const { theme: T } = useTheme();
   const { t } = useLanguage();
 
+  const safeGoBack = useCallback(() => {
+    if (navigation && typeof navigation.goBack === 'function') {
+      if (navigation.canGoBack && navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        if (typeof navigation.navigate === 'function') {
+          navigation.navigate('CommunityChat', {
+            initialChannel: null,
+            initialChannelId: null,
+            channelId: null,
+          });
+        }
+      }
+    }
+  }, [navigation]);
+
   const [channel, setChannel] = useState<any>(initialChannel || null);
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
@@ -66,9 +82,17 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const [membersSheetVisible, setMembersSheetVisible] = useState(false);
   const [editSheetVisible, setEditSheetVisible] = useState(false);
   const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [confirmClearVisible, setConfirmClearVisible] = useState(false);
+  const [confirmDeleteDMVisible, setConfirmDeleteDMVisible] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
+  const [deletingDM, setDeletingDM] = useState(false);
   const [reactionMsgId, setReactionMsgId] = useState<string | null>(null);
   const [typingUser, setTypingUser] = useState<string | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
+
+  // User Profile Bottom Sheet states
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const [profileSheetVisible, setProfileSheetVisible] = useState(false);
 
   // Audio playback references
   const activeSoundRef = useRef<any>(null);
@@ -99,6 +123,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const [popEmoji, setPopEmoji] = useState<string | null>(null);
   const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
   const listRef = useRef<any>(null);
+  const shouldScrollToEndRef = useRef(false);
 
   const reactionEmojis = useMemo(() => ['❤️', '👍', '😂', '😮', '😢', '🔥', '🎉', '✅'], []);
 
@@ -268,7 +293,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
         return [...prev, message];
       });
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      shouldScrollToEndRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
     };
 
     const handleReactionUpdated = ({ messageId, emoji, count }: any) => {
@@ -326,12 +352,30 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
     };
 
+    const handleChannelDeleted = ({ channelId }: any) => {
+      const thisChannelId = (channel.id || channel._id)?.toString?.() || (channel.id || channel._id);
+      if (String(channelId) === String(thisChannelId)) {
+        Alert.alert(t('Deleted'), t('This conversation has been deleted.'));
+        safeGoBack();
+      }
+    };
+
+    const handleChannelCleared = ({ channelId }: any) => {
+      const thisChannelId = (channel.id || channel._id)?.toString?.() || (channel.id || channel._id);
+      if (String(channelId) === String(thisChannelId)) {
+        setMessages([]);
+        setChannel((prev: any) => prev ? { ...prev, lastMessage: null, pinnedMessages: [] } : prev);
+      }
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('reaction:updated', handleReactionUpdated);
     socket.on('message:edited', handleMessageEdited);
     socket.on('message:deleted', handleMessageDeleted);
     socket.on('message:pinned', handleMessagePinned);
     socket.on('message:unpinned', handleMessageUnpinned);
+    socket.on('channel:deleted', handleChannelDeleted);
+    socket.on('channel:cleared', handleChannelCleared);
 
     return () => {
       if (typeof targetId === 'string' && !targetId.startsWith('local-')) {
@@ -343,6 +387,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       socket.off('message:deleted', handleMessageDeleted);
       socket.off('message:pinned', handleMessagePinned);
       socket.off('message:unpinned', handleMessageUnpinned);
+      socket.off('channel:deleted', handleChannelDeleted);
+      socket.off('channel:cleared', handleChannelCleared);
     };
   }, [channel, socket]);
 
@@ -446,7 +492,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
       return [...prev, optimisticMsg];
     });
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+    shouldScrollToEndRef.current = true;
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
     const payload: any = {
       channelId: channel.id || channel._id,
@@ -691,7 +738,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       }
       setMessages((prev) => [...prev, optimistic]);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      shouldScrollToEndRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
       // Build multipart form
       const form = new FormData();
@@ -728,7 +776,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent' } : m));
         });
         try { messagingEvents.emit('message:new', serverMsg); } catch (e) { }
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+        shouldScrollToEndRef.current = true;
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
       } else {
         // Mark as sent even without full payload
         setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'sent' } : m)));
@@ -767,7 +816,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       }
       setMessages((prev) => [...prev, optimistic]);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      shouldScrollToEndRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
       // 2. Build multipart form
       const form = new FormData();
@@ -804,7 +854,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent' } : m));
         });
         try { messagingEvents.emit('message:new', serverMsg); } catch (e) { }
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+        shouldScrollToEndRef.current = true;
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
       } else {
         // Mark as sent even without full payload
         setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'sent' } : m)));
@@ -1013,29 +1064,41 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
   const removeMember = useCallback((memberId: string) => {
     if (!isAdmin) return;
-    Alert.alert('Remove member', 'Are you sure you want to remove this member?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive', onPress: async () => {
-          try {
-            let ok = false;
-            try {
-              await http.delete(`/channels/${channel.id || channel._id}/members/${memberId}`);
-              ok = true;
-            } catch (e) { }
+    const performRemove = async () => {
+      try {
+        let ok = false;
+        try {
+          await http.delete(`/channels/${channel.id || channel._id}/members/${memberId}`);
+          ok = true;
+        } catch (e) { }
 
-            if (!ok) {
-              setMembers(prev => prev.filter(m => String(m._id || m.id) !== String(memberId)));
-              setChannel((prev: any) => ({ ...prev, participants: (prev?.participants || []).filter((p: any) => String(p._id || p.id) !== String(memberId)) }));
-            } else {
-              await fetchMembers();
-            }
-          } catch (err) {
-            Alert.alert('Error', 'Failed to remove member');
-          }
+        if (!ok) {
+          setMembers(prev => prev.filter(m => String(m._id || m.id) !== String(memberId)));
+          setChannel((prev: any) => ({ ...prev, participants: (prev?.participants || []).filter((p: any) => String(p._id || p.id) !== String(memberId)) }));
+        } else {
+          await fetchMembers();
+        }
+      } catch (err) {
+        if (Platform.OS === 'web') {
+          alert('Failed to remove member');
+        } else {
+          Alert.alert('Error', 'Failed to remove member');
         }
       }
-    ]);
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to remove this member?')) {
+        performRemove();
+      }
+    } else {
+      Alert.alert('Remove member', 'Are you sure you want to remove this member?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove', style: 'destructive', onPress: performRemove
+        }
+      ]);
+    }
   }, [channel, isAdmin, fetchMembers]);
 
   const uploadImageForEdit = useCallback(async (uri: string) => {
@@ -1161,7 +1224,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       } catch (e) { }
 
       messagingEvents.emit('channel:deleted', channel.id || channel._id);
-      navigation.goBack();
+      safeGoBack();
     } catch (err) {
       Alert.alert('Error', t('Failed to delete group'));
     } finally {
@@ -1189,65 +1252,82 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const handleMuteDM = useCallback(async () => {
     try {
       const channelId = channel?.id || channel?._id;
+      console.debug('[chat] mute request ->', `/channels/${channelId}/mute`);
       const res = await messagingHttp.post(`/channels/${channelId}/mute`, {});
-      const muted = res.data?.data?.myMuted ?? false;
+      console.debug('[chat] mute response ->', res?.data);
+      const muted = res.data?.data?.myMuted ?? res.data?.myMuted ?? false;
       setChannel((prev: any) => prev ? { ...prev, myMuted: muted } : prev);
-      Alert.alert(
-        muted ? t('Muted') : t('Unmuted'),
-        muted ? t('You will no longer receive notifications from this conversation.') : t('Notifications re-enabled for this conversation.')
-      );
+      
+      const alertTitle = muted ? t('Muted') : t('Unmuted');
+      const alertMsg = muted ? t('You will no longer receive notifications from this conversation.') : t('Notifications re-enabled for this conversation.');
+      if (Platform.OS === 'web') {
+        alert(`${alertTitle}: ${alertMsg}`);
+      } else {
+        Alert.alert(alertTitle, alertMsg);
+      }
     } catch (err: any) {
-      Alert.alert(t('Error'), err?.response?.data?.message || t('Failed to toggle mute'));
+      console.warn('[chat] mute failed', err);
+      const msg = err?.response?.data?.message || err?.message || t('Failed to toggle mute');
+      if (Platform.OS === 'web') {
+        alert(msg);
+      } else {
+        Alert.alert(
+          t('Error'),
+          msg,
+          [
+            { text: t('OK'), style: 'cancel' },
+            { text: t('Retry'), onPress: () => handleMuteDM() },
+          ]
+        );
+      }
+    }
+  }, [channel, t]);
+
+  const performClearChat = useCallback(async () => {
+    setConfirmClearVisible(false);
+    setClearingChat(true);
+    try {
+      const channelId = channel?.id || channel?._id;
+      console.debug('[chat] clear messages ->', `/channels/${channelId}/messages`);
+      const res = await messagingHttp.delete(`/channels/${channelId}/messages`);
+      console.debug('[chat] clear response ->', res?.data);
+      setMessages([]);
+      setChannel((prev: any) => prev ? { ...prev, lastMessage: null, pinnedMessages: [] } : prev);
+    } catch (err: any) {
+      console.warn('[chat] clear failed', err);
+      const msg = err?.response?.data?.message || err?.message || t('Failed to clear chat');
+      Alert.alert(t('Error'), msg);
+    } finally {
+      setClearingChat(false);
     }
   }, [channel, t]);
 
   const handleClearChat = useCallback(() => {
-    Alert.alert(
-      t('Clear Chat'),
-      t('All messages in this conversation will be permanently deleted for everyone. This cannot be undone.'),
-      [
-        { text: t('Cancel'), style: 'cancel' },
-        {
-          text: t('Clear'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const channelId = channel?.id || channel?._id;
-              await messagingHttp.delete(`/channels/${channelId}/messages`);
-              setMessages([]);
-              setChannel((prev: any) => prev ? { ...prev, lastMessage: null, pinnedMessages: [] } : prev);
-            } catch (err: any) {
-              Alert.alert(t('Error'), err?.response?.data?.message || t('Failed to clear chat'));
-            }
-          },
-        },
-      ]
-    );
-  }, [channel, t]);
+    setConfirmClearVisible(true);
+  }, []);
+
+  const performDeleteDM = useCallback(async () => {
+    setConfirmDeleteDMVisible(false);
+    setDeletingDM(true);
+    try {
+      const channelId = channel?.id || channel?._id;
+      console.debug('[chat] delete channel ->', `/channels/${channelId}`);
+      const res = await messagingHttp.delete(`/channels/${channelId}`);
+      console.debug('[chat] delete response ->', res?.data);
+      messagingEvents.emit('channel:deleted', channelId);
+      safeGoBack();
+    } catch (err: any) {
+      console.warn('[chat] delete failed', err);
+      const msg = err?.response?.data?.message || err?.message || t('Failed to delete conversation');
+      Alert.alert(t('Error'), msg);
+    } finally {
+      setDeletingDM(false);
+    }
+  }, [channel, navigation, t]);
 
   const handleDeleteDM = useCallback(() => {
-    Alert.alert(
-      t('Delete Conversation'),
-      t('This conversation and all its messages will be permanently deleted. This cannot be undone.'),
-      [
-        { text: t('Cancel'), style: 'cancel' },
-        {
-          text: t('Delete'),
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const channelId = channel?.id || channel?._id;
-              await messagingHttp.delete(`/channels/${channelId}`);
-              messagingEvents.emit('channel:deleted', channelId);
-              navigation.goBack();
-            } catch (err: any) {
-              Alert.alert(t('Error'), err?.response?.data?.message || t('Failed to delete conversation'));
-            }
-          },
-        },
-      ]
-    );
-  }, [channel, navigation, t]);
+    setConfirmDeleteDMVisible(true);
+  }, []);
 
   const fetchAllUsers = useCallback(async () => {
     try {
@@ -1297,6 +1377,39 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     setReactionMsgId(null);
   }, []);
 
+  const openUserProfile = useCallback((userId: string) => {
+    setSelectedProfileUserId(userId);
+    setProfileSheetVisible(true);
+  }, []);
+
+  const closeUserProfile = useCallback(() => {
+    setProfileSheetVisible(false);
+    setSelectedProfileUserId(null);
+  }, []);
+
+  const startDirectMessage = useCallback(async (targetUserId: string) => {
+    try {
+      const res = await http.post('/channels/direct', { userId: targetUserId });
+      const channelObj = res.data?.data;
+      if (channelObj) {
+        if (typeof navigation.replace === 'function') {
+          navigation.replace('CommunityChat', {
+            initialChannel: channelObj,
+            channelId: String(channelObj._id || channelObj.id || ''),
+          });
+        } else {
+          navigation.navigate('CommunityChat', {
+            initialChannel: channelObj,
+            channelId: String(channelObj._id || channelObj.id || ''),
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('[chat] failed to start direct message:', err);
+      Alert.alert(t('Error'), t('Failed to start conversation'));
+    }
+  }, [navigation, t]);
+
   return {
     // states
     channel,
@@ -1319,6 +1432,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     popEmoji,
     popAnim,
     listRef,
+    shouldScrollToEndRef,
 
     // permissions & flags
     isAdmin,
@@ -1334,6 +1448,14 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     setEditSheetVisible,
     confirmDeleteVisible,
     setConfirmDeleteVisible,
+    confirmClearVisible,
+    setConfirmClearVisible,
+    confirmDeleteDMVisible,
+    setConfirmDeleteDMVisible,
+    clearingChat,
+    deletingDM,
+    performClearChat,
+    performDeleteDM,
     members,
     membersLoading,
     memberSearch,
@@ -1381,5 +1503,14 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     handleMuteDM,
     handleClearChat,
     handleDeleteDM,
+
+    // User profile actions & states
+    selectedProfileUserId,
+    setSelectedProfileUserId,
+    profileSheetVisible,
+    setProfileSheetVisible,
+    openUserProfile,
+    closeUserProfile,
+    startDirectMessage,
   };
 }

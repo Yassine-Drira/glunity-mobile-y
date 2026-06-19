@@ -12,18 +12,24 @@ const messagesService = {
     }
 
     const isPublic = !channel.isPrivate;
-    if (!isPublic) {
-      const hasAccess = channel.participants && channel.participants.some(p => {
+    let participant = null;
+    if (channel.participants) {
+      participant = channel.participants.find(p => {
         if (!p) return false;
         const pId = p.userId ? p.userId.toString() : p.toString();
         return pId === userId.toString();
       });
-      if (!hasAccess) {
-        const err = new Error('Forbidden'); err.status = 403; throw err;
-      }
     }
 
-    const items = await repository.findByChannel(channelId, { cursor, limit, direction });
+    if (!isPublic && !participant) {
+      const err = new Error('Forbidden'); err.status = 403; throw err;
+    }
+
+    const clearedAt = participant?.clearedAt;
+    const deletedAt = participant?.deletedAt;
+    const filterNewerThan = [clearedAt, deletedAt].filter(Boolean).sort((a, b) => b - a)[0] || null;
+
+    const items = await repository.findByChannel(channelId, { cursor, limit, direction, clearedAt: filterNewerThan });
     return { items };
   },
 

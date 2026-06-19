@@ -98,18 +98,30 @@ readReceiptSchema.statics.markRead = function (channelId, userId, messageId) {
  */
 readReceiptSchema.statics.getUnreadCount = async function (channelId, userId) {
   const Message = require('./message.model');
+  const Channel = require('./channel.model');
+
+  const channel = await Channel.findById(channelId).lean();
+  const participant = channel?.participants?.find(p => p.userId.toString() === userId.toString());
+  const clearedAt = participant?.clearedAt;
 
   const receipt = await this.findOne({ channelId, userId }).lean();
-  if (!receipt) {
-    // User has never opened this channel — count all non-deleted messages.
-    return Message.countDocuments({ channelId, deletedAt: { $in: [null, undefined] } });
-  }
 
-  return Message.countDocuments({
+  const query = {
     channelId,
     deletedAt: { $in: [null, undefined] },
-    _id: { $gt: receipt.lastReadMsgId },
-  });
+  };
+
+  if (clearedAt) {
+    query.createdAt = { $gt: clearedAt };
+  }
+
+  if (!receipt) {
+    // User has never opened this channel — count all non-deleted messages.
+    return Message.countDocuments(query);
+  }
+
+  query._id = { $gt: receipt.lastReadMsgId };
+  return Message.countDocuments(query);
 };
 
 const ReadReceipt = model('ReadReceipt', readReceiptSchema);

@@ -4,7 +4,7 @@ const Message = require('../../database/models/message.model');
 
 const messagesRepository = {
 
-  async findByChannel(channelId, { cursor, limit = 50, direction = 'before' } = {}) {
+  async findByChannel(channelId, { cursor, limit = 50, direction = 'before', clearedAt } = {}) {
     const query = { channelId };
 
     if (cursor) {
@@ -13,6 +13,10 @@ const messagesRepository = {
       } else {
         query._id = { $gt: cursor };
       }
+    }
+
+    if (clearedAt) {
+      query.createdAt = { $gt: clearedAt };
     }
 
     const sortOrder = direction === 'before' ? -1 : 1;

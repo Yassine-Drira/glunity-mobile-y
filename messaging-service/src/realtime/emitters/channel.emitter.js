@@ -37,6 +37,14 @@ const emitter = {
       io.to(peerId).emit('presence:offline', { userId, lastSeen });
     }
   },
+
+  channelDeleted(io, channelId) {
+    io.to(`channel:${channelId}`).emit('channel:deleted', { channelId });
+  },
+
+  channelCleared(io, channelId) {
+    io.to(`channel:${channelId}`).emit('channel:cleared', { channelId });
+  },
 };
 
 module.exports = emitter;

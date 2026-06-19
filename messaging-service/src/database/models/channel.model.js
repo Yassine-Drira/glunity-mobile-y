@@ -13,6 +13,8 @@ const participantSchema = new Schema(
     /** Snapshot of last read position for unread-count derivation (redundant
      *  with ReadReceipt, but keeps channel list queries fast — no join needed). */
     lastReadAt: { type: Date, default: null },
+    clearedAt:  { type: Date, default: null },
+    deletedAt:  { type: Date, default: null },
   },
   { _id: false }
 );
@@ -138,6 +140,19 @@ channelSchema.statics.updateLastMessage = async function (channelId, message) {
     },
     { returnDocument: 'after', timestamps: false }
   );
+
+  if (updated) {
+    await this.updateOne(
+      { _id: channelId },
+      { $set: { 'participants.$[].deletedAt': null } },
+      { timestamps: false }
+    );
+    if (updated.participants) {
+      updated.participants.forEach(p => {
+        p.deletedAt = null;
+      });
+    }
+  }
 
   if (!updated) {
     updated = await this.findByIdAndUpdate(

@@ -36,4 +36,5 @@ db-check-result.txt
 # Runtime Uploads
 api/uploads/
 
-
+# Scrum Sheet
+scrum-sheet/

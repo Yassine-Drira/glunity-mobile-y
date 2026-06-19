@@ -31,7 +31,6 @@ async function getPeerUserIds(userId) {
   const channels = await Channel.find({
     $or: [
       { 'participants.userId': userId }, // Mongoose auto-casts string → ObjectId
-      { participants: userId },           // legacy flat-array format
       { isPrivate: { $ne: true } },       // all public channels
     ]
   }).select('participants').lean();

@@ -73,7 +73,6 @@ const uploadController = {
         $or: [
           { isPrivate: { $ne: true } },          // public / group channel
           { 'participants.userId': senderId },    // participant sub-doc format
-          { participants: senderId },             // plain ObjectId array format
         ],
       }).lean();
 
@@ -138,10 +137,12 @@ const uploadController = {
           for (const p of updatedChannel.participants) {
             const pId = (p.userId || p).toString();
 
-            // Count unread for this participant
+            // Count unread for this participant, respecting lastReadAt and clearedAt
+            const startFrom = [p.lastReadAt, p.clearedAt].filter(Boolean).sort((a, b) => b - a)[0] || new Date(0);
             const unreadCount = await Message.countDocuments({
               channelId,
-              createdAt: { $gt: p.lastReadAt || new Date(0) },
+              deletedAt: { $in: [null, undefined] },
+              createdAt: { $gt: startFrom },
             });
 
             // Bubble conversation to the top for all participants
@@ -168,7 +169,7 @@ const uploadController = {
                 }
               }
 
-              if (!isViewing) {
+              if (!isViewing && !p.muted) {
                 const conversationName = updatedChannel.type === 'direct'
                   ? req.user.fullName
                   : (updatedChannel.name || 'Chat');

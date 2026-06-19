@@ -7,6 +7,9 @@
     "mobile",
     "messaging-service"
   ],
+  "overrides": {
+    "react-native-worklets": "0.7.4"
+  },
   "scripts": {
     "dev:api": "npm --workspace api run dev",
     "dev:messaging": "npm --workspace glunity-messaging-service run dev",

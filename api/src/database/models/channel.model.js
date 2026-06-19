@@ -9,6 +9,8 @@ const participantSchema = new Schema(
 		role:       { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
 		muted:      { type: Boolean, default: false },
 		lastReadAt: { type: Date, default: null },
+		clearedAt:  { type: Date, default: null },
+		deletedAt:  { type: Date, default: null },
 	},
 	{ _id: false }
 );
@@ -38,6 +40,7 @@ const channelSchema = new Schema(
 				pinnedBy:  { type: Schema.Types.ObjectId, ref: 'User' }
 			}
 		],
+		deletedAt: { type: Date, default: null },
 	},
 	{
 		timestamps: true,
