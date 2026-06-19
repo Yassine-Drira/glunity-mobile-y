@@ -135,12 +135,24 @@ channelSchema.statics.updateLastMessage = async function (channelId, message) {
           createdAt:  message.createdAt || new Date(),
         },
         'participants.$.lastReadAt': message.createdAt || new Date(),
-        'participants.$[].deletedAt': null,
       },
       $inc: { messageCount: 1 },
     },
     { returnDocument: 'after', timestamps: false }
   );
+
+  if (updated) {
+    await this.updateOne(
+      { _id: channelId },
+      { $set: { 'participants.$[].deletedAt': null } },
+      { timestamps: false }
+    );
+    if (updated.participants) {
+      updated.participants.forEach(p => {
+        p.deletedAt = null;
+      });
+    }
+  }
 
   if (!updated) {
     updated = await this.findByIdAndUpdate(

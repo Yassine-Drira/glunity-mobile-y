@@ -103,12 +103,23 @@ function messageHandler(io, socket) {
               createdAt: msg.createdAt,
             },
             'participants.$.lastReadAt': msg.createdAt,
-            'participants.$[].deletedAt': null,
           },
           $inc: { messageCount: 1 },
         },
         { returnDocument: 'after' }
       ).lean();
+
+      if (updatedChannel) {
+        await Channel.updateOne(
+          { _id: channelId },
+          { $set: { 'participants.$[].deletedAt': null } }
+        );
+        if (updatedChannel.participants) {
+          updatedChannel.participants.forEach(p => {
+            p.deletedAt = null;
+          });
+        }
+      }
 
       if (!updatedChannel) {
         updatedChannel = await Channel.findByIdAndUpdate(channelId, {
