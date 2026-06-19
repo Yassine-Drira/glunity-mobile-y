@@ -123,6 +123,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const [popEmoji, setPopEmoji] = useState<string | null>(null);
   const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
   const listRef = useRef<any>(null);
+  const shouldScrollToEndRef = useRef(false);
 
   const reactionEmojis = useMemo(() => ['❤️', '👍', '😂', '😮', '😢', '🔥', '🎉', '✅'], []);
 
@@ -292,7 +293,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
         return [...prev, message];
       });
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      shouldScrollToEndRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
     };
 
     const handleReactionUpdated = ({ messageId, emoji, count }: any) => {
@@ -490,7 +492,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
       return [...prev, optimisticMsg];
     });
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+    shouldScrollToEndRef.current = true;
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
     const payload: any = {
       channelId: channel.id || channel._id,
@@ -735,7 +738,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       }
       setMessages((prev) => [...prev, optimistic]);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      shouldScrollToEndRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
       // Build multipart form
       const form = new FormData();
@@ -772,7 +776,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent' } : m));
         });
         try { messagingEvents.emit('message:new', serverMsg); } catch (e) { }
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+        shouldScrollToEndRef.current = true;
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
       } else {
         // Mark as sent even without full payload
         setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'sent' } : m)));
@@ -811,7 +816,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       }
       setMessages((prev) => [...prev, optimistic]);
-      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+      shouldScrollToEndRef.current = true;
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
       // 2. Build multipart form
       const form = new FormData();
@@ -848,7 +854,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent' } : m));
         });
         try { messagingEvents.emit('message:new', serverMsg); } catch (e) { }
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
+        shouldScrollToEndRef.current = true;
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
       } else {
         // Mark as sent even without full payload
         setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: 'sent' } : m)));
@@ -1425,6 +1432,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     popEmoji,
     popAnim,
     listRef,
+    shouldScrollToEndRef,
 
     // permissions & flags
     isAdmin,

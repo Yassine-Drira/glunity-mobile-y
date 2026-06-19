@@ -847,6 +847,12 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
           ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          onContentSizeChange={() => {
+            if (chat.shouldScrollToEndRef.current) {
+              chat.listRef.current?.scrollToEnd({ animated: true });
+              chat.shouldScrollToEndRef.current = false;
+            }
+          }}
           ListEmptyComponent={
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
               <Ionicons name="chatbubbles-outline" size={64} color={T.textMuted} style={{ marginBottom: 12, opacity: 0.5 }} />
