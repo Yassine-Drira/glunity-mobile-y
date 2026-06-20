@@ -28,10 +28,9 @@ try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
 
 export default function CommunityMessaging({ initialChannel, initialChannelId, navigation }: any) {
   const { user } = useAuth();
-  const { isConnected } = useSocket();
   const { theme: T, isDark } = useTheme();
   const { t, isRTL } = useLanguage();
-  const { socket } = useSocket();
+  const { socket, isConnected } = useSocket();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
 
@@ -773,6 +772,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
   return (
     <SafeAreaView style={styles.container} edges={["top","left","right"]}>
+
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
         {/* Left: back + avatar + identity */}
@@ -850,11 +850,17 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
               {/* Name + member count */}
               <View style={styles.headerMeta}>
                 <Text style={styles.headerName} numberOfLines={1}>{display.name}</Text>
-                <Text style={styles.headerSub}>
-                  {(chat.channel?.participants?.length || 0) > 0
-                    ? `${chat.channel.participants.length} ${t('members')}`
-                    : t('Group')}
-                </Text>
+                {chat.typingUser ? (
+                  <Text style={styles.headerSubOnline} numberOfLines={1}>
+                    {chat.typingUser} {t('typing...')}
+                  </Text>
+                ) : (
+                  <Text style={styles.headerSub}>
+                    {(chat.channel?.participants?.length || 0) > 0
+                      ? `${chat.channel.participants.length} ${t('members')}`
+                      : t('Group')}
+                  </Text>
+                )}
               </View>
             </TouchableOpacity>
           )}

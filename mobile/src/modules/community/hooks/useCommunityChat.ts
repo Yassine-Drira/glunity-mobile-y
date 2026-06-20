@@ -490,6 +490,31 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     socket.on('channel:cleared', handleChannelCleared);
     socket.on('channel:read', handleChannelRead);
 
+    // On reconnect: re-join the room and re-sync missed messages
+    const handleReconnect = async () => {
+      if (typeof targetId === 'string' && !targetId.startsWith('local-')) {
+        socket.emit('channel:join', { channelId: targetId });
+      }
+      try {
+        const res = await messagingHttp.get(`/channels/${targetId}/messages?limit=60`);
+        const fresh: any[] = res.data?.data || [];
+        if (fresh.length > 0) {
+          setMessages((prev: any[]) => {
+            const prevIds = new Set(prev.map((m: any) => String(m.id || m._id)));
+            const newOnes = fresh.filter((m: any) => !prevIds.has(String(m.id || m._id)));
+            if (newOnes.length === 0) return prev;
+            return [...prev, ...newOnes].sort((a: any, b: any) => {
+              const ta = new Date(a.createdAt || a.created_at || 0).getTime();
+              const tb = new Date(b.createdAt || b.created_at || 0).getTime();
+              return ta - tb;
+            });
+          });
+          setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 200);
+        }
+      } catch (e) { /* silently ignore network errors on reconnect */ }
+    };
+    socket.on('connect', handleReconnect);
+
     return () => {
       if (typeof channelId === 'string' && !channelId.startsWith('local-')) {
         socket.emit('channel:leave', { channelId });
@@ -503,6 +528,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       socket.off('channel:deleted', handleChannelDeleted);
       socket.off('channel:cleared', handleChannelCleared);
       socket.off('channel:read', handleChannelRead);
+      socket.off('connect', handleReconnect);
     };
   }, [channelId, socket, markAsRead, user?._id]);
 
@@ -1543,6 +1569,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     isNearBottomRef,
     unreadCount,
     setUnreadCount,
+    shouldScrollToEndRef,
+    setMessages,
 
     // permissions & flags
     isAdmin,
