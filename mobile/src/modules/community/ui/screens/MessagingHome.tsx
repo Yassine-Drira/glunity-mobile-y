@@ -213,32 +213,42 @@ export default function MessagingHome({ navigation }: any) {
 
   // Sort channels using explicit sortOrder array (updated on each new message).
   // Falls back to timestamp sort only if sortOrder has no entry for a channel.
+  // Group channels are always kept on top of direct messages.
   const sortedChannels = useMemo(() => {
     const list = filteredChannels ? [...filteredChannels] : [];
-    if (sortOrder.length > 0) {
-      list.sort((a: any, b: any) => {
-        const aId = String(a._id || a.id);
-        const bId = String(b._id || b.id);
+    list.sort((a: any, b: any) => {
+      // 1. Group comparison: groups always on top of direct messages
+      const aIsGroup = isGroupChannel(a);
+      const bIsGroup = isGroupChannel(b);
+      if (aIsGroup && !bIsGroup) return -1;
+      if (!aIsGroup && bIsGroup) return 1;
+
+      // 2. If both are groups: sort by creation date (oldest first so it stays fixed)
+      if (aIsGroup && bIsGroup) {
+        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return ta - tb;
+      }
+
+      // 3. If both are DMs: sort by sortOrder (most recent first) or timestamp
+      const aId = String(a._id || a.id);
+      const bId = String(b._id || b.id);
+      
+      if (sortOrder.length > 0) {
         const ai = sortOrder.indexOf(aId);
         const bi = sortOrder.indexOf(bId);
-        // Items in sortOrder come first (lower index = more recent)
         if (ai !== -1 && bi !== -1) return ai - bi;
         if (ai !== -1) return -1;
         if (bi !== -1) return 1;
-        // Both unknown: fall back to timestamp
-        const ta = a?.lastMessage?.createdAt || a?.updatedAt || a?.createdAt || 0;
-        const tb = b?.lastMessage?.createdAt || b?.updatedAt || b?.createdAt || 0;
-        return new Date(tb).getTime() - new Date(ta).getTime();
-      });
-    } else {
-      list.sort((a: any, b: any) => {
-        const ta = a?.lastMessage?.createdAt || a?.updatedAt || a?.createdAt || 0;
-        const tb = b?.lastMessage?.createdAt || b?.updatedAt || b?.createdAt || 0;
-        return new Date(tb).getTime() - new Date(ta).getTime();
-      });
-    }
+      }
+      
+      const ta = a?.lastMessage?.createdAt || a?.updatedAt || a?.createdAt || 0;
+      const tb = b?.lastMessage?.createdAt || b?.updatedAt || b?.createdAt || 0;
+      return new Date(tb).getTime() - new Date(ta).getTime();
+    });
     return list;
   }, [filteredChannels, sortOrder]);
+
 
   const contactsList = useMemo(() => {
     if (!users || users.length === 0 || !user) return [];
@@ -372,8 +382,16 @@ export default function MessagingHome({ navigation }: any) {
     if (!socket) return;
 
     const handleNewMessage = ({ message }: any) => {
+      const cid = String(message.channelId || message.channel || '');
+      
+      // Bubble this channel to front of sortOrder
+      setSortOrder(prev => {
+        const next = prev.filter(id => id !== cid);
+        next.unshift(cid);
+        return next;
+      });
+
       setChannels((prev) => {
-        const cid = String(message.channelId || message.channel || '');
         let found = false;
         const next = prev.map((c) => {
           const cId = String(c._id || c.id || c.channelId || '');
