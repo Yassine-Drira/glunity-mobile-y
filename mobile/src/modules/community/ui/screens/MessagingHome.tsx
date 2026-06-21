@@ -70,6 +70,9 @@ export default function MessagingHome({ navigation }: any) {
       const cached = await ChatCacheService.getChannels();
       if (cached && cached.length > 0) {
         setChannels(cached);
+        // Build initial sort order from cached channels
+        const cachedIds = cached.map((c: any) => String(c._id || c.id));
+        setSortOrder(cachedIds);
         setLoading(false);
         const userIds = cached
           .filter(isDMChannel)
@@ -101,11 +104,11 @@ export default function MessagingHome({ navigation }: any) {
         fetchStatuses(userIds);
       }
     } catch (err) {
-      if (channels.length === 0) setChannels([]);
+      console.warn('Failed to fetch fresh channels, using cached data if available', err);
     } finally {
       setLoading(false);
     }
-  }, [channels.length, fetchStatuses]);
+  }, [fetchStatuses]);
 
   useEffect(() => {
     fetchChannels();

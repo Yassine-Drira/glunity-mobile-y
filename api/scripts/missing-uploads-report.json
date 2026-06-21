@@ -1,0 +1,125 @@
+{
+  "generatedAt": "2026-06-20T22:38:00.933Z",
+  "results": [
+    {
+      "messageId": "6a2c2ea59b719d070a305df8",
+      "channelId": "6a2c2df633e70fce48590635",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a2c2df633e70fce48590635_images-1781280421749-60c93a43127f.jpg",
+      "filename": "glunity_messaging_6a2c2df633e70fce48590635_images-1781280421749-60c93a43127f.jpg",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a2c2df633e70fce48590635_images-1781280421749-60c93a43127f.jpg",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a2c2df633e70fce48590635_images-1781280421749-60c93a43127f.jpg"
+    },
+    {
+      "messageId": "6a2c3651fe5550f5f13c2171",
+      "channelId": "6a2ad24359d06e4bce0b21dd",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a2ad24359d06e4bce0b21dd_audio-1781282385269-c7edb4ac04ca.webm",
+      "filename": "glunity_messaging_6a2ad24359d06e4bce0b21dd_audio-1781282385269-c7edb4ac04ca.webm",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a2ad24359d06e4bce0b21dd_audio-1781282385269-c7edb4ac04ca.webm",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a2ad24359d06e4bce0b21dd_audio-1781282385269-c7edb4ac04ca.webm"
+    },
+    {
+      "messageId": "6a2c3660fe5550f5f13c2172",
+      "channelId": "6a2ad24359d06e4bce0b21dd",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a2ad24359d06e4bce0b21dd_images-1781282400577-680226783bca.jpg",
+      "filename": "glunity_messaging_6a2ad24359d06e4bce0b21dd_images-1781282400577-680226783bca.jpg",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a2ad24359d06e4bce0b21dd_images-1781282400577-680226783bca.jpg",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a2ad24359d06e4bce0b21dd_images-1781282400577-680226783bca.jpg"
+    },
+    {
+      "messageId": "6a3548cb8ea4bb6ba9ba4d5e",
+      "channelId": "6a2af1217e51a8bd4ec3d00c",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876939997-f63b7af62d3a.webm",
+      "filename": "glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876939997-f63b7af62d3a.webm",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876939997-f63b7af62d3a.webm",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876939997-f63b7af62d3a.webm"
+    },
+    {
+      "messageId": "6a3548f18ea4bb6ba9ba4d5f",
+      "channelId": "6a2af1217e51a8bd4ec3d00c",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876977370-8499e096dfb6.webm",
+      "filename": "glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876977370-8499e096dfb6.webm",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876977370-8499e096dfb6.webm",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a2af1217e51a8bd4ec3d00c_audio-1781876977370-8499e096dfb6.webm"
+    },
+    {
+      "messageId": "6a3549758ea4bb6ba9ba4d61",
+      "channelId": "6a2c371b0fcf714c4281e2ea",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a2c371b0fcf714c4281e2ea_audio-1781877109194-dc7006c2cda2.webm",
+      "filename": "glunity_messaging_6a2c371b0fcf714c4281e2ea_audio-1781877109194-dc7006c2cda2.webm",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a2c371b0fcf714c4281e2ea_audio-1781877109194-dc7006c2cda2.webm",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a2c371b0fcf714c4281e2ea_audio-1781877109194-dc7006c2cda2.webm"
+    },
+    {
+      "messageId": "6a354986d19b1ac2c22f33ff",
+      "channelId": "6a221442031f131972f280f1",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a221442031f131972f280f1_audio-1781877126466-e722679e5ceb.mp3",
+      "filename": "glunity_messaging_6a221442031f131972f280f1_audio-1781877126466-e722679e5ceb.mp3",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a221442031f131972f280f1_audio-1781877126466-e722679e5ceb.mp3",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a221442031f131972f280f1_audio-1781877126466-e722679e5ceb.mp3"
+    },
+    {
+      "messageId": "6a35499e9a5b7076c47443ca",
+      "channelId": "6a221442031f131972f280f1",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a221442031f131972f280f1_audio-1781877150668-53630c60e581.mp3",
+      "filename": "glunity_messaging_6a221442031f131972f280f1_audio-1781877150668-53630c60e581.mp3",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a221442031f131972f280f1_audio-1781877150668-53630c60e581.mp3",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a221442031f131972f280f1_audio-1781877150668-53630c60e581.mp3"
+    },
+    {
+      "messageId": "6a354d5129fba894ef068e2d",
+      "channelId": "6a221442031f131972f280f1",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a221442031f131972f280f1_images-1781878097851-87f9167acc73.jpg",
+      "filename": "glunity_messaging_6a221442031f131972f280f1_images-1781878097851-87f9167acc73.jpg",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a221442031f131972f280f1_images-1781878097851-87f9167acc73.jpg",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a221442031f131972f280f1_images-1781878097851-87f9167acc73.jpg"
+    },
+    {
+      "messageId": "6a354dac98a18097744f47a1",
+      "channelId": "6a2af1217e51a8bd4ec3d00c",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a2af1217e51a8bd4ec3d00c_images-1781878188346-4653c86bb979.jpg",
+      "filename": "glunity_messaging_6a2af1217e51a8bd4ec3d00c_images-1781878188346-4653c86bb979.jpg",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a2af1217e51a8bd4ec3d00c_images-1781878188346-4653c86bb979.jpg",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a2af1217e51a8bd4ec3d00c_images-1781878188346-4653c86bb979.jpg"
+    },
+    {
+      "messageId": "6a354e32dc1fc05451b34af6",
+      "channelId": "6a221442031f131972f280f1",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a221442031f131972f280f1_images-1781878322062-705b669be535.jpg",
+      "filename": "glunity_messaging_6a221442031f131972f280f1_images-1781878322062-705b669be535.jpg",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a221442031f131972f280f1_images-1781878322062-705b669be535.jpg",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a221442031f131972f280f1_images-1781878322062-705b669be535.jpg"
+    },
+    {
+      "messageId": "6a354f51dc1fc05451b34af7",
+      "channelId": "6a221442031f131972f280f1",
+      "attachmentUrl": "http://localhost:5001/uploads/glunity_messaging_6a221442031f131972f280f1_images-1781878609062-edff029355fd.jpg",
+      "filename": "glunity_messaging_6a221442031f131972f280f1_images-1781878609062-edff029355fd.jpg",
+      "existsInApiUploads": false,
+      "existsInMessagingUploads": false,
+      "apiPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\api\\uploads\\glunity_messaging_6a221442031f131972f280f1_images-1781878609062-edff029355fd.jpg",
+      "messagingPath": "C:\\Users\\user\\Desktop\\Hi\\glunity-mobile\\messaging-service\\uploads\\glunity_messaging_6a221442031f131972f280f1_images-1781878609062-edff029355fd.jpg"
+    }
+  ]
+}

@@ -359,13 +359,13 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   const formatMessageTime = (dateString: string) => {
     const date = new Date(dateString || Date.now());
     const now = new Date();
-    
+
     const isToday = date.getDate() === now.getDate() &&
-                    date.getMonth() === now.getMonth() &&
-                    date.getFullYear() === now.getFullYear();
-                    
+      date.getMonth() === now.getMonth() &&
+      date.getFullYear() === now.getFullYear();
+
     const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    
+
     if (isToday) {
       return timeStr;
     } else {
@@ -478,6 +478,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             : styles.bubbleRight,
           { borderBottomRightRadius: shouldGroup ? 18 : 4 },
           isMedia && { paddingVertical: 0, paddingHorizontal: 0 },
+          isAudio && { minWidth: 208 },
           isDeleted && {
             backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
             borderWidth: 1,
@@ -493,6 +494,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             : styles.bubbleLeft,
           { borderBottomLeftRadius: shouldGroup ? 18 : 4 },
           isMedia && { paddingVertical: 0, paddingHorizontal: 0 },
+          isAudio && { minWidth: 208 },
           isDeleted && {
             backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
             borderWidth: 1,
@@ -555,55 +557,62 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         );
       }
 
-        // Loading indicator for optimistic messages
-        if (item.status === 'sending') {
-          if (isImage || isVideo) {
-            return (
-              <View style={{
-                width: Math.min(windowWidth * 0.68, 250),
-                height: Math.min(windowWidth * 0.51, 188),
-                backgroundColor: T.surfaceAlt,
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <ActivityIndicator size="small" color={isMe ? '#fff' : T.textMuted} />
-              </View>
-            );
-          }
+      // Loading indicator for optimistic messages
+      if (item.status === 'sending') {
+        if (isImage || isVideo) {
           return (
-            <View style={{ paddingVertical: 8, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
+            <View style={{
+              width: Math.min(windowWidth * 0.68, 250),
+              height: Math.min(windowWidth * 0.51, 188),
+              backgroundColor: T.surfaceAlt,
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
               <ActivityIndicator size="small" color={isMe ? '#fff' : T.textMuted} />
             </View>
           );
         }
-
-        if (isAudio) {
         return (
-          <View style={{ flexDirection: 'row', alignItems: 'center', minWidth: 160 }}>
+          <View style={{ paddingVertical: 8, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
+            <ActivityIndicator size="small" color={isMe ? '#fff' : T.textMuted} />
+          </View>
+        );
+      }
+      if (isAudio) {
+        const isPlaying = chat.playingId === (item.id || item._id);
+        return (
+          <View style={{ flexDirection: 'row', alignItems: 'center', minWidth: 180 }}>
             <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: isMe ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.04)', justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name={chat.playingId === (item.id || item._id) ? 'pause' : 'play'} size={16} color={isMe ? '#fff' : T.text} />
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color={isMe ? '#fff' : T.text} />
             </View>
-            <View style={{ flex: 1, marginLeft: 8, marginRight: 6, justifyContent: 'center' }}>
+            <View style={{ width: 60, marginLeft: 8, marginRight: 6, justifyContent: 'center' }}>
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 26 }}>
-                {[6,10,14,20,14,10,8,12].map((h, idx) => {
-                  const isPlayed = chat.playingId === (item.id || item._id) && chat.audioProgress >= (idx / 8);
+                {[6, 10, 14, 20, 14, 10, 8, 12].map((h, idx) => {
+                  const isPlayed = isPlaying && chat.audioProgress >= (idx / 8);
                   return (
                     <Animated.View key={idx} style={{ width: 3.5, marginHorizontal: 1.5, backgroundColor: isMe ? '#fff' : T.text, height: h - 2, borderRadius: 1.5, opacity: isPlayed ? 1 : 0.4 }} />
                   );
                 })}
               </View>
             </View>
-            <Text style={{ color: isMe ? '#fff' : T.text, fontSize: 11 }}>{formatDuration(firstAtt?.duration || item.duration)}</Text>
+            {isPlaying ? (
+              <Text style={{ color: isMe ? '#fff' : T.text, fontSize: 11, minWidth: 35, textAlign: 'right' }}>
+                {formatDuration(chat.audioProgress * (firstAtt?.duration || item.duration || 0))}
+              </Text>
+            ) : (
+              <Text style={{ color: isMe ? '#fff' : T.text, fontSize: 11 }}>
+                {formatDuration(firstAtt?.duration || item.duration)}
+              </Text>
+            )}
           </View>
         );
       }
-
       if (isImage) {
         const imgUrl = firstAtt?.thumbnail || firstAtt?.url;
         return (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => { if (firstAtt?.url) Linking.openURL(firstAtt.url).catch(() => {}); }}
+            onPress={() => { if (firstAtt?.url) Linking.openURL(firstAtt.url).catch(() => { }); }}
             onLongPress={longPressHandler}
             delayLongPress={300}
             style={{ overflow: 'hidden' }}
@@ -627,11 +636,19 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       }
 
       if (isVideo) {
-        const thumbUrl = firstAtt?.thumbnail;
+        const thumbUrl = firstAtt?.thumbnail || (() => {
+          const videoUrl = firstAtt?.url;
+          if (videoUrl && videoUrl.includes('cloudinary.com') && videoUrl.includes('/video/upload/')) {
+            let thumb = videoUrl.replace(/\.[a-zA-Z0-9]+$/, '.jpg');
+            thumb = thumb.replace('/video/upload/', '/video/upload/c_fill,g_center,h_400,w_400/');
+            return thumb;
+          }
+          return null;
+        })();
         return (
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => { if (firstAtt?.url) Linking.openURL(firstAtt.url).catch(() => {}); }}
+            onPress={() => { if (firstAtt?.url) Linking.openURL(firstAtt.url).catch(() => { }); }}
             onLongPress={longPressHandler}
             delayLongPress={300}
             style={{ overflow: 'hidden', position: 'relative' }}
@@ -764,7 +781,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   if (!ch) return false;
                   const parts = ch.participants || ch.members || [];
                   const msgTime = new Date(item.createdAt || item.created_at).getTime();
-                  
+
                   if (isDMChannel) {
                     const partner = parts.find((p: any) => {
                       const pId = p.userId?._id || p.userId || p._id || p.id;
@@ -820,7 +837,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   const display = getChatDisplay(chat.channel);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top","left","right"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <View style={styles.header}>
@@ -928,12 +945,12 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       </View>
 
       {!isConnected && (
-        <AnimatedReanimated.View 
+        <AnimatedReanimated.View
           entering={FadeInDown.duration(300)}
-          style={{ 
-            backgroundColor: '#D35400', 
-            paddingVertical: 5, 
-            alignItems: 'center', 
+          style={{
+            backgroundColor: '#D35400',
+            paddingVertical: 5,
+            alignItems: 'center',
             justifyContent: 'center',
             flexDirection: 'row',
             gap: 6
@@ -953,7 +970,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         if (!activePin) return null;
 
         return (
-          <View 
+          <View
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
             style={{
@@ -976,7 +993,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                     chat.listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
                     setHighlightedMsgId(msgId);
                     setTimeout(() => setHighlightedMsgId(null), 1500);
-                  } catch (e) {}
+                  } catch (e) { }
                 } else {
                   Alert.alert(t('Info'), t('Message is older. Scroll up to find it.'));
                 }
@@ -1005,14 +1022,14 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               {pinnedMessages.length > 1 && (
                 <View style={{ flexDirection: 'row', marginRight: 8 }}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     disabled={safeIndex === 0}
                     onPress={() => setCurrentPinIndex(safeIndex - 1)}
                     style={{ padding: 4, opacity: safeIndex === 0 ? 0.3 : 1 }}
                   >
                     <Ionicons name="chevron-back" size={16} color={T.text} />
                   </TouchableOpacity>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     disabled={safeIndex === pinnedMessages.length - 1}
                     onPress={() => setCurrentPinIndex(safeIndex + 1)}
                     style={{ padding: 4, opacity: safeIndex === pinnedMessages.length - 1 ? 0.3 : 1 }}
@@ -1021,7 +1038,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   </TouchableOpacity>
                 </View>
               )}
-              
+
               <TouchableOpacity
                 onPress={() => chat.handleTogglePin(activePin.messageId)}
                 style={{ padding: 4 }}
@@ -1034,8 +1051,8 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         );
       })()}
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 + insets.top : 0}
       >
@@ -1098,12 +1115,12 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
               <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 60 }}>
                 <Ionicons name="chatbubbles-outline" size={64} color={T.textMuted} style={{ marginBottom: 12, opacity: 0.5 }} />
                 <Text style={{ fontSize: 16, fontWeight: '600', color: T.text, textAlign: 'center' }}>
-                  {dmPartnerId 
-                    ? `${t('Say hi to')} ${display.name} 👋` 
+                  {dmPartnerId
+                    ? `${t('Say hi to')} ${display.name} 👋`
                     : t('Start the conversation!')}
                 </Text>
                 <Text style={{ fontSize: 13, color: T.textMuted, textAlign: 'center', marginTop: 4, paddingHorizontal: 40 }}>
-                  {dmPartnerId 
+                  {dmPartnerId
                     ? t('Send a message to start direct messaging')
                     : t('No messages in this group yet')}
                 </Text>
@@ -1319,9 +1336,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
       {/* Options Menu Modal */}
       <OptionsActionMenu
-    visible={chat.menuVisible}
-    onRequestClose={() => chat.setMenuVisible(false)}
-    isDM={!!isDMChannel}
+        visible={chat.menuVisible}
+        onRequestClose={() => chat.setMenuVisible(false)}
+        isDM={!!isDMChannel}
         isMuted={!!chat.channel?.myMuted}
         onOpenMembers={() => chat.setMembersSheetVisible(true)}
         onOpenEditGroup={() => chat.setEditSheetVisible(true)}

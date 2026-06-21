@@ -101,6 +101,11 @@ export function AppHeader({
 
     const checkUnread = async () => {
       try {
+        // Ensure we have an access token before calling protected API
+        const { TokenStore } = require('@/core/storage/secure-store');
+        const token = await TokenStore.getAccessToken();
+        if (!token) return;
+
         const res = await notificationsApi.list();
         if (res.success && mounted) {
           const unread = res.data.filter((n: any) => !n.isRead).length;

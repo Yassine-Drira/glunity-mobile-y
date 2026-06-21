@@ -46,12 +46,59 @@ app.use(cookieParser());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// Serve local uploaded files (development fallback)
-app.use('/uploads', express.static(path.join(__dirname, '..', '..', 'uploads'), {
-  setHeaders: (res) => {
+// Serve local uploaded files (development fallback) with proxy to messaging-service when missing
+const fs = require('fs');
+const http = require('http');
+const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
+
+app.use('/uploads', (req, res, next) => {
+  // Normalize requested filename and local path
+  const rel = decodeURIComponent(req.path || '').replace(/^\/+/, '');
+  const localPath = path.join(UPLOADS_DIR, rel);
+
+  // If file exists locally, let express.static-like behavior serve it
+  if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    return res.sendFile(localPath);
   }
-}));
+
+  // Fallback: proxy the request to the messaging-service uploads endpoint
+  // This helps when attachments were stored by the messaging microservice
+  const MSG_SERVICE_BASE = process.env.MSG_SERVICE_URL || 'http://localhost:5001';
+  const targetUrl = new URL(req.originalUrl, MSG_SERVICE_BASE).toString();
+
+  // Simple HTTP GET proxy stream
+  const getter = targetUrl.startsWith('https:') ? require('https') : http;
+  const proxyReq = getter.get(targetUrl, (proxyRes) => {
+    // If remote responded with an error, provide a graceful placeholder for images
+    if (proxyRes.statusCode >= 400) {
+      // Determine file extension from request path
+      const ext = path.extname(req.path || '').toLowerCase();
+      const imageExts = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']);
+      if (imageExts.has(ext) || req.path.includes('/images-')) {
+        // Send a tiny SVG placeholder so image elements render something
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.statusCode = 200;
+        const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><rect width='100%' height='100%' fill='#f3f3f3'/><g fill='#d0d0d0' font-family='Arial, Helvetica, sans-serif' font-size='20'><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle'>Image unavailable</text></g></svg>`;
+        return res.end(svg);
+      }
+
+      // Non-image: forward the error response to let callers handle it (404 etc.)
+      res.statusCode = proxyRes.statusCode || 502;
+      proxyRes.pipe(res);
+      return;
+    }
+    // Copy headers
+    Object.entries(proxyRes.headers).forEach(([k, v]) => res.setHeader(k, v));
+    res.statusCode = proxyRes.statusCode || 200;
+    proxyRes.pipe(res);
+  });
+
+  proxyReq.on('error', (err) => {
+    // On error, pass through to main error/404 handler
+    next();
+  });
+});
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) =>

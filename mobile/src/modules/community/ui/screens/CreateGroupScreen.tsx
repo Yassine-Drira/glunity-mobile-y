@@ -103,9 +103,7 @@ export default function CreateGroupScreen({ navigation }: any) {
       }
 
       const uploadRes = await http.post(`${CORE_API_URL}/uploads`, form, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        timeout: 60000,
       });
       const body = uploadRes.data;
       const data = body?.data;

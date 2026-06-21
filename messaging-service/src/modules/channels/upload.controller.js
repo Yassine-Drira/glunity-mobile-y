@@ -106,87 +106,93 @@ const uploadController = {
       await Channel.updateLastMessage(channelId, message);
 
       // ── Socket Broadcast ──────────────────────────────────────────────────
-      const io = req.app.get('io');
-      if (io) {
-        const populated = {
-          id:              message._id.toString(),
-          channelId:       message.channelId.toString(),
-          senderId:        message.senderId.toString(),
-          senderName:      req.user.fullName,
-          senderAvatarUrl: req.user.avatar?.url || null,
-          content:         message.content,
-          type:            message.type,
-          attachments:     message.attachments,
-          reelRef:         message.reelRef || null,
-          replyTo:         message.replyTo && message.replyTo.messageId ? {
-            messageId:  message.replyTo.messageId.toString(),
-            senderName: message.replyTo.senderName,
-            preview:    message.replyTo.preview,
-          } : null,
-          reactionCounts:  {},
-          createdAt:       message.createdAt,
-        };
+      setImmediate(async () => {
+        try {
+          const io = req.app.get('io');
+          if (io) {
+            const populated = {
+              id:              message._id.toString(),
+              channelId:       message.channelId.toString(),
+              senderId:        message.senderId.toString(),
+              senderName:      req.user.fullName,
+              senderAvatarUrl: req.user.avatar?.url || null,
+              content:         message.content,
+              type:            message.type,
+              attachments:     message.attachments,
+              reelRef:         message.reelRef || null,
+              replyTo:         message.replyTo && message.replyTo.messageId ? {
+                messageId:  message.replyTo.messageId.toString(),
+                senderName: message.replyTo.senderName,
+                preview:    message.replyTo.preview,
+              } : null,
+              reactionCounts:  {},
+              createdAt:       message.createdAt,
+            };
 
-        // Broadcast to all sockets in the channel room (open chat screens)
-        io.to(`channel:${channelId}`).emit('message:new', { message: populated });
+            // Broadcast to all sockets in the channel room (open chat screens)
+            io.to(`channel:${channelId}`).emit('message:new', { message: populated });
 
-        // Re-fetch the updated channel to get participant list
-        const updatedChannel = await Channel.findById(channelId).lean();
+            // Re-fetch the updated channel to get participant list
+            const updatedChannel = await Channel.findById(channelId).lean();
 
-        if (updatedChannel && updatedChannel.participants) {
-          for (const p of updatedChannel.participants) {
-            const pId = (p.userId || p).toString();
+            if (updatedChannel && updatedChannel.participants) {
+              for (const p of updatedChannel.participants) {
+                const pId = (p.userId || p).toString();
 
-            // Count unread for this participant, respecting lastReadAt and clearedAt
-            const startFrom = [p.lastReadAt, p.clearedAt].filter(Boolean).sort((a, b) => b - a)[0] || new Date(0);
-            const unreadCount = await Message.countDocuments({
-              channelId,
-              deletedAt: { $in: [null, undefined] },
-              createdAt: { $gt: startFrom },
-            });
-
-            // Bubble conversation to the top for all participants
-            io.to(pId).emit('conversation:updated', {
-              channelId,
-              lastMessage: {
-                messageId:  message._id.toString(),
-                senderId:   message.senderId.toString(),
-                senderName: req.user.fullName,
-                content:    message.type === 'audio' ? '[audio]' : `[${attachment.type || 'media'}]`,
-                createdAt:  message.createdAt,
-              },
-              unreadCount,
-            });
-
-            // Send in-app notification toast to participants who are NOT viewing this channel
-            if (pId !== req.user._id.toString()) {
-              const userSockets = await io.in(pId).fetchSockets();
-              let isViewing = false;
-              for (const s of userSockets) {
-                if (s.rooms.has(`viewing:${channelId}`)) {
-                  isViewing = true;
-                  break;
-                }
-              }
-
-              if (!isViewing && !p.muted) {
-                const conversationName = updatedChannel.type === 'direct'
-                  ? req.user.fullName
-                  : (updatedChannel.name || 'Chat');
-
-                io.to(pId).emit('notification:new', {
-                  conversationId:   channelId,
-                  conversationName: conversationName,
-                  senderName:       req.user.fullName,
-                  senderAvatar:     req.user.avatar?.url || null,
-                  messagePreview:   message.type === 'audio' ? '🎤 Voice message' : `📎 ${attachment.type || 'Media'}`,
-                  timestamp:        message.createdAt,
+                // Count unread for this participant, respecting lastReadAt and clearedAt
+                const startFrom = [p.lastReadAt, p.clearedAt].filter(Boolean).sort((a, b) => b - a)[0] || new Date(0);
+                const unreadCount = await Message.countDocuments({
+                  channelId,
+                  deletedAt: { $in: [null, undefined] },
+                  createdAt: { $gt: startFrom },
                 });
+
+                // Bubble conversation to the top for all participants
+                io.to(pId).emit('conversation:updated', {
+                  channelId,
+                  lastMessage: {
+                    messageId:  message._id.toString(),
+                    senderId:   message.senderId.toString(),
+                    senderName: req.user.fullName,
+                    content:    message.type === 'audio' ? '[audio]' : `[${attachment.type || 'media'}]`,
+                    createdAt:  message.createdAt,
+                  },
+                  unreadCount,
+                });
+
+                // Send in-app notification toast to participants who are NOT viewing this channel
+                if (pId !== req.user._id.toString()) {
+                  const userSockets = await io.in(pId).fetchSockets();
+                  let isViewing = false;
+                  for (const s of userSockets) {
+                    if (s.rooms.has(`viewing:${channelId}`)) {
+                      isViewing = true;
+                      break;
+                    }
+                  }
+
+                  if (!isViewing && !p.muted) {
+                    const conversationName = updatedChannel.type === 'direct'
+                      ? req.user.fullName
+                      : (updatedChannel.name || 'Chat');
+
+                    io.to(pId).emit('notification:new', {
+                      conversationId:   channelId,
+                      conversationName: conversationName,
+                      senderName:       req.user.fullName,
+                      senderAvatar:     req.user.avatar?.url || null,
+                      messagePreview:   message.type === 'audio' ? '🎤 Voice message' : `📎 ${attachment.type || 'Media'}`,
+                      timestamp:        message.createdAt,
+                    });
+                  }
+                }
               }
             }
           }
+        } catch (asyncErr) {
+          console.error('[Upload Controller] Async socket broadcast/notification failed:', asyncErr);
         }
-      }
+      });
 
       res.status(201).json({
         success:    true,

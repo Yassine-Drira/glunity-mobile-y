@@ -139,6 +139,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const lastTapRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
   const listRef = useRef<any>(null);
   const isNearBottomRef = useRef(true);
+  const shouldScrollToEndRef = useRef(false);
   const [unreadCount, setUnreadCount] = useState(0);
   // Tracks real message IDs already confirmed by the send ack callback.
   // Prevents the subsequent message:new socket event from re-inserting the same message.
@@ -190,11 +191,17 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
       if (!initialChannelId) return;
       try {
-        const res = await http.get(`/channels/${initialChannelId}`);
+        const res = await messagingHttp.get(`/channels/${initialChannelId}`);
         if (mounted) setChannel(res.data?.data || res.data || null);
       } catch (err) {
         try {
-          const listRes = await http.get('/channels');
+          const cachedList = await ChatCacheService.getChannels();
+          const foundCached = Array.isArray(cachedList) ? cachedList.find((c: any) => String(c._id || c.id) === String(initialChannelId)) : null;
+          if (mounted && foundCached) {
+            setChannel(foundCached);
+            return;
+          }
+          const listRes = await messagingHttp.get('/channels');
           const list = listRes.data?.data || listRes.data || [];
           const found = Array.isArray(list) ? list.find((c: any) => String(c._id || c.id) === String(initialChannelId)) : null;
           if (mounted && found) setChannel(found);
@@ -867,13 +874,15 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
       if (result.canceled || !result.assets || result.assets.length === 0) return;
       const asset = result.assets[0];
-      const uri = asset.uri;
-      if (!uri) return;
+      const originalUri = asset.uri;
+      if (!originalUri) return;
+
+      const isVideo = asset.type === 'video' || /\.(mp4|webm|mov)$/i.test(originalUri.split('/').pop() || '');
+      const uri = isVideo ? originalUri : await compressImage(originalUri);
 
       const token = await TokenStore.getAccessToken();
       const targetId = channel.id || channel._id;
       const filename = uri.split('/').pop() || 'media';
-      const isVideo = asset.type === 'video' || /\.(mp4|webm|mov)$/i.test(filename);
       const mimeType = isVideo ? (filename.endsWith('.webm') ? 'video/webm' : 'video/mp4') : (filename.endsWith('.png') ? 'image/png' : 'image/jpeg');
 
       // Optimistic placeholder
@@ -907,10 +916,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
 
       // Upload to messaging-service channel upload endpoint
-      const uploadRes = await http.post(`${MSG_SERVICE_URL}/channels/${targetId}/upload`, form, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const uploadRes = await messagingHttp.post(`/channels/${targetId}/upload`, form, {
+        timeout: 60000,
       });
 
       const body = uploadRes.data;
@@ -975,7 +982,14 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       if (Platform.OS === 'web' || (typeof uri === 'string' && uri.startsWith('blob:'))) {
         const blobResp = await fetch(uri);
         const blob = await blobResp.blob();
-        const fileObj: any = typeof File !== 'undefined' ? new File([blob], filename, { type: blob.type || 'audio/m4a' }) : blob;
+        let mimeType = blob.type || 'audio/m4a';
+        // If the browser MediaRecorder recorded audio in a video container (like video/webm or video/mp4),
+        // replace the 'video/' prefix with 'audio/' so the backend knows this is an audio file and doesn't
+        // attempt to run video-specific thumbnail eager transformations.
+        if (mimeType.startsWith('video/')) {
+          mimeType = mimeType.replace('video/', 'audio/');
+        }
+        const fileObj: any = typeof File !== 'undefined' ? new File([blob], filename, { type: mimeType }) : blob;
         form.append('file', fileObj);
       } else {
         form.append('file', { uri, name: filename, type: 'audio/m4a' } as any);
@@ -985,10 +999,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
 
       // 3. Post to the messaging service channel upload endpoint (which uses Cloudinary)
-      const uploadRes = await http.post(`${MSG_SERVICE_URL}/channels/${targetId}/upload`, form, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const uploadRes = await messagingHttp.post(`/channels/${targetId}/upload`, form, {
+        timeout: 60000,
       });
 
       const body = uploadRes.data;
@@ -1270,9 +1282,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
 
       const uploadRes = await http.post(`${CORE_API_URL}/uploads`, form, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        timeout: 60000,
       });
       const body = uploadRes.data;
       const data = body?.data;

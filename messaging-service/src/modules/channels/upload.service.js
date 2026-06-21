@@ -90,7 +90,6 @@ function videoThumbnailEager() {
   return [
     // Poster frame at 0 seconds, resized to 400 × 400
     {
-      resource_type: 'video',
       width: 400, height: 400,
       crop: 'fill', gravity: 'center',
       format: 'jpg', start_offset: '0',
@@ -151,7 +150,7 @@ const uploadService = {
       overwrite:     false,
       // Request eager thumbnail generation only for images/videos
       eager: isImage ? imageThumbnailEager() : (isVideo ? videoThumbnailEager() : []),
-      eager_async: false, // wait for eager transforms before returning
+      eager_async: true, // run eager transforms asynchronously in the background for faster response
     };
 
     const result = await cloudinaryClient.uploadBuffer(buffer, opts);

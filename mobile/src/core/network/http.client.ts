@@ -11,8 +11,30 @@ const http = axios.create({
 // ── Request: attach access token ──────────────────────────────────────────────
 http.interceptors.request.use(async (config) => {
   const token = await TokenStore.getAccessToken();
+  // If this request is to auth endpoints or public uploads, allow without token
+  const url = (config.url || '').toString();
+  const isAuthRoute = url.startsWith('/auth') || url.includes('/auth/');
+  const isUploadsRoute = url.startsWith('/uploads') || url.includes('/uploads');
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (!isAuthRoute && !isUploadsRoute) {
+    // No token available for a protected route — short-circuit to avoid 401 requests
+    const e: any = new Error('No access token available');
+    e.code = 'NO_ACCESS_TOKEN';
+    throw e;
+  }
+
+  if (config.data instanceof FormData) {
+    if (config.headers) {
+      if (typeof config.headers.delete === 'function') {
+        config.headers.delete('Content-Type');
+        config.headers.delete('content-type');
+      } else {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
   }
   return config;
 });

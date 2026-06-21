@@ -11,6 +11,7 @@ import { ThemedNavigationContainer } from './src/shared/components/ThemedNavigat
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestStartupPermissions } from './src/shared/utils/permissions';
 import { eventsApi } from './src/modules/home/api/events.api';
 import { locationsApi } from './src/modules/map/api/locations.api';
 import { Image } from 'react-native';
@@ -104,6 +105,7 @@ export default function App() {
                 <ThemedNavigationContainer linking={linking as any}>
                   <RootNavigator />
                   <StartupPrefetch />
+                  <StartupPermissions />
                 </ThemedNavigationContainer>
               </ThemeProvider>
             </LanguageProvider>
@@ -112,6 +114,14 @@ export default function App() {
       </AuthProvider>
     </GestureHandlerRootView>
   );
+}
+
+function StartupPermissions() {
+  React.useEffect(() => {
+    requestStartupPermissions();
+  }, []);
+
+  return null;
 }
 
 function StartupPrefetch() {
