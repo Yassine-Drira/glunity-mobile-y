@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Glunity - Sprint Closure Messaging Test Plan</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2ECC71;
+      --primary-dark: #1E7A4D;
+      --primary-light: #E8F8F5;
+      --dark: #111827;
+      --gray-dark: #374151;
+      --gray-light: #9CA3AF;
+      --bg-light: #F9FAFB;
+      --border: #E5E7EB;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      --font-title: 'Outfit', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-body);
+      color: var(--gray-dark);
+      background-color: #F3F4F6;
+      line-height: 1.6;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Page container for display and print */
+    .page-container {
+      max-width: 800px;
+      margin: 40px auto;
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    /* Print Page Setup */
+    .page {
+      padding: 50px;
+      position: relative;
+    }
+
+    .page-break {
+      page-break-before: always;
+      border-top: 1px dashed var(--border);
+      margin-top: 20px;
+    }
+
+    /* Header Design */
+    .header-banner {
+      background: linear-gradient(135deg, var(--dark) 0%, var(--primary-dark) 100%);
+      color: #ffffff;
+      padding: 60px 50px;
+      position: relative;
+    }
+
+    .header-banner::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 6px;
+      background: var(--primary);
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(46, 204, 113, 0.2);
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 20px;
+      font-family: var(--font-title);
+    }
+
+    h1 {
+      font-family: var(--font-title);
+      font-size: 34px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: var(--gray-light);
+      font-weight: 400;
+    }
+
+    /* Meta stats bar */
+    .meta-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 20px 50px;
+      background: var(--bg-light);
+      justify-content: space-between;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .meta-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--gray-light);
+      font-weight: 600;
+    }
+
+    .meta-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-top: 4px;
+    }
+
+    /* Content Typography */
+    h2 {
+      font-family: var(--font-title);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 22px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    p {
+      margin-bottom: 20px;
+      font-size: 14.5px;
+      color: #4B5563;
+    }
+
+    /* Matrix Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th {
+      background-color: var(--dark);
+      color: #ffffff;
+      font-family: var(--font-title);
+      font-weight: 600;
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13.5px;
+      color: var(--gray-dark);
+      vertical-align: top;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) {
+      background-color: var(--bg-light);
+    }
+
+    .user-pill {
+      display: inline-block;
+      background: #EAECEE;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--dark);
+    }
+
+    .user-pill.rayne {
+      background: #EBF5FB;
+      color: #2980B9;
+    }
+
+    .user-pill.islam {
+      background: #FEF9E7;
+      color: #D35400;
+    }
+
+    .user-pill.yassine {
+      background: var(--primary-light);
+      color: var(--primary-dark);
+    }
+
+    /* Task cards styling */
+    .task-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .task-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .task-card-title {
+      font-family: var(--font-title);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--dark);
+    }
+
+    .todo-list {
+      list-style: none;
+    }
+
+    .todo-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      font-size: 13.5px;
+    }
+
+    .todo-checkbox {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--gray-light);
+      border-radius: 4px;
+      margin-right: 12px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .todo-content {
+      flex: 1;
+      color: #374151;
+    }
+
+    .todo-content strong {
+      color: var(--dark);
+    }
+
+    /* Floating printing guide */
+    .print-guide {
+      max-width: 800px;
+      margin: 20px auto 0 auto;
+      background: var(--primary-light);
+      border: 1px solid rgba(46, 204, 113, 0.3);
+      padding: 16px;
+      border-radius: 10px;
+      color: var(--primary-dark);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .print-btn {
+      background: var(--primary-dark);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-title);
+      transition: background 0.2s;
+    }
+
+    .print-btn:hover {
+      background: #145A32;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background-color: #ffffff;
+      }
+      .page-container {
+        margin: 0;
+        box-shadow: none;
+        max-width: 100%;
+        width: 100%;
+        border-radius: 0;
+      }
+      .page {
+        padding: 40px;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .page-break {
+        page-break-before: always;
+      }
+    }
+
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating guide for the user -->
+  <div class="print-guide no-print">
+    <span>💡 <strong>Quick Export Guide:</strong> Open this page in Google Chrome or Edge, then press <strong>Ctrl + P</strong> (Margins: <strong>None</strong>, Background Graphics: <strong>Checked</strong>) to save a premium PDF.</span>
+    <button class="print-btn" onclick="window.print()">Print Report</button>
+  </div>
+
+  <div class="page-container">
+    
+    <!-- HEADER SECTION -->
+    <div class="header-banner">
+      <div class="badge">QA Closure Strategy</div>
+      <h1>Sprint Closure<br>Messaging Module Test Plan</h1>
+      <div class="subtitle">Comprehensive evaluation protocol & task matrix for production launch</div>
+    </div>
+
+    <!-- META BAR -->
+    <div class="meta-bar">
+      <div class="meta-item">
+        <span class="meta-label">Project Name</span>
+        <span class="meta-value">Glunity Mobile</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Sprint Target</span>
+        <span class="meta-value">Sprint 1 Closing</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Date Generated</span>
+        <span class="meta-value">June 19, 2026</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">QA Lead</span>
+        <span class="meta-value">Yassine Drira</span>
+      </div>
+    </div>
+
+    <!-- PAGE 1: STRATEGY & MATRIX -->
+    <div class="page">
+      <h2>1. Objective & QA Scope</h2>
+      <p>
+        The objective of this testing matrix is to achieve 100% QA sign-off on the core messaging module. This ensures real-time reliability, media processing compatibility, correct channel rendering contexts, and mobile resource efficiency. Testing runs concurrently across three distinct layers:
+      </p>
+
+      <h2>2. Feature Assignment Matrix</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 25%">Tester</th>
+            <th style="width: 35%">Module Areas</th>
+            <th style="width: 40%">Verification Focus</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="user-pill rayne">Rayne</span></td>
+            <td>Sockets, Presence, & Real-Time Sync</td>
+            <td>Auto-reconnection logic, typing events, active status dots, inline message deletion.</td>
+          </tr>
+          <tr>
+            <td><span class="user-pill islam">Islam</span></td>
+            <td>Voice Messages, Media uploads & Cache</td>
+            <td>Audio permission handler, Cloudinary file uploads, offline SQLite/AsyncStorage loading.</td>
+          </tr>
+          <tr>
+            <td><span class="user-pill yassine">Yassine</span></td>
+            <td>Header Logic, Channels & Layout UI</td>
+            <td>Uppercase 'DM' channel context, partner profile details fetched, 75% bubble alignment.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        All blockers found during testing should be compiled in the project's repository issue tracker and labeled with <code>[Messaging-QA]</code> prior to the daily review.
+      </p>
+    </div>
+
+    <!-- PAGE 2: INDIVIDUAL TASKS -->
+    <div class="page page-break">
+      <h2>3. Team Member Task Cards</h2>
+      <p>
+        Print or distribute these cards directly to team members. Each contains checkboxes indicating the core criteria to evaluate:
+      </p>
+
+      <!-- Rayne Task Card -->
+      <div class="task-card">
+        <div class="task-card-header">
+          <span class="task-card-title">Task Card: Rayne (Sockets & Presence)</span>
+          <span class="user-pill rayne">Assigned</span>
+        </div>
+        <ul class="todo-list">
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Offline States:</strong> Disconnect connection during an active chat. Verify that the orange reconnect banner appears.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Auto-reconnect Sync:</strong> Turn connection back on and confirm that incoming messages queue in chronological order.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Typing States:</strong> Verify "typing..." appears under the header name when the peer starts typing and clears instantly when they stop or send.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Message Actions:</strong> Test real-time message editing updates, pinning messages, and deleting messages (must show inline "Message deleted" placeholder).</div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Islam Task Card -->
+      <div class="task-card">
+        <div class="task-card-header">
+          <span class="task-card-title">Task Card: Islam (Media, Audio & Caching)</span>
+          <span class="user-pill islam">Assigned</span>
+        </div>
+        <ul class="todo-list">
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Hardware Access:</strong> Verify camera, microphone, and gallery permission dialogs trigger on new install.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Voice Notes:</strong> Record a voice clip, test the cancel (trash bin) button, and play back the audio (checking the timer progress indicator).</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Media Uploads:</strong> Send image and video attachments. Ensure they upload successfully to Cloudinary and display without errors.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Cache Sync:</strong> Reopen the app offline. Verify that the local cache immediately renders channel history and messages.</div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Yassine Task Card -->
+      <div class="task-card">
+        <div class="task-card-header">
+          <span class="task-card-title">Task Card: Yassine (Header, Channels & Layout)</span>
+          <span class="user-pill yassine">Assigned</span>
+        </div>
+        <ul class="todo-list">
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>DM Identity:</strong> Confirm DMs are identified correctly (supporting the uppercase 'DM' database type) and display real partner profile details.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Profile sheet redirect:</strong> Confirm that clicking on the DM header or partner avatar launches their profile bottom sheet rather than group members list.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Symmetry & Width:</strong> Ensure long messages wrap correctly within bubbles, occupying at most 75% of screen width to leave professional empty space.</div>
+          </li>
+          <li class="todo-item">
+            <div class="todo-checkbox"></div>
+            <div class="todo-content"><strong>Scroll indicator:</strong> Ensure the float-to-bottom arrow button behavior works smoothly and clears unread badges.</div>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>

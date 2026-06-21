@@ -22,17 +22,61 @@ export default function CommunityMembersList({ route, navigation }: any) {
   const fetchMembers = async () => {
     setLoading(true);
     try {
-      // Prefer fetching channel details which often include participant objects
+      // 1. Try to fetch from the populated members endpoint first
+      try {
+        const res = await http.get(`${CORE_API_URL}/channels/${channelId}/members`);
+        const list = res.data?.data || res.data || [];
+        if (Array.isArray(list) && list.length > 0) {
+          // Verify that returned members are populated
+          const first = list[0];
+          if (first && (first.fullName || first.name || first.displayName)) {
+            setMembers(list.map((u: any) => ({
+              _id: u._id || u.id,
+              fullName: u.fullName || u.name,
+              avatarUrl: u.avatarUrl || u.avatar,
+              role: u.role || 'member'
+            })));
+            return;
+          }
+        }
+      } catch (e) { }
+
+      // 2. Fall back to channel details if members endpoint wasn't populated or failed
       try {
         const ch = await http.get(`${CORE_API_URL}/channels/${channelId}`);
         const data = ch.data?.data || ch.data;
         const raw = data?.participants || data?.members || data?.userIds || [];
         if (Array.isArray(raw) && raw.length > 0) {
+          // If they are objects, check if they are populated (have name/fullName)
           if (typeof raw[0] === 'object') {
-            const normalized = raw.map((m: any) => ({ _id: m._id || m.id, fullName: m.fullName || m.name || m.displayName, avatarUrl: m.avatarUrl || m.avatar, role: m.role || (m.isAdmin ? 'admin' : 'member') }));
-            setMembers(normalized);
-            return;
+            const first = raw[0];
+            if (first && (first.fullName || first.name || first.displayName)) {
+              const normalized = raw.map((m: any) => ({
+                _id: m._id || m.id,
+                fullName: m.fullName || m.name || m.displayName,
+                avatarUrl: m.avatarUrl || m.avatar,
+                role: m.role || (m.isAdmin ? 'admin' : 'member')
+              }));
+              setMembers(normalized);
+              return;
+            } else {
+              // Not populated (only contains userId, role, etc.) -> extract IDs and fetch
+              const ids = raw.map((m: any) => String(m.userId || m._id || m.id));
+              try {
+                const ures = await http.get(`${CORE_API_URL}/users?ids=${encodeURIComponent(ids.join(','))}`);
+                const users = ures.data?.data || ures.data || [];
+                const ms = users.map((u: any) => ({
+                  _id: u._id || u.id,
+                  fullName: u.fullName || u.name || u.displayName,
+                  avatarUrl: u.avatarUrl || u.avatar,
+                  role: 'member'
+                }));
+                setMembers(ms);
+                return;
+              } catch (ee) { }
+            }
           }
+
           // raw are ids -> attempt users?ids= fallback
           try {
             const ures = await http.get(`${CORE_API_URL}/users?ids=${encodeURIComponent(raw.join(','))}`);
@@ -49,21 +93,10 @@ export default function CommunityMembersList({ route, navigation }: any) {
             return;
           }
         }
-        // No participants found, set empty
         setMembers([]);
         return;
       } catch (e) {
-        // If channel endpoint not available, try users by channel members endpoint
-        try {
-          const res = await http.get(`${CORE_API_URL}/channels/${channelId}/members`);
-          const list = res.data?.data || res.data || [];
-          setMembers(list.map((u: any) => ({ _id: u._id || u.id, fullName: u.fullName || u.name, avatarUrl: u.avatarUrl || u.avatar, role: u.role })));
-          return;
-        } catch (ee) {
-          console.warn('fetchMembers list failed (all attempts)', ee);
-          setMembers([]);
-          return;
-        }
+        setMembers([]);
       }
     } catch (err) {
       console.warn('fetchMembers list failed', err);

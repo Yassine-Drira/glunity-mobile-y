@@ -33,6 +33,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   const { socket, isConnected } = useSocket();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
+  const [isNearBottom, setIsNearBottom] = useState(true);
 
   const [highlightedMsgId, setHighlightedMsgId] = React.useState<string | null>(null);
   const [currentPinIndex, setCurrentPinIndex] = React.useState(0);
@@ -314,8 +315,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       backgroundColor: T.surfaceAlt,
       paddingVertical: 10, paddingHorizontal: 14,
       borderRadius: 20, borderBottomLeftRadius: 4,
-      maxWidth: '75%', minWidth: 60,
-      alignSelf: 'flex-start', flexShrink: 1, marginHorizontal: 6,
+      maxWidth: '100%', minWidth: 60,
+      flexShrink: 1,
+      alignSelf: 'flex-start', marginHorizontal: 6,
       overflow: 'hidden',
       ...(Platform.OS === 'web' ? { wordBreak: 'break-word', overflowWrap: 'break-word' } as any : {}),
     },
@@ -323,18 +325,19 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       backgroundColor: isDark ? '#1E7A4D' : '#2ECC71',
       paddingVertical: 10, paddingHorizontal: 14,
       borderRadius: 20, borderBottomRightRadius: 4,
-      maxWidth: '75%', minWidth: 60,
-      alignSelf: 'flex-end', flexShrink: 1, marginHorizontal: 6,
+      maxWidth: '100%', minWidth: 60,
+      flexShrink: 1,
+      alignSelf: 'flex-end', marginHorizontal: 6,
       overflow: 'hidden', alignItems: 'flex-start',
       ...(Platform.OS === 'web' ? { wordBreak: 'break-word', overflowWrap: 'break-word' } as any : {}),
     },
     msgText: {
       color: T.text, fontSize: 14.5, lineHeight: 20,
-      flexWrap: 'wrap', flexShrink: 1, minWidth: 0,
+      flexShrink: 1,
       ...(Platform.OS === 'web' ? { wordBreak: 'break-word', overflowWrap: 'break-word' } as any : {}),
     },
     timeText: { fontSize: 10, color: T.textMuted, marginTop: 2 },
-    messageBlock: { flexDirection: 'column', alignItems: 'flex-start' },
+    messageBlock: { flexDirection: 'column', maxWidth: '75%', flexShrink: 1 },
     inputBar: {
       padding: 12, backgroundColor: T.surface,
       borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.divider,
@@ -444,11 +447,12 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         ? SlideInRight.duration(250).delay(delay)
         : FadeInDown.duration(250).delay(delay));
 
-    // Attachment type helpers
     const firstAtt = item.attachments && item.attachments.length > 0 ? item.attachments[0] : null;
     const isAudio = firstAtt?.type === 'audio';
     const isImage = firstAtt?.type === 'image';
     const isVideo = firstAtt?.type === 'video';
+    const isMedia = isImage || isVideo;
+    const isDeleted = Boolean(item.deletedAt);
 
     // Grouping / bubble tail calculations
     const currentMsgDate = new Date(item.createdAt || item.created_at);
@@ -472,13 +476,31 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
           (item.id || item._id) === highlightedMsgId
             ? [styles.bubbleRight, { backgroundColor: isDark ? '#196F3D' : '#27AE60', transform: [{ scale: 1.02 }] }]
             : styles.bubbleRight,
-          { borderBottomRightRadius: shouldGroup ? 18 : 4 }
+          { borderBottomRightRadius: shouldGroup ? 18 : 4 },
+          isMedia && { paddingVertical: 0, paddingHorizontal: 0 },
+          isDeleted && {
+            backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
+            borderStyle: 'dashed' as const,
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+          }
         ]
       : [
           (item.id || item._id) === highlightedMsgId
             ? [styles.bubbleLeft, { backgroundColor: isDark ? '#2E4053' : '#D5F5E3', transform: [{ scale: 1.02 }] }]
             : styles.bubbleLeft,
-          { borderBottomLeftRadius: shouldGroup ? 18 : 4 }
+          { borderBottomLeftRadius: shouldGroup ? 18 : 4 },
+          isMedia && { paddingVertical: 0, paddingHorizontal: 0 },
+          isDeleted && {
+            backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+            borderWidth: 1,
+            borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)',
+            borderStyle: 'dashed' as const,
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+          }
         ];
 
     // Reaction pills — hidden on deleted messages
@@ -524,9 +546,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     const renderBubbleContent = () => {
       if (item.deletedAt) {
         return (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Ionicons name="trash-outline" size={14} color={isMe ? '#fff' : T.textMuted} style={{ opacity: 0.55 }} />
-            <Text style={[styles.msgText, { fontStyle: 'italic', opacity: 0.55, color: isMe ? '#fff' : T.textMuted }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="trash-outline" size={14} color={T.textMuted} style={{ opacity: 0.65 }} />
+            <Text style={{ fontStyle: 'italic', color: T.textMuted, fontSize: 13.5 }}>
               {t('Message deleted')}
             </Text>
           </View>
@@ -537,7 +559,13 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         if (item.status === 'sending') {
           if (isImage || isVideo) {
             return (
-              <View style={{ width: Math.min(windowWidth * 0.6, 260), height: Math.min(windowWidth * 0.45, 200), borderRadius: 10, backgroundColor: T.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{
+                width: Math.min(windowWidth * 0.68, 250),
+                height: Math.min(windowWidth * 0.51, 188),
+                backgroundColor: T.surfaceAlt,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
                 <ActivityIndicator size="small" color={isMe ? '#fff' : T.textMuted} />
               </View>
             );
@@ -578,20 +606,21 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             onPress={() => { if (firstAtt?.url) Linking.openURL(firstAtt.url).catch(() => {}); }}
             onLongPress={longPressHandler}
             delayLongPress={300}
-            style={{ borderRadius: 10, overflow: 'hidden' }}
+            style={{ overflow: 'hidden' }}
           >
             <Image
               source={{ uri: imgUrl }}
               style={{
-                width: Math.min(windowWidth * 0.6, 260),
-                height: Math.min(windowWidth * 0.45, 200),
-                borderRadius: 10,
+                width: Math.min(windowWidth * 0.68, 250),
+                height: Math.min(windowWidth * 0.51, 188),
                 backgroundColor: T.surfaceAlt,
               }}
               resizeMode="cover"
             />
             {!!item.content && (
-              <Text style={[styles.msgText, { marginTop: 6, color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
+              <View style={{ paddingHorizontal: 12, paddingBottom: 10, paddingTop: 6 }}>
+                <Text style={[styles.msgText, { color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
+              </View>
             )}
           </TouchableOpacity>
         );
@@ -605,21 +634,26 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             onPress={() => { if (firstAtt?.url) Linking.openURL(firstAtt.url).catch(() => {}); }}
             onLongPress={longPressHandler}
             delayLongPress={300}
-            style={{ borderRadius: 10, overflow: 'hidden', position: 'relative' }}
+            style={{ overflow: 'hidden', position: 'relative' }}
           >
             {thumbUrl ? (
               <Image
                 source={{ uri: thumbUrl }}
                 style={{
-                  width: Math.min(windowWidth * 0.6, 260),
-                  height: Math.min(windowWidth * 0.38, 170),
-                  borderRadius: 10,
+                  width: Math.min(windowWidth * 0.68, 250),
+                  height: Math.min(windowWidth * 0.45, 170),
                   backgroundColor: T.surfaceAlt,
                 }}
                 resizeMode="cover"
               />
             ) : (
-              <View style={{ width: Math.min(windowWidth * 0.6, 260), height: Math.min(windowWidth * 0.38, 170), borderRadius: 10, backgroundColor: isDark ? '#1a2a1a' : '#e8f5e9', justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{
+                width: Math.min(windowWidth * 0.68, 250),
+                height: Math.min(windowWidth * 0.45, 170),
+                backgroundColor: isDark ? '#1a2a1a' : '#e8f5e9',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
                 <Ionicons name="videocam" size={32} color={T.green || '#2ECC71'} />
               </View>
             )}
@@ -630,7 +664,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
               </View>
             </View>
             {!!item.content && (
-              <Text style={[styles.msgText, { marginTop: 6, color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
+              <View style={{ paddingHorizontal: 12, paddingBottom: 10, paddingTop: 6 }}>
+                <Text style={[styles.msgText, { color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
+              </View>
             )}
           </TouchableOpacity>
         );
@@ -648,7 +684,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     };
 
     const pressHandler = () => {
-      if (isTemp) return;
+      if (isTemp || item.deletedAt) return;
       if (isAudio) {
         chat.playAudio(item);
       } else {
@@ -722,7 +758,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
               <Text style={{ fontSize: 10, color: T.textMuted }}>
                 {formatMessageTime(item.createdAt || item.created_at)}
               </Text>
-              {isMe && !isTemp && (() => {
+              {isMe && !isTemp && !isDeleted && (() => {
                 const isRead = (() => {
                   const ch = chat.channel;
                   if (!ch) return false;
@@ -754,7 +790,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   );
                 }
               })()}
-              {!!item.editedAt && (
+              {!!item.editedAt && !isDeleted && (
                 <Text style={{ fontSize: 9, color: T.textMuted, marginLeft: 4, fontStyle: 'italic' }}>{t('edited')}</Text>
               )}
             </View>
@@ -1031,10 +1067,15 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
               // Track whether user is near the bottom (within 150px)
               const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
-              chat.isNearBottomRef.current = distanceFromBottom < 150;
+              const nearBottom = distanceFromBottom < 150;
+              chat.isNearBottomRef.current = nearBottom;
+
+              if (nearBottom !== isNearBottom) {
+                setIsNearBottom(nearBottom);
+              }
 
               // If the user reaches the bottom, clear unread count
-              if (distanceFromBottom < 150 && chat.unreadCount > 0) {
+              if (nearBottom && chat.unreadCount > 0) {
                 chat.setUnreadCount(0);
               }
 
@@ -1079,9 +1120,31 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         ) : null}
 
         {/* Floating Scroll to Bottom Arrow */}
-        {chat.unreadCount > 0 && (() => {
+        {(!isNearBottom || chat.unreadCount > 0) && (() => {
           const ButtonContent = (
-            <Ionicons name="arrow-down" size={20} color={T.text} />
+            <View style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+              <Ionicons name="arrow-down" size={20} color={T.text} />
+              {chat.unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: 2,
+                  right: 2,
+                  backgroundColor: T.green || '#2ECC71',
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  paddingHorizontal: 4,
+                  borderWidth: 1.5,
+                  borderColor: T.surface,
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>
+                    {chat.unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           );
 
           return (
@@ -1107,7 +1170,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   height: 44,
                   borderRadius: 22,
                   overflow: 'hidden',
-                  backgroundColor: isDark ? 'rgba(30, 30, 30, 0.7)' : 'rgba(255, 255, 255, 0.75)',
+                  backgroundColor: isDark ? 'rgba(30, 30, 30, 0.75)' : 'rgba(255, 255, 255, 0.8)',
                   borderWidth: 1,
                   borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
                   justifyContent: 'center',
