@@ -26,7 +26,7 @@ const channelsController = {
 			};
 		});
 
-		res.status(200).json(mapper.toChannelListResponse(itemsWithPin));
+		res.status(200).json(mapper.toChannelListResponse(itemsWithPin, userId));
 	}),
 
 	// POST /api/channels/direct
@@ -41,7 +41,7 @@ const channelsController = {
 		}
 
 		const channel = await service.getOrCreateDirectChannel(user1Id, user2Id);
-		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel, user1Id) });
 	}),
 
 	// POST /api/channels
@@ -78,7 +78,7 @@ const channelsController = {
 			icon: icon || undefined,
 		};
 		const channel = await service.create(payload);
-		res.status(201).json({ success: true, data: mapper.toChannelResponse(channel) });
+		res.status(201).json({ success: true, data: mapper.toChannelResponse(channel, creatorId) });
 	}),
 
 	// GET /api/channels/:id/messages
@@ -163,7 +163,7 @@ const channelsController = {
 		if (description !== undefined) payload.description = description;
 
 		const updated = await service.update(channelId, payload);
-		res.status(200).json({ success: true, data: mapper.toChannelResponse(updated) });
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(updated, req.user?._id) });
 	}),
 
 	pinChannel: asyncHandler(async (req, res) => {
@@ -207,7 +207,7 @@ const channelsController = {
 			throw error;
 		}
 		const channel = await service.addMembers(channelId, members);
-		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel, req.user?._id) });
 	}),
 
 	removeMember: asyncHandler(async (req, res) => {
@@ -219,7 +219,7 @@ const channelsController = {
 			throw error;
 		}
 		const channel = await service.removeMember(channelId, memberId);
-		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel, req.user?._id) });
 	}),
 
 	promoteMember: asyncHandler(async (req, res) => {
@@ -231,7 +231,7 @@ const channelsController = {
 			throw error;
 		}
 		const channel = await service.promoteMember(channelId, memberId);
-		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel, req.user?._id) });
 	}),
 
 	demoteMember: asyncHandler(async (req, res) => {
@@ -243,7 +243,7 @@ const channelsController = {
 			throw error;
 		}
 		const channel = await service.demoteMember(channelId, memberId);
-		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel, req.user?._id) });
 	}),
 
 	joinChannel: asyncHandler(async (req, res) => {
@@ -255,7 +255,7 @@ const channelsController = {
 			throw error;
 		}
 		const channel = await service.joinChannel(channelId, userId);
-		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel) });
+		res.status(200).json({ success: true, data: mapper.toChannelResponse(channel, userId) });
 	}),
 };
 

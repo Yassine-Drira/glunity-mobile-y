@@ -257,7 +257,7 @@ export default function EditStoreScreen({ navigation, route }: Props) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType.Images,
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.7,

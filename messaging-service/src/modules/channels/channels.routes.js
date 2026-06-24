@@ -28,11 +28,24 @@ router.get('/', auth, controller.list);
 router.get('/unread', auth, readReceiptController.getUnreadCounts);
 
 /**
+ * GET /api/channels/discover
+ * Discover public announcement channels.
+ */
+router.get('/discover', auth, controller.discover);
+
+/**
  * POST /api/channels
  * Create a group channel.
  * Body: { name, description?, participantIds?: ObjectId[] }
  */
 router.post('/', auth, controller.createGroup);
+
+/**
+ * POST /api/channels/channel
+ * Create an announcement channel.
+ * Body: { name, description?, avatarUrl?, coverImageUrl? }
+ */
+router.post('/channel', auth, controller.createChannel);
 
 /**
  * POST /api/channels/dm
@@ -43,8 +56,21 @@ router.post('/', auth, controller.createGroup);
 router.post('/dm', auth, controller.getOrCreateDM);
 
 /**
+ * POST /api/channels/:id/join
+ * Join an announcement channel.
+ */
+router.post('/:id/join', auth, controller.joinChannel);
+
+/**
+ * POST /api/channels/:id/notifications
+ * Update notification settings.
+ * Body: { option: string }
+ */
+router.post('/:id/notifications', auth, controller.updateNotificationSettings);
+
+/**
  * PATCH /api/channels/:id/participants/:uid/role
- * Change a participant role (admin/member). Caller must be owner or admin.
+ * Change a participant role (admin/member/writer). Caller must be owner or admin.
  */
 router.patch('/:id/participants/:uid/role', auth, controller.changeRole);
 

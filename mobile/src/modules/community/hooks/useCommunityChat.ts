@@ -20,14 +20,45 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-import { 
-  useAudioPlayer, 
-  useAudioPlayerStatus, 
-  useAudioRecorder, 
-  RecordingPresets, 
-  requestRecordingPermissionsAsync, 
-  setAudioModeAsync 
-} from 'expo-audio';
+// `expo-audio` may not be available in all environments (web bundling).
+// Try to require it, otherwise fall back to `expo-av` with lightweight adapters.
+let useAudioPlayer: any;
+let useAudioPlayerStatus: any;
+let useAudioRecorder: any;
+let RecordingPresets: any;
+let requestRecordingPermissionsAsync: any;
+let setAudioModeAsync: any;
+try {
+  // Prefer the dedicated package when present
+  // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+  const expoAudio = require('expo-audio');
+  useAudioPlayer = expoAudio.useAudioPlayer;
+  useAudioPlayerStatus = expoAudio.useAudioPlayerStatus;
+  useAudioRecorder = expoAudio.useAudioRecorder;
+  RecordingPresets = expoAudio.RecordingPresets;
+  requestRecordingPermissionsAsync = expoAudio.requestRecordingPermissionsAsync;
+  setAudioModeAsync = expoAudio.setAudioModeAsync;
+} catch (err) {
+  try {
+    // Fallback to expo-av and provide minimal adapters so the web bundler doesn't fail
+    // eslint-disable-next-line global-require, import/no-extraneous-dependencies
+    const { Audio } = require('expo-av');
+    useAudioPlayer = () => null;
+    useAudioPlayerStatus = () => ({ playing: false, currentTime: 0, duration: 0 });
+    useAudioRecorder = () => null;
+    RecordingPresets = { HIGH_QUALITY: {} };
+    requestRecordingPermissionsAsync = async () => ({ granted: true });
+    setAudioModeAsync = Audio && Audio.setAudioModeAsync ? Audio.setAudioModeAsync.bind(Audio) : async () => {};
+  } catch (err2) {
+    // Last-resort no-op fallbacks
+    useAudioPlayer = () => null;
+    useAudioPlayerStatus = () => ({ playing: false, currentTime: 0, duration: 0 });
+    useAudioRecorder = () => null;
+    RecordingPresets = { HIGH_QUALITY: {} };
+    requestRecordingPermissionsAsync = async () => ({ granted: false });
+    setAudioModeAsync = async () => {};
+  }
+}
 
 let ImageManipulator: any = null;
 try { ImageManipulator = require('expo-image-manipulator'); } catch (e) { ImageManipulator = null; }
@@ -151,10 +182,14 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     if (!channel || !user) return false;
     if (channel.ownerId && String(channel.ownerId) === String(user._id)) return true;
     if (channel.createdBy && String(channel.createdBy) === String(user._id)) return true;
+    if (channel.createdById && String(channel.createdById) === String(user._id)) return true;
     if (Array.isArray(channel.admins) && channel.admins.some((a: any) => String(a) === String(user._id))) return true;
     const parts = channel.participants || channel.members;
     if (Array.isArray(parts)) {
-      const me = parts.find((p: any) => (p && (p._id || p.id)) && String(p._id || p.id) === String(user._id));
+      const me = parts.find((p: any) => {
+        const pid = String(p._id || p.id || p.userId || p.user || p.user?._id || '');
+        return pid === String(user._id);
+      });
       if (me && (me.role === 'admin' || me.role === 'owner')) return true;
     }
     return false;
@@ -164,6 +199,16 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     if (!channel || !user) return false;
     if (channel.ownerId && String(channel.ownerId) === String(user._id)) return true;
     if (channel.createdBy && String(channel.createdBy) === String(user._id)) return true;
+    if (channel.createdById && String(channel.createdById) === String(user._id)) return true;
+    // fall back to participants list which may contain userId
+    const parts = channel.participants || channel.members || [];
+    if (Array.isArray(parts)) {
+      const me = parts.find((p: any) => {
+        const pid = String(p._id || p.id || p.userId || p.user || p.user?._id || '');
+        return pid === String(user._id);
+      });
+      if (me && me.role === 'owner') return true;
+    }
     return false;
   }, [channel, user]);
 
@@ -186,6 +231,15 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     let mounted = true;
     async function loadChannel() {
       if (initialChannel) {
+        console.debug('[useCommunityChat] initialChannel provided:', initialChannel);
+        try {
+          const evtPayload = initialChannel;
+          // Notify other UI (channels list) that we have a fresh channel object
+          const messagingEvents = require('../../../shared/utils/messagingEvents').default || require('../../../shared/utils/messagingEvents');
+          messagingEvents.emit('channel:updated', evtPayload);
+        } catch (e) {
+          // ignore
+        }
         setChannel(initialChannel);
         return;
       }
@@ -208,7 +262,10 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         } catch (ee) { }
       }
     }
-    loadChannel();
+    // Call loadChannel and explicitly catch to avoid unhandled promise rejections
+    loadChannel().catch((err) => {
+      console.warn('[useCommunityChat] loadChannel unexpected error', err);
+    });
     return () => { mounted = false; };
   }, [initialChannel, initialChannelId]);
 
@@ -315,7 +372,10 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         setLoading(false);
       }
     }
-    loadHistory();
+    // Explicitly catch to avoid unhandled promise rejections
+    loadHistory().catch((err) => {
+      console.warn('[useCommunityChat] loadHistory unexpected error', err);
+    });
 
     // Mark channel as read
     try {
@@ -1104,24 +1164,38 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     try {
       let raw: any = null;
 
-      // 1. Always try fetching from the fully populated members endpoints first
-      const membersEndpoints = [
-        `/channels/${channel.id || channel._id}/members`,
-        `/channels/${channel.id || channel._id}/participants`
-      ];
-      for (const ep of membersEndpoints) {
-        try {
-          const res = await http.get(ep);
-          const data = res.data?.data || res.data;
-          if (Array.isArray(data) && data.length > 0) {
-            // Check if the returned objects have names/fullNames, indicating they are populated
-            const first = data[0];
-            if (first && (first.fullName || first.name || first.displayName || first.username || first.email)) {
-              raw = data;
-              break;
-            }
+      // 1. Try fetching the full channel object first and extract participants
+      try {
+        const chRes = await messagingHttp.get(`/channels/${channel.id || channel._id}`);
+        const chData = chRes.data?.data || chRes.data;
+        if (chData) {
+          if (Array.isArray(chData.participants) && chData.participants.length > 0) {
+            raw = chData.participants;
+          } else if (Array.isArray(chData.members) && chData.members.length > 0) {
+            raw = chData.members;
           }
-        } catch (e) { }
+        }
+      } catch (e) { /* ignore and fallback */ }
+
+      // 2. Fallback: try legacy/populated members endpoints if channel fetch didn't return participants
+      if (!raw) {
+        const membersEndpoints = [
+          `/channels/${channel.id || channel._id}/members`,
+          `/channels/${channel.id || channel._id}/participants`
+        ];
+        for (const ep of membersEndpoints) {
+          try {
+            const res = await messagingHttp.get(ep);
+            const data = res.data?.data || res.data;
+            if (Array.isArray(data) && data.length > 0) {
+              const first = data[0];
+              if (first && (first.fullName || first.name || first.displayName || first.username || first.email)) {
+                raw = data;
+                break;
+              }
+            }
+          } catch (e) { }
+        }
       }
 
       // 2. Fall back to local channel properties only if we couldn't fetch populated members from the API
@@ -1208,7 +1282,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     try {
       let ok = false;
       try {
-        await http.post(`/channels/${channel.id || channel._id}/members`, { members: selectedToAdd });
+        await messagingHttp.post(`/channels/${channel.id || channel._id}/members`, { members: selectedToAdd });
         ok = true;
       } catch (e) { }
 
@@ -1234,7 +1308,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       try {
         let ok = false;
         try {
-          await http.delete(`/channels/${channel.id || channel._id}/members/${memberId}`);
+          await messagingHttp.delete(`/channels/${channel.id || channel._id}/members/${memberId}`);
           ok = true;
         } catch (e) { }
 
@@ -1365,7 +1439,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
 
       try {
-        await http.patch(`/channels/${channel.id || channel._id}`, payload);
+        await messagingHttp.patch(`/channels/${channel.id || channel._id}`, payload);
       } catch (e) { }
 
       const updated = { ...(channel || {}), name: payload.name || channel?.name, avatarUrl: payload.avatarUrl || channel?.avatarUrl, icon: payload.icon || channel?.icon };
@@ -1380,16 +1454,24 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   }, [channel, editName, editPhotoUri, isAdmin, isCreator, uploadImageForEdit, t]);
 
   const performDeleteGroup = useCallback(async () => {
-    if (!isCreator) return;
+    // Allow deletion if the user is recognized as the creator OR if their role in the channel is 'owner'.
+    const myRole = channel?.myRole || (channel && (channel.participants || []).find((p: any) => String(p.userId || p._id || p.id) === String(user?._id))?.role);
+    if (!isCreator && myRole !== 'owner') {
+      Alert.alert(t('Error'), t('You are not authorized to delete this channel'));
+      return;
+    }
     setDeleting(true);
     try {
+      console.debug('[chat] performDeleteGroup -> deleting', channel?.id || channel?._id);
       try {
-        await http.delete(`/channels/${channel.id || channel._id}`);
+        const res = await messagingHttp.delete(`/channels/${channel.id || channel._id}`);
+        console.debug('[chat] performDeleteGroup response ->', res?.data || res);
       } catch (e) { }
 
       messagingEvents.emit('channel:deleted', channel.id || channel._id);
       safeGoBack();
     } catch (err) {
+      console.warn('[chat] performDeleteGroup failed', err);
       Alert.alert('Error', t('Failed to delete group'));
     } finally {
       setDeleting(false);
@@ -1411,6 +1493,34 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     }
   }, [channel, t]);
 
+  const joinChannel = useCallback(async () => {
+    if (!channelId) return;
+    try {
+      const res = await messagingHttp.post(`/channels/${channelId}/join`, {});
+      const updatedChannel = res.data?.data || res.data;
+      setChannel(updatedChannel);
+      try {
+        messagingEvents.emit('channel:updated', updatedChannel);
+      } catch (e) {}
+      const freshMsgRes = await messagingHttp.get(`/channels/${channelId}/messages?limit=60`);
+      setMessages(freshMsgRes.data?.data || []);
+      Alert.alert(t('Success'), t('You joined the channel!'));
+    } catch (err: any) {
+      Alert.alert(t('Error'), err?.response?.data?.error || t('Failed to join channel'));
+    }
+  }, [channelId, t]);
+
+  const updateNotificationSettings = useCallback(async (option: string) => {
+    if (!channelId) return;
+    try {
+      const res = await messagingHttp.post(`/channels/${channelId}/notifications`, { option });
+      const updatedChannel = res.data?.data || res.data;
+      setChannel(updatedChannel);
+    } catch (err: any) {
+      Alert.alert(t('Error'), err?.response?.data?.error || t('Failed to update notification settings'));
+    }
+  }, [channelId, t]);
+
   // ── DM-specific actions ─────────────────────────────────────────────────────
 
   const handleMuteDM = useCallback(async () => {
@@ -1425,7 +1535,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       const alertTitle = muted ? t('Muted') : t('Unmuted');
       const alertMsg = muted ? t('You will no longer receive notifications from this conversation.') : t('Notifications re-enabled for this conversation.');
       if (Platform.OS === 'web') {
-        alert(`${alertTitle}: ${alertMsg}`);
+        // Avoid using the blocking browser `alert()` on web; log instead and rely on UI.
+        console.info('[chat] mute status:', alertTitle, alertMsg);
       } else {
         Alert.alert(alertTitle, alertMsg);
       }
@@ -1433,7 +1544,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       console.warn('[chat] mute failed', err);
       const msg = err?.response?.data?.message || err?.message || t('Failed to toggle mute');
       if (Platform.OS === 'web') {
-        alert(msg);
+        // Avoid showing a blocking browser alert on web; log and allow caller to handle retries.
+        console.warn('[chat] mute failed', msg);
       } else {
         Alert.alert(
           t('Error'),
@@ -1670,6 +1782,8 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     handleMuteDM,
     handleClearChat,
     handleDeleteDM,
+    joinChannel,
+    updateNotificationSettings,
 
     // User profile actions & states
     selectedProfileUserId,

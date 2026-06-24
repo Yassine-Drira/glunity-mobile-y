@@ -23,6 +23,19 @@ function messageHandler(io, socket) {
       throw err;
     }
 
+    if (channel.type === 'channel') {
+      const myEntry = channel.participants && channel.participants.find(p => {
+        const pId = p.userId ? p.userId.toString() : p.toString();
+        return pId === userId;
+      });
+      if (!myEntry || !['owner', 'writer'].includes(myEntry.role)) {
+        const err = new Error('Forbidden: Only authorized writers can publish messages.');
+        err.status = 403;
+        throw err;
+      }
+      return;
+    }
+
     const isPublic = !channel.isPrivate;
     if (!isPublic) {
       const hasAccess = channel.participants && channel.participants.some(p => {
@@ -239,8 +252,21 @@ function messageHandler(io, socket) {
   // Delete message (soft-delete)
   socket.on('message:delete', async ({ messageId }, callback) => {
     try {
-      const msg = await Message.findOne({ _id: messageId, senderId: user._id });
-      if (!msg) throw new Error('Message not found or unauthorized');
+      const msg = await Message.findById(messageId);
+      if (!msg) throw new Error('Message not found');
+
+      let authorized = msg.senderId.toString() === userId;
+      if (!authorized) {
+        const channel = await Channel.findById(msg.channelId).lean();
+        if (channel) {
+          const requester = channel.participants && channel.participants.find(p => p.userId.toString() === userId);
+          if (requester && requester.role === 'owner') {
+            authorized = true;
+          }
+        }
+      }
+
+      if (!authorized) throw new Error('Unauthorized to delete this message');
 
       msg.deletedAt = new Date();
       msg.reactionCounts = new Map();

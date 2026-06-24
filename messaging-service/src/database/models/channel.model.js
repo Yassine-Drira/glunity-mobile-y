@@ -8,8 +8,10 @@ const { Schema, model } = mongoose;
 const participantSchema = new Schema(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    role:   { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
+    role:   { type: String, enum: ['owner', 'admin', 'writer', 'member'], default: 'member' },
     muted:  { type: Boolean, default: false },
+    muteOption: { type: String, enum: ['all', 'mute_1h', 'mute_8h', 'mute_24h', 'mute_indefinite'], default: 'all' },
+    muteExpiresAt: { type: Date, default: null },
     /** Snapshot of last read position for unread-count derivation (redundant
      *  with ReadReceipt, but keeps channel list queries fast — no join needed). */
     lastReadAt: { type: Date, default: null },
@@ -60,10 +62,12 @@ const channelSchema = new Schema(
      *  'social' kept for backwards-compat with the social-feed feed feature. */
     type: {
       type:     String,
-      enum:     ['DM', 'direct', 'group', 'social'],
+      enum:     ['DM', 'direct', 'group', 'social', 'channel'],
       required: true,
       default:  'group',
     },
+
+    coverImageUrl: { type: String, default: null },
 
     /** When true, only participants may read messages (enforced in service layer). */
     isPrivate: { type: Boolean, default: true },

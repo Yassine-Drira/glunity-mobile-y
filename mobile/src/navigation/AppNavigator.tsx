@@ -32,7 +32,9 @@ import CommunityJoin from '../modules/community/ui/screens/CommunityJoin';
 import CommunityChatScreen from '../modules/community/ui/screens/CommunityChatScreen';
 import MessagingHome from '../modules/community/ui/screens/MessagingHome';
 import CreateGroupScreen from '../modules/community/ui/screens/CreateGroupScreen';
+import CreateChannelScreen from '../modules/community/ui/screens/CreateChannelScreen';
 import CommunityMembersList from '../modules/community/ui/screens/CommunityMembersList';
+import ChannelMembersScreen from '../modules/community/ui/screens/ChannelMembersScreen';
 import ReelsFeedScreen from '../modules/reels/ui/screens/ReelsFeedScreen';
 import ReelCameraScreen from '../modules/reels/ui/screens/ReelCameraScreen';
 
@@ -179,8 +181,10 @@ export function AppNavigator() {
       <Stack.Screen name="CommunityJoin" component={CommunityJoin} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="MessagingHome" component={MessagingHome} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="CreateGroup" component={CreateGroupScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="CreateChannel" component={CreateChannelScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="CommunityChat" component={CommunityChatScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="CommunityMembers" component={CommunityMembersList} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="ChannelMembers" component={ChannelMembersScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="AddEvent" component={AddEventScreen} options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ animation: 'slide_from_right' }} />

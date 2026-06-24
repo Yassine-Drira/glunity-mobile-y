@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import http from '../../../../core/network/http.client';
+import messagingHttp from '../../../../core/network/messaging-http.client';
 import { TokenStore } from '../../../../core/storage/secure-store';
 import { API_BASE_URL } from '../../../../core/config/api.config';
 import { useAuth } from '../../../auth/state/auth.context';
@@ -24,8 +25,9 @@ export default function CommunityMembersList({ route, navigation }: any) {
     try {
       // 1. Try to fetch from the populated members endpoint first
       try {
-        const res = await http.get(`${CORE_API_URL}/channels/${channelId}/members`);
-        const list = res.data?.data || res.data || [];
+        const res = await messagingHttp.get(`/channels/${channelId}`);
+        const ch = res.data?.data || res.data;
+        const list = ch?.participants || ch?.members || [];
         if (Array.isArray(list) && list.length > 0) {
           // Verify that returned members are populated
           const first = list[0];
@@ -43,7 +45,7 @@ export default function CommunityMembersList({ route, navigation }: any) {
 
       // 2. Fall back to channel details if members endpoint wasn't populated or failed
       try {
-        const ch = await http.get(`${CORE_API_URL}/channels/${channelId}`);
+        const ch = await messagingHttp.get(`/channels/${channelId}`);
         const data = ch.data?.data || ch.data;
         const raw = data?.participants || data?.members || data?.userIds || [];
         if (Array.isArray(raw) && raw.length > 0) {
@@ -116,30 +118,19 @@ export default function CommunityMembersList({ route, navigation }: any) {
     if (!user) return;
     Alert.alert(t('Remove member'), t('Are you sure?'), [
       { text: t('Cancel'), style: 'cancel' },
-      { text: t('Remove'), style: 'destructive', onPress: async () => {
-        try {
-          let ok = false;
+      {
+        text: t('Remove'),
+        style: 'destructive',
+        onPress: async () => {
           try {
-            await http.delete(`${CORE_API_URL}/channels/${channelId}/members/${memberId}`);
-            ok = true;
-          } catch (e) {}
-          if (!ok) {
-            try {
-              await http.post(`${CORE_API_URL}/channels/${channelId}/remove-member`, { memberId });
-              ok = true;
-            } catch (e) {}
+            await messagingHttp.delete(`/channels/${channelId}/members/${memberId}`);
+            await fetchMembers();
+          } catch (err) {
+            console.warn('removeMember failed', err);
+            Alert.alert(t('Error'), t('Failed to remove member'));
           }
-          if (!ok) {
-            Alert.alert(t('Notice'), t('Server did not accept remove request; local update applied'));
-            setMembers(prev => prev.filter(m => String(m._id || m.id) !== String(memberId)));
-            return;
-          }
-          await fetchMembers();
-        } catch (err) {
-          console.warn('removeMember failed', err);
-          Alert.alert(t('Error'), t('Failed to remove member'));
         }
-      } }
+      }
     ]);
   };
 
@@ -148,26 +139,13 @@ export default function CommunityMembersList({ route, navigation }: any) {
     try {
       const id = member._id || member.id;
       let ok = false;
-      const attempts = [
-        { url: `${CORE_API_URL}/channels/${channelId}/members/${id}/promote`, body: { memberId: id } },
-        { url: `${CORE_API_URL}/channels/${channelId}/members/${id}/demote`, body: { memberId: id } },
-        { url: `${CORE_API_URL}/channels/${channelId}/promote-member`, body: { memberId: id } },
-        { url: `${CORE_API_URL}/channels/${channelId}/demote-member`, body: { memberId: id } },
-        { url: `${CORE_API_URL}/channels/${channelId}/members/promote`, body: { memberId: id } },
-        { url: `${CORE_API_URL}/channels/${channelId}/members/demote`, body: { memberId: id } }
-      ];
-      for (const a of attempts) {
-        try {
-          const shouldCall = (a.url.includes('promote') && !isAdmin(member)) || (a.url.includes('demote') && isAdmin(member));
-          if (!shouldCall) continue;
-          await http.post(a.url, a.body);
-          ok = true; break;
-        } catch (e) {
-          // try next
-        }
+      try {
+        const newRole = isAdmin(member) ? 'member' : 'admin';
+        await messagingHttp.patch(`/channels/${channelId}/participants/${id}/role`, { role: newRole });
+        await fetchMembers();
+      } catch (err) {
+        throw err;
       }
-      if (!ok) throw new Error('No promote/demote endpoint responded');
-      await fetchMembers();
     } catch (err) {
       console.warn('toggleAdmin failed', err);
       Alert.alert(t('Error'), t('Failed to change role'));

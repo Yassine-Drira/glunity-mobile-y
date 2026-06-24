@@ -7,6 +7,7 @@ import { useLanguage } from '../../../../shared/context/language.context';
 import { useSocket } from '../../../../shared/context/socket.context';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCommunityChat } from '../../hooks/useCommunityChat';
+import { getChannelDisplay as getDisplayForChannel } from '../../utils/channelDisplay';
 import { usePresence } from '../../../../shared/hooks/usePresence';
 import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, SlideInRight, useReducedMotion } from 'react-native-reanimated';
@@ -34,8 +35,23 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const [isNearBottom, setIsNearBottom] = useState(true);
+  const [showSearchHeader, setShowSearchHeader] = useState(false);
+  const [messageSearchText, setMessageSearchText] = useState('');
+
+  // Extract all states and operations from our state controller
+  const chat = useCommunityChat(initialChannel, initialChannelId, navigation);
+
+  const filteredMessages = useMemo(() => {
+    if (!messageSearchText.trim()) return chat.messages;
+    const q = messageSearchText.toLowerCase();
+    return chat.messages.filter(m => m.content && m.content.toLowerCase().includes(q));
+  }, [chat.messages, messageSearchText]);
 
   const [highlightedMsgId, setHighlightedMsgId] = React.useState<string | null>(null);
+  const [showNotificationModal, setShowNotificationModal] = React.useState(false);
+  const [showOwnerMenu, setShowOwnerMenu] = React.useState(false);
+  const [showConfirmMuteDM, setShowConfirmMuteDM] = React.useState(false);
+  const [muting, setMuting] = React.useState(false);
   const [currentPinIndex, setCurrentPinIndex] = React.useState(0);
   const touchStartX = React.useRef(0);
 
@@ -58,9 +74,6 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       }
     }
   };
-
-  // Extract all states and operations from our state controller
-  const chat = useCommunityChat(initialChannel, initialChannelId, navigation);
   const { isOnline, getLastSeen, fetchStatuses } = usePresence();
 
   const [reactorsSheetVisible, setReactorsSheetVisible] = useState(false);
@@ -125,6 +138,10 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       String(ch.type).toUpperCase() === 'DM' ||
       (Array.isArray(parts) && parts.length === 2)
     );
+  }, [chat.channel]);
+
+  const isChannel = React.useMemo(() => {
+    return chat.channel?.type === 'channel';
   }, [chat.channel]);
 
   const [partnerUser, setPartnerUser] = React.useState<any>(null);
@@ -232,33 +249,8 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
   };
 
   const getChatDisplay = (ch: any) => {
-    if (!ch) return { name: ch?.name || t('Chat'), avatar: ch?.avatarUrl || null };
-
-    const desc: string | undefined = ch.description || ch.desc;
-    const dmPrefix = 'Direct Message between ';
-    if (desc && desc.startsWith(dmPrefix)) {
-      const namesStr = desc.substring(dmPrefix.length);
-      const parts = namesStr.split(' and ');
-      if (parts.length === 2) {
-        const otherName = parts[0] === user?.fullName ? parts[1] : parts[0];
-        return { name: otherName, avatar: ch.avatarUrl || null };
-      }
-    }
-
-    const parts = ch.participants || ch.members || ch.userIds || ch.participantIds;
-    if (Array.isArray(parts) && parts.length > 0) {
-      const obj = parts.find((p: any) => p && (p._id || p.id) && String(p._id || p.id) !== String(user?._id));
-      if (obj) return { name: obj.fullName || obj.name || obj.displayName || String(obj._id || obj.id), avatar: obj.avatarUrl || obj.avatar || ch.avatarUrl || null };
-
-      const otherId = parts.find((p: any) => String(p) !== String(user?._id));
-      if (otherId) return { name: String(otherId), avatar: ch.avatarUrl || null };
-    }
-
-    if (ch.name && typeof ch.name === 'string' && ch.name.startsWith('DM-')) {
-      return { name: desc || ch.name, avatar: ch.avatarUrl || null };
-    }
-
-    return { name: ch.name || ch.displayName || desc || t('Chat'), avatar: ch.avatarUrl || null };
+    const d = getDisplayForChannel(ch, user);
+    return { name: d.name || t('Chat'), avatar: d.avatar || null };
   };
 
   const styles = useMemo(() => StyleSheet.create({
@@ -873,15 +865,54 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         <View style={styles.headerLeft}>
           <TouchableOpacity
             onPress={() => {
-              if (navigation.canGoBack && navigation.canGoBack()) navigation.goBack();
-              else navigation.navigate('MessagingHome');
+              // Always go to the main messaging list to match expected UX
+              try {
+                navigation.navigate('MessagingHome');
+              } catch (e) {
+                if (navigation.canGoBack && navigation.canGoBack()) navigation.goBack();
+              }
             }}
             style={styles.backBtn}
           >
             <Ionicons name={isRTL ? 'arrow-forward-outline' : 'arrow-back-outline'} size={22} color={T.text} />
           </TouchableOpacity>
 
-          {isDMChannel ? (
+          {showSearchHeader ? (
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+              <TextInput
+                placeholder={t('Search messages') || 'Search messages'}
+                placeholderTextColor={T.textMuted}
+                value={messageSearchText}
+                onChangeText={setMessageSearchText}
+                style={{ flex: 1, color: T.text, fontSize: 15, paddingVertical: 4, paddingHorizontal: 12, backgroundColor: T.surfaceAlt, borderRadius: 8, marginRight: 8 }}
+                autoFocus
+              />
+              <TouchableOpacity onPress={() => { setShowSearchHeader(false); setMessageSearchText(''); }}>
+                <Ionicons name="close" size={20} color={T.text} style={{ marginRight: 8 }} />
+              </TouchableOpacity>
+            </View>
+          ) : isChannel ? (
+            /* ── Channel Header ─────────────────────────────────────────────── */
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ChannelMembers', { channelId: chat.channel.id || chat.channel._id })}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.groupAvatar, { width: 38, height: 38, borderRadius: 10 }]}>
+                {display.avatar ? (
+                  <Image source={{ uri: display.avatar }} style={{ width: 38, height: 38, borderRadius: 10 }} />
+                ) : (
+                  <Ionicons name="megaphone-outline" size={18} color={T.green || '#2ECC71'} />
+                )}
+              </View>
+              <View style={styles.headerMeta}>
+                <Text style={styles.headerName} numberOfLines={1}>{display.name}</Text>
+                <Text style={styles.headerSub}>
+                  {chat.channel?.participants?.length || 0} {t('members') || 'members'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : isDMChannel ? (
             /* ── DM Header ──────────────────────────────────────────────────── */
             <TouchableOpacity
               onPress={() => dmPartnerId && chat.openUserProfile(dmPartnerId)}
@@ -912,9 +943,28 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                   <Text style={styles.headerName} numberOfLines={1}>
                     {partnerUser?.fullName || partnerUser?.name || display.name}
                   </Text>
-                  {!!chat.channel?.myMuted && (
-                    <Ionicons name="notifications-off" size={13} color={T.textMuted} />
-                  )}
+                  <TouchableOpacity
+                    onPress={async () => {
+                      // If already muted, unmute immediately. If not muted, ask for confirmation.
+                      try {
+                        if (chat.channel?.myMuted) {
+                          setMuting(true);
+                          await chat.handleMuteDM();
+                        } else {
+                          setShowConfirmMuteDM(true);
+                        }
+                      } finally {
+                        setMuting(false);
+                      }
+                    }}
+                    style={{ marginLeft: 8, padding: 4 }}
+                  >
+                    <Ionicons
+                      name={chat.channel?.myMuted ? 'notifications-off' : 'notifications'}
+                      size={13}
+                      color={chat.channel?.myMuted ? T.textMuted : '#8BC34A'}
+                    />
+                  </TouchableOpacity>
                 </View>
                 {chat.typingUser ? (
                   <Text style={styles.headerSubOnline}>{t('typing...')}</Text>
@@ -951,8 +1001,8 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                 ) : (
                   <Text style={styles.headerSub}>
                     {(chat.channel?.participants?.length || 0) > 0
-                      ? `${chat.channel.participants.length} ${t('members')}`
-                      : t('Group')}
+                       ? `${chat.channel.participants.length} ${t('members')}`
+                       : t('Group')}
                   </Text>
                 )}
               </View>
@@ -962,13 +1012,48 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
 
         {/* Right: actions */}
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={{ padding: 8 }}
-            onPress={() => chat.setMenuVisible(true)}
-            accessibilityLabel="Options"
-          >
-            <Ionicons name="ellipsis-vertical" size={20} color={T.text} />
-          </TouchableOpacity>
+          {isChannel ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity style={{ padding: 8 }} onPress={() => setShowSearchHeader(prev => !prev)}>
+                <Ionicons name="search" size={20} color={T.text} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ padding: 8 }}
+                onPress={async () => {
+                  try {
+                    if (chat.channel?.myMuted) {
+                      setMuting(true);
+                      await chat.updateNotificationSettings('all');
+                    } else {
+                      setShowNotificationModal(true);
+                    }
+                  } finally {
+                    setMuting(false);
+                  }
+                }}
+              >
+                <Ionicons
+                  name={chat.channel?.myMuted ? 'notifications-off' : 'notifications'}
+                  size={20}
+                  color={chat.channel?.myMuted ? T.textMuted : '#8BC34A'}
+                />
+              </TouchableOpacity>
+              
+              {chat.channel?.myRole === 'owner' && (
+                <TouchableOpacity style={{ padding: 8 }} onPress={() => setShowOwnerMenu(true)}>
+                  <Ionicons name="settings" size={20} color={T.text} />
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={{ padding: 8 }}
+              onPress={() => chat.setMenuVisible(true)}
+              accessibilityLabel="Options"
+            >
+              <Ionicons name="ellipsis-vertical" size={20} color={T.text} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -1079,6 +1164,87 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         );
       })()}
 
+      {/* Notification Settings Modal */}
+      <Modal visible={showNotificationModal} transparent animationType="fade" onRequestClose={() => setShowNotificationModal(false)}>
+        <Pressable style={{ flex: 1 }} onPress={() => setShowNotificationModal(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <Pressable onPress={() => { /* consume tap so outer Pressable doesn't close modal */ }} style={{ backgroundColor: T.surface, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, width: '86%', maxWidth: 360 }}>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: T.text, marginBottom: 12, textAlign: 'center' }}>{t('Mute messages') || 'Mute messages'}</Text>
+              {[
+                { key: 'mute_1h', label: t('For 1 hour') || 'For 1 hour' },
+                { key: 'mute_8h', label: t('For 8 hours') || 'For 8 hours' },
+                { key: 'mute_24h', label: t('For 24 hours') || 'For 24 hours' },
+                { key: 'mute_indefinite', label: t('Until I change it') || 'Until I change it' },
+              ].map(opt => (
+                <TouchableOpacity
+                  key={opt.key}
+                  onPress={async () => {
+                    try {
+                      setMuting(true);
+                      await chat.updateNotificationSettings(opt.key);
+                    } finally {
+                      setMuting(false);
+                      setShowNotificationModal(false);
+                    }
+                  }}
+                  style={{ paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.divider, alignItems: 'center' }}
+                >
+                  <Text style={{ color: T.text, textAlign: 'center' }}>{opt.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Owner Controls Modal */}
+      <Modal visible={showOwnerMenu} transparent animationType="fade" onRequestClose={() => setShowOwnerMenu(false)}>
+        <Pressable style={{ flex: 1 }} onPress={() => setShowOwnerMenu(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <Pressable onPress={() => { /* consume tap so outer Pressable doesn't close modal */ }} style={{ backgroundColor: T.surface, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, width: '86%', maxWidth: 360 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: T.text, marginBottom: 8, textAlign: 'center' }}>{t('Channel Settings') || 'Channel Settings'}</Text>
+              <TouchableOpacity style={{ paddingVertical: 12 }} onPress={() => { setShowOwnerMenu(false); navigation.navigate('ChannelMembers', { channelId: chat.channel.id || chat.channel._id }); }}>
+                <Text style={{ color: T.text, textAlign: 'center' }}>{t('Manage Members') || 'Manage Members'}</Text>
+              </TouchableOpacity>
+              {/* Manage Writers removed — use Manage Members to handle both roles */}
+              <TouchableOpacity style={{ paddingVertical: 12 }} onPress={() => { setShowOwnerMenu(false); chat.setEditSheetVisible(true); }}>
+                <Text style={{ color: T.text, textAlign: 'center' }}>{t('Edit Channel') || 'Edit Channel'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ paddingVertical: 12 }} onPress={() => { setShowOwnerMenu(false); chat.setConfirmDeleteVisible(true); }}>
+                <Text style={{ color: '#E74C3C', textAlign: 'center' }}>{t('Delete Channel') || 'Delete Channel'}</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Confirm Mute (DM) Modal */}
+      <ConfirmationModal
+        visible={showConfirmMuteDM}
+        onClose={() => { if (!muting) setShowConfirmMuteDM(false); }}
+        title={chat.channel?.myMuted ? t('Unmute Notifications') : t('Mute Notifications')}
+        message={chat.channel?.myMuted ? t('Re-enable notifications for this conversation?') : t('You will no longer receive notifications from this conversation.')}
+        confirmLabel={chat.channel?.myMuted ? t('Unmute') : t('Mute')}
+        cancelLabel={t('Cancel')}
+        onConfirm={async () => {
+          try {
+            setMuting(true);
+            await chat.handleMuteDM();
+          } finally {
+            setMuting(false);
+            setShowConfirmMuteDM(false);
+          }
+        }}
+        loading={muting}
+        isDestructive={!chat.channel?.myMuted}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        modalBg={modalBg}
+        overlayFallback={overlayFallback}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
@@ -1090,7 +1256,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         ) : (
           <FlatList
             ref={chat.listRef}
-            data={chat.messages}
+            data={filteredMessages}
             keyExtractor={(i) => String(i.id || i._id || Math.random())}
             renderItem={renderItem}
             contentContainerStyle={[
@@ -1250,116 +1416,164 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         })()}
 
         {/* Messaging Input Bar */}
-        <View style={[styles.inputBar, { paddingBottom: chat.isRecording ? 12 : insets.bottom + 12 }]}>
-          {chat.typingUser ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, paddingLeft: 8 }}>
-              <Text style={{ color: T.textMuted, fontSize: 12, fontStyle: 'italic' }}>
-                {chat.typingUser} {t('is typing')}...
-              </Text>
-            </View>
-          ) : null}
+        {(() => {
+          const isChannel = chat.channel?.type === 'channel';
+          if (isChannel) {
+            const myRole = chat.channel?.myRole;
+            const isParticipant = !!myRole;
 
-          {chat.replyingTo ? (
-            <View style={{ backgroundColor: T.surfaceAlt, padding: 8, borderRadius: 10, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: T.textMuted, fontSize: 12 }}>{t('Replying to')} <Text style={{ color: T.text, fontWeight: '700' }}>{chat.replyingTo.senderName}</Text></Text>
-                <Text style={{ color: T.textMuted, fontSize: 12 }} numberOfLines={1}>{chat.replyingTo.preview}</Text>
-              </View>
-              <TouchableOpacity onPress={() => chat.setReplyingTo(null)} style={{ padding: 8 }}>
-                <Ionicons name="close" size={18} color={T.textMuted} />
-              </TouchableOpacity>
-            </View>
-          ) : null}
+            if (!isParticipant) {
+              return (
+                <View style={[styles.inputBar, { paddingBottom: insets.bottom + 12, alignItems: 'center' }]}>
+                  <TouchableOpacity
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#8BC34A',
+                      paddingVertical: 14,
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onPress={chat.joinChannel}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>
+                      {t('Join Channel') || 'Join Channel'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            }
 
-          <View style={styles.inputRow}>
-            {!chat.isRecording && (
-              <TouchableOpacity
-                onPress={() => {
-                  if (Platform.OS === 'web') {
-                    chat.pickMediaAndSend();
-                  } else {
-                    Alert.alert(
-                      t('Attach Media'),
-                      '',
-                      [
-                        { text: t('Photo / Video'), onPress: () => chat.pickMediaAndSend() },
-                        { text: t('Cancel'), style: 'cancel' },
-                      ]
-                    );
-                  }
-                }}
-                style={{ padding: 8 }}
-                accessibilityLabel="Attach media"
-              >
-                <Ionicons name="attach" size={22} color={T.text} />
-              </TouchableOpacity>
-            )}
+            if (myRole === 'member') {
+              return (
+                <View style={[styles.inputBar, { paddingBottom: insets.bottom + 12 }]}>
+                  <View style={{ backgroundColor: T.surfaceAlt, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, borderLeftWidth: 4, borderLeftColor: '#8BC34A', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: T.text, fontSize: 13, fontWeight: '600', lineHeight: 18, textAlign: 'center' }}>
+                      {t('This channel is read-only. Only authorized writers can publish messages.') || 'This channel is read-only. Only authorized writers can publish messages.'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            }
+          }
 
-            <TouchableOpacity
-              onPress={chat.isRecording ? chat.stopRecordingAndSend : chat.startRecording}
-              style={{ padding: 8 }}
-              accessibilityLabel="Voice message"
-            >
-              <View style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: chat.isRecording ? '#E74C3C' : 'transparent',
-                justifyContent: 'center',
-                alignItems: 'center'
-              }}>
-                <Ionicons name="mic" size={18} color={chat.isRecording ? '#fff' : T.text} />
-              </View>
-            </TouchableOpacity>
+          const placeholderText = isChannel
+            ? (chat.channel?.myRole === 'owner' ? t('Share an update...') : t('Write a message...'))
+            : t('Message');
 
-            {chat.isRecording ? (
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#E74C3C', opacity: pulseAnim, marginRight: 6 }} />
-                  <Text style={{ color: T.text, fontSize: 14, fontWeight: '600' }}>
-                    {t('Recording')} {formatRecordingTime(chat.recordingDuration)}
+          return (
+            <View style={[styles.inputBar, { paddingBottom: chat.isRecording ? 12 : insets.bottom + 12 }]}>
+              {chat.typingUser ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, paddingLeft: 8 }}>
+                  <Text style={{ color: T.textMuted, fontSize: 12, fontStyle: 'italic' }}>
+                    {chat.typingUser} {t('is typing')}...
                   </Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <TouchableOpacity
-                    onPress={chat.cancelRecording}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 6, marginRight: 4 }}
-                    accessibilityLabel="Cancel recording"
-                  >
-                    <Ionicons name="trash-outline" size={16} color="#E74C3C" />
-                    <Text style={{ color: '#E74C3C', marginLeft: 3, fontWeight: '600', fontSize: 13 }}>
-                      {t('Cancel')}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={chat.stopRecordingAndSend}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#2ECC71', borderRadius: 16 }}
-                    accessibilityLabel="Send recording"
-                  >
-                    <Ionicons name="send" size={14} color="#fff" />
-                    <Text style={{ color: '#fff', marginLeft: 4, fontWeight: '700', fontSize: 13 }}>
-                      {t('Send')}
-                    </Text>
+              ) : null}
+
+              {chat.replyingTo ? (
+                <View style={{ backgroundColor: T.surfaceAlt, padding: 8, borderRadius: 10, marginBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: T.textMuted, fontSize: 12 }}>{t('Replying to')} <Text style={{ color: T.text, fontWeight: '700' }}>{chat.replyingTo.senderName}</Text></Text>
+                    <Text style={{ color: T.textMuted, fontSize: 12 }} numberOfLines={1}>{chat.replyingTo.preview}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => chat.setReplyingTo(null)} style={{ padding: 8 }}>
+                    <Ionicons name="close" size={18} color={T.textMuted} />
                   </TouchableOpacity>
                 </View>
-              </View>
-            ) : (
-              <>
-                <TextInput
-                  value={chat.input}
-                  onChangeText={chat.setInput}
-                  placeholder={t('Message')}
-                  placeholderTextColor={T.textMuted}
-                  style={styles.textInput}
-                  multiline
-                />
-                <TouchableOpacity onPress={() => { chat.handleSend(); chat.setReplyingTo(null); }} style={styles.sendBtn}>
-                  <Ionicons name="send" size={18} color="#fff" />
+              ) : null}
+
+              <View style={styles.inputRow}>
+                {!chat.isRecording && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (Platform.OS === 'web') {
+                        chat.pickMediaAndSend();
+                      } else {
+                        Alert.alert(
+                          t('Attach Media'),
+                          '',
+                          [
+                            { text: t('Photo / Video'), onPress: () => chat.pickMediaAndSend() },
+                            { text: t('Cancel'), style: 'cancel' },
+                          ]
+                        );
+                      }
+                    }}
+                    style={{ padding: 8 }}
+                    accessibilityLabel="Attach media"
+                  >
+                    <Ionicons name="attach" size={22} color={T.text} />
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  onPress={chat.isRecording ? chat.stopRecordingAndSend : chat.startRecording}
+                  style={{ padding: 8 }}
+                  accessibilityLabel="Voice message"
+                >
+                  <View style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: chat.isRecording ? '#E74C3C' : 'transparent',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}>
+                    <Ionicons name="mic" size={18} color={chat.isRecording ? '#fff' : T.text} />
+                  </View>
                 </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
+
+                {chat.isRecording ? (
+                  <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginLeft: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#E74C3C', opacity: pulseAnim, marginRight: 6 }} />
+                      <Text style={{ color: T.text, fontSize: 14, fontWeight: '600' }}>
+                        {t('Recording')} {formatRecordingTime(chat.recordingDuration)}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity
+                        onPress={chat.cancelRecording}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 6, marginRight: 4 }}
+                        accessibilityLabel="Cancel recording"
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#E74C3C" />
+                        <Text style={{ color: '#E74C3C', marginLeft: 3, fontWeight: '600', fontSize: 13 }}>
+                          {t('Cancel')}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={chat.stopRecordingAndSend}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, backgroundColor: '#2ECC71', borderRadius: 16 }}
+                        accessibilityLabel="Send recording"
+                      >
+                        <Ionicons name="send" size={14} color="#fff" />
+                        <Text style={{ color: '#fff', marginLeft: 4, fontWeight: '700', fontSize: 13 }}>
+                          {t('Send')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <TextInput
+                      value={chat.input}
+                      onChangeText={chat.setInput}
+                      placeholder={placeholderText}
+                      placeholderTextColor={T.textMuted}
+                      style={styles.textInput}
+                      multiline
+                    />
+                    <TouchableOpacity onPress={() => { chat.handleSend(); chat.setReplyingTo(null); }} style={styles.sendBtn}>
+                      <Ionicons name="send" size={18} color="#fff" />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            </View>
+          );
+        })()}
       </KeyboardAvoidingView>
 
       {/* Options Menu Modal */}
@@ -1370,7 +1584,19 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         isMuted={!!chat.channel?.myMuted}
         onOpenMembers={() => chat.setMembersSheetVisible(true)}
         onOpenEditGroup={() => chat.setEditSheetVisible(true)}
-        onMuteToggle={chat.handleMuteDM}
+        onMuteToggle={() => {
+          if (isDMChannel) {
+            setShowConfirmMuteDM(true);
+          } else {
+            // If channel already muted, unmute immediately; otherwise open settings
+            if (chat.channel?.myMuted) {
+              setMuting(true);
+              chat.updateNotificationSettings('all').finally(() => setMuting(false));
+            } else {
+              setShowNotificationModal(true);
+            }
+          }
+        }}
         onClearChat={chat.handleClearChat}
         onDeleteConversation={chat.handleDeleteDM}
         theme={T}

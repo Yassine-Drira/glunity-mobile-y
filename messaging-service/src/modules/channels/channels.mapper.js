@@ -8,6 +8,8 @@ const toParticipant = (p) => ({
   userId: p.userId?.toString() ?? null,
   role:   p.role   ?? 'member',
   muted:  p.muted  ?? false,
+  muteOption: p.muteOption ?? 'all',
+  muteExpiresAt: p.muteExpiresAt ?? null,
 });
 
 const toLastMessage = (lm) => {
@@ -55,6 +57,7 @@ const toChannelResponse = (channel, currentUserId) => {
     name:           channel.name           ?? null,
     description:    channel.description    ?? null,
     avatarUrl:      channel.avatarUrl      ?? null,
+    coverImageUrl:  channel.coverImageUrl  ?? null,
     type:           channel.type,
     isPrivate:      channel.isPrivate      ?? true,
     messageCount:   channel.messageCount   ?? 0,
@@ -66,6 +69,8 @@ const toChannelResponse = (channel, currentUserId) => {
     // Convenience fields for the requesting user — saves the client a find()
     myRole:  myEntry?.role  ?? null,
     myMuted: myEntry?.muted ?? false,
+    myMuteOption: myEntry?.muteOption ?? 'all',
+    myMuteExpiresAt: myEntry?.muteExpiresAt ?? null,
     createdById: channel.createdById?.toString() ?? null,
     createdAt:   channel.createdAt  ?? null,
     updatedAt:   channel.updatedAt  ?? null,

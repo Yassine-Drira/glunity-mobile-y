@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Animated, Alert, Platform, TextInput, Modal, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Pressable, Image, ActivityIndicator, Animated, Alert, Platform, TextInput, Modal, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import http from '../../../../core/network/http.client';
 import messagingEvents from '../../../../shared/utils/messagingEvents';
+import { getChannelDisplay as getDisplayForChannel } from '../../utils/channelDisplay';
 import { useTheme } from '../../../../shared/context/theme.context';
 import { BottomNavBar } from '../../../../shared/components/BottomNavBar';
 import { useLanguage } from '../../../../shared/context/language.context';
@@ -49,6 +50,31 @@ export default function MessagingHome({ navigation }: any) {
     setProfileSheetVisible(true);
   }, []);
 
+  // Listen for local channel updates (from chat screen) and apply to list + cache
+  useEffect(() => {
+    const handler = (updated: any) => {
+      if (!updated) return;
+      const id = String(updated._id || updated.id);
+      setChannels((prev) => {
+        const foundIdx = prev.findIndex(c => String(c._id || c.id) === id);
+        if (foundIdx === -1) {
+          const next = [updated, ...prev];
+          ChatCacheService.saveChannels(next).catch(() => {});
+          return next;
+        }
+        const next = [...prev];
+        next[foundIdx] = { ...next[foundIdx], ...updated };
+        ChatCacheService.saveChannels(next).catch(() => {});
+        return next;
+      });
+    };
+
+    // require here to avoid circular import at module load
+    const messagingEvents = require('../../../../shared/utils/messagingEvents').default || require('../../../../shared/utils/messagingEvents');
+    messagingEvents.on('channel:updated', handler);
+    return () => { messagingEvents.off('channel:updated', handler); };
+  }, []);
+
   const closeUserProfile = useCallback(() => {
     setProfileSheetVisible(false);
     setProfileUserId(null);
@@ -59,9 +85,11 @@ export default function MessagingHome({ navigation }: any) {
   // Updated immediately on conversation:updated so the list reorders in real-time.
   const [sortOrder, setSortOrder] = useState<string[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [publicChannels, setPublicChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [activeTab, setActiveTab] = useState<'all'|'groups'|'contacts'>('all');
+  const [showCreateOptions, setShowCreateOptions] = useState(false);
   const [tabsWidth, setTabsWidth] = useState(0);
   const anim = useRef(new Animated.Value(0)).current; // 0,1,2
 
@@ -69,6 +97,7 @@ export default function MessagingHome({ navigation }: any) {
     try {
       const cached = await ChatCacheService.getChannels();
       if (cached && cached.length > 0) {
+        console.debug('[MessagingHome] loaded cached channels:', cached.map((c: any) => ({ id: String(c._id || c.id), name: c.name, avatar: c.avatarUrl || c.photoUrl || c.image })));
         setChannels(cached);
         // Build initial sort order from cached channels
         const cachedIds = cached.map((c: any) => String(c._id || c.id));
@@ -90,11 +119,92 @@ export default function MessagingHome({ navigation }: any) {
     try {
       const res = await http.get('/channels');
       const fresh = res.data?.data || [];
+      console.debug('[MessagingHome] fetched fresh channels:', fresh.map((c: any) => ({ id: String(c._id || c.id), name: c.name, avatar: c.avatarUrl || c.photoUrl || c.image })));
       // Build initial sort order from server response (already sorted by lastMessage)
       const ids = fresh.map((c: any) => String(c._id || c.id));
       setSortOrder(ids);
       setChannels(fresh);
       await ChatCacheService.saveChannels(fresh);
+
+      // Enrich DM channels with user profiles if participants are only ids so list can show names/avatars
+      try {
+        const dmOtherIds: string[] = [];
+        fresh.forEach((c: any) => {
+          const parts = c.participants || c.members || c.userIds || c.participantIds || [];
+          if (Array.isArray(parts) && parts.length === 2) {
+            const ids = parts.map((p: any) => (typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId)));
+            const other = ids.find((id: any) => id && String(id) !== String(user?._id));
+            if (other && !users.find(u => String(u._id || u.id) === String(other))) dmOtherIds.push(String(other));
+          }
+        });
+
+        if (dmOtherIds.length > 0) {
+          // Fetch missing user profiles from core API in batches with retries to avoid hitting timeouts
+          const uniqueIds = Array.from(new Set(dmOtherIds));
+          const batchSize = 25;
+          const chunks: string[][] = [];
+          for (let i = 0; i < uniqueIds.length; i += batchSize) {
+            chunks.push(uniqueIds.slice(i, i + batchSize));
+          }
+
+          const fetchedAll: any[] = [];
+
+          for (const chunk of chunks) {
+            let attempt = 0;
+            let success = false;
+            while (attempt < 3 && !success) {
+              try {
+                const idsParam = encodeURIComponent(chunk.join(','));
+                const res = await http.get(`/users?ids=${idsParam}`, { timeout: 20000 });
+                const fetched = res.data?.data || res.data || [];
+                if (fetched && fetched.length) fetchedAll.push(...fetched);
+                success = true;
+              } catch (err) {
+                attempt += 1;
+                const waitMs = 300 * Math.pow(2, attempt);
+                console.warn(`[MessagingHome] fetch users chunk attempt ${attempt} failed, retrying in ${waitMs}ms`, err);
+                await new Promise((r) => setTimeout(r, waitMs));
+                if (attempt >= 3) {
+                  console.warn('[MessagingHome] failed to fetch user chunk after retries', chunk, err);
+                }
+              }
+            }
+          }
+
+          // Deduplicate fetched results by id
+          const uniqueMap = new Map<string, any>();
+          fetchedAll.forEach((fu: any) => uniqueMap.set(String(fu._id || fu.id), fu));
+          const fetched = Array.from(uniqueMap.values());
+
+          if (fetched.length > 0) {
+            // merge into users cache and enrich channels
+            setUsers(prev => {
+              const map = new Map(prev.map((u: any) => [String(u._id || u.id), u]));
+              fetched.forEach((fu: any) => map.set(String(fu._id || fu.id), fu));
+              return Array.from(map.values());
+            });
+
+            // Attach found user objects into channel.participants where possible
+            setChannels(prev => prev.map((c: any) => {
+              const parts = c.participants || c.members || c.userIds || c.participantIds || [];
+              if (Array.isArray(parts) && parts.length > 0) {
+                const enriched = parts.map((p: any) => {
+                  const pid = typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId);
+                  const found = fetched.find((fu: any) => String(fu._id || fu.id) === String(pid));
+                  return found ? { ...found } : p;
+                });
+                return { ...c, participants: enriched };
+              }
+              return c;
+            }));
+          } else {
+            console.warn('[MessagingHome] no user profiles fetched for DM enrichment');
+          }
+        }
+      } catch (e) {
+        // Non-fatal: if users fetch fails, leave channels as-is
+        console.warn('[MessagingHome] failed to enrich DM participant profiles', e);
+      }
       const userIds = fresh
         .filter(isDMChannel)
         .map((c: any) => findOtherParticipant(c))
@@ -128,6 +238,14 @@ export default function MessagingHome({ navigation }: any) {
         setUsers(res.data?.data || []);
       } catch (err) {
         setUsers([]);
+      }
+      try {
+        const baseURL = http.defaults.baseURL || '';
+        const msgBaseUrl = baseURL.replace(':5000', ':5001');
+        const res = await http.get(`${msgBaseUrl}/channels/discover`);
+        setPublicChannels(res.data?.data || []);
+      } catch (err) {
+        setPublicChannels([]);
       } finally {
         setLoadingUsers(false);
       }
@@ -142,6 +260,7 @@ export default function MessagingHome({ navigation }: any) {
   );
 
   const [creatingContactFor, setCreatingContactFor] = useState<string | null>(null);
+  const [joiningChannelId, setJoiningChannelId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -157,8 +276,8 @@ export default function MessagingHome({ navigation }: any) {
     if (!c) return false;
     if (c.type && c.type === 'group') return true;
     if (c.participants && Array.isArray(c.participants) && c.participants.length > 2) return true;
-    // Fallback: if not DM, treat as group/space
-    return !isDMChannel(c);
+    // Otherwise not a group
+    return false;
   }
 
   function findOtherParticipant(channel: any) {
@@ -197,21 +316,48 @@ export default function MessagingHome({ navigation }: any) {
   }
 
   function getChannelDisplay(channel: any) {
-    if (!channel) return { name: channel?.name || 'Channel', avatarUrl: null, isDM: false };
-    if (isDMChannel(channel)) {
+    const d = getDisplayForChannel(channel, user);
+    let name = d.name;
+    let avatarUrl = d.avatar;
+
+    // If this is a DM and the helper returned an id-like name (hex), try to resolve using participant/user cache
+    const looksLikeId = typeof name === 'string' && /^[0-9a-fA-F]{6,}$/.test(name);
+    if (d.isDM && looksLikeId) {
       const other = findOtherParticipant(channel);
-      const name = other ? (other.fullName || other.name || other.displayName || `User`) : (channel.name || 'Direct Message');
-      const avatarUrl = other ? (other.avatarUrl || other.avatar || null) : null;
-      return { name, avatarUrl, isDM: true };
+      if (other) {
+        name = other.fullName || other.name || other.displayName || name;
+        avatarUrl = other.avatarUrl || other.avatar || avatarUrl;
+      }
     }
-    return { name: channel.name || channel.displayName || 'Channel', avatarUrl: channel.avatarUrl || null, isDM: false };
+
+    return { name, avatarUrl, isDM: d.isDM };
+  }
+
+  function isMemberOfChannel(channel: any) {
+    if (!channel || !user) return false;
+    const parts = channel.participants || channel.members || channel.userIds || channel.participantIds || [];
+    if (Array.isArray(parts) && parts.length > 0) {
+      return parts.some((p: any) => {
+        if (!p) return false;
+        if (typeof p === 'string') return String(p) === String(user._id) || String(p) === String(user.id);
+        const pid = String(p._id || p.id || p.userId || p._userId);
+        return pid && (pid === String(user._id) || pid === String(user.id));
+      });
+    }
+    return false;
   }
 
   const filteredChannels = useMemo(() => {
     if (activeTab === 'contacts') return [];
     if (activeTab === 'groups') return channels.filter(isGroupChannel);
-    // all: include both groups and direct/private chats
-    return channels.filter(c => isGroupChannel(c) || isDMChannel(c));
+    // all: include groups and DMs; for public 'channel' types show only if user is a member (or it's general)
+    return channels.filter(c => {
+      if (isGroupChannel(c)) return true;
+      if (isDMChannel(c)) return true;
+      const name = (c.name || '').toString().toLowerCase();
+      if (name.includes('general')) return true;
+      return isMemberOfChannel(c);
+    });
   }, [channels, activeTab]);
 
   // Channel list sort rules:
@@ -241,12 +387,21 @@ export default function MessagingHome({ navigation }: any) {
       const timeA = ta ? new Date(ta).getTime() : 0;
       const timeB = tb ? new Date(tb).getTime() : 0;
       
-      return timeB - timeA;
     });
     return list;
   }, [filteredChannels]);
 
-
+  const searchResults = useMemo(() => {
+    const query = (searchQuery || '').toLowerCase();
+    if (!query) return [];
+    const filteredUsers = users
+      .filter(u => (u.fullName || u.name || u.displayName || '').toLowerCase().includes(query))
+      .map(u => ({ ...u, isUser: true }));
+    const filteredChannels = publicChannels
+      .filter(c => (c.name || c.description || '').toLowerCase().includes(query))
+      .map(c => ({ ...c, isChannel: true }));
+    return [...filteredChannels, ...filteredUsers];
+  }, [users, publicChannels, searchQuery]);
 
   const contactsList = useMemo(() => {
     if (!users || users.length === 0 || !user) return [];
@@ -299,6 +454,53 @@ export default function MessagingHome({ navigation }: any) {
       setCreatingContactFor(null);
     }
   }
+
+  function isMemberOfChannel(channel: any) {
+    if (!channel || !user) return false;
+    const parts = channel.participants || channel.members || channel.userIds || channel.participantIds || [];
+    if (Array.isArray(parts) && parts.length > 0) {
+      return parts.some((p: any) => {
+        if (!p) return false;
+        if (typeof p === 'string') return String(p) === String(user._id) || String(p) === String(user.id);
+        const pid = String(p._id || p.id || p.userId || p._userId);
+        return pid && (pid === String(user._id) || pid === String(user.id));
+      });
+    }
+    return false;
+  }
+
+  const joinChannel = async (channel: any) => {
+    if (!channel) return;
+    const channelId = String(channel._id || channel.id || channel.channelId || '');
+    if (!channelId) return;
+    setJoiningChannelId(channelId);
+    try {
+      // try join endpoint; backend may accept POST /channels/:id/join
+      const res = await http.post(`/channels/${channelId}/join`);
+      const joined = res.data?.data || channel;
+      // add to local channels list if not present
+      setChannels(prev => {
+        const exists = prev.find(c => String(c._id || c.id) === String(channelId));
+        if (exists) {
+          return prev.map(c => String(c._id || c.id) === String(channelId) ? { ...c, ...(joined || {}) } : c);
+        }
+        return [joined, ...prev];
+      });
+      // navigate to discussion
+      navigation.navigate('CommunityChat', { initialChannel: joined, channelId: channelId });
+    } catch (err) {
+      try {
+        // fallback: attempt to add member via members endpoint
+        await http.post(`/channels/${channelId}/members`, { userId: user?._id });
+        navigation.navigate('CommunityChat', { initialChannel: channel, channelId });
+      } catch (err2) {
+        console.error('Failed to join channel', err, err2);
+        Alert.alert(t('Error'), t('Failed to join channel'));
+      }
+    } finally {
+      setJoiningChannelId(null);
+    }
+  };
 
   const pinnedChannels = useMemo(() => {
     return sortedChannels.filter((c) => c.isPinned);
@@ -444,10 +646,29 @@ export default function MessagingHome({ navigation }: any) {
       }));
     };
 
+    const handleChannelUpdated = (updated: any) => {
+      if (!updated) return;
+      const id = String(updated._id || updated.id || updated.channelId || '');
+      if (!id) return;
+      setChannels((prev) => {
+        const idx = prev.findIndex(c => String(c._id || c.id) === id);
+        if (idx === -1) {
+          const next = [updated, ...prev];
+          ChatCacheService.saveChannels(next).catch(() => {});
+          return next;
+        }
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...(updated || {}) };
+        ChatCacheService.saveChannels(next).catch(() => {});
+        return next;
+      });
+    };
+
     socket.on('message:new', handleNewMessage);
     socket.on('message:edited', handleMessageEdited);
     socket.on('message:deleted', handleMessageDeleted);
     socket.on('conversation:updated', handleConversationUpdated);
+    socket.on('channel:updated', handleChannelUpdated);
     socket.on('channel:deleted', handleChannelDeleted);
     socket.on('channel:cleared', handleChannelCleared);
 
@@ -456,6 +677,7 @@ export default function MessagingHome({ navigation }: any) {
       socket.off('message:edited', handleMessageEdited);
       socket.off('message:deleted', handleMessageDeleted);
       socket.off('conversation:updated', handleConversationUpdated);
+      socket.off('channel:updated', handleChannelUpdated);
       socket.off('channel:deleted', handleChannelDeleted);
       socket.off('channel:cleared', handleChannelCleared);
     };
@@ -532,7 +754,16 @@ export default function MessagingHome({ navigation }: any) {
     unreadText: { color: '#fff', fontWeight: '700', fontSize: 12 },
     fab: { position: 'absolute', right: 18, bottom: 96, width: 64, height: 64, borderRadius: 32, backgroundColor: '#8BC34A', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 },
     bottomHandleWrap: { position: 'absolute', left: 0, right: 0, bottom: 18, alignItems: 'center' },
-    bottomHandle: { width: 64, height: 6, borderRadius: 6, backgroundColor: T.surface, opacity: 0.95, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 3 }
+    bottomHandle: { width: 64, height: 6, borderRadius: 6, backgroundColor: T.surface, opacity: 0.95, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 6, elevation: 3 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    optionsCard: { backgroundColor: T.surface, borderRadius: 16, padding: 20, width: '100%', maxWidth: 340, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
+    optionsTitle: { fontSize: 18, fontWeight: '800', color: T.text, marginBottom: 16, textAlign: 'center' },
+    optionItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.divider },
+    optionIconCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 },
+    optionText: { fontSize: 15, fontWeight: '700', color: T.text },
+    optionSubtext: { fontSize: 12, color: T.textMuted, marginTop: 2 },
+    cancelBtn: { marginTop: 16, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surfaceAlt, borderRadius: 12 },
+    cancelBtnText: { fontSize: 15, fontWeight: '700', color: T.textMuted }
   }), [T, isRTL]);
 
   return (
@@ -575,19 +806,50 @@ export default function MessagingHome({ navigation }: any) {
                   <ActivityIndicator style={{ marginTop: 20 }} />
                 ) : (
                   <FlatList
-                    data={users.filter(u => (u.fullName || u.name || u.displayName || '').toLowerCase().includes((searchQuery || '').toLowerCase()))}
-                    keyExtractor={(u) => String(u._id || u.id)}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }} onPress={() => { setSearchOpen(false); setSearchQuery(''); contactUser(item._id || item.id); }}>
-                        <TouchableOpacity onPress={() => { setSearchOpen(false); openUserProfile(item._id || item.id); }} activeOpacity={0.8}>
-                          <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                    data={searchResults}
+                    keyExtractor={(u, idx) => String(u._id || u.id || idx)}
+                    renderItem={({ item }) => {
+                      if (item.isChannel) {
+                        return (
+                          <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}
+                            onPress={() => {
+                              setSearchOpen(false);
+                              setSearchQuery('');
+                              navigation.navigate('CommunityChat', {
+                                initialChannel: item,
+                                channelId: String(item._id || item.id || ''),
+                              });
+                            }}
+                          >
+                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isDark ? '#1E4A3A' : '#D5F5E3', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                              {item.avatarUrl ? (
+                                <Image source={{ uri: item.avatarUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                              ) : (
+                                <Ionicons name="megaphone-outline" size={20} color={T.green || '#8BC34A'} />
+                              )}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ fontWeight: '700', color: T.text }}>{item.name}</Text>
+                              <Text style={{ color: T.textMuted, fontSize: 12 }}>{item.description || t('Announcement Channel')}</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color={T.textMuted} />
+                          </TouchableOpacity>
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }} onPress={() => { setSearchOpen(false); setSearchQuery(''); contactUser(item._id || item.id); }}>
+                          <TouchableOpacity onPress={() => { setSearchOpen(false); openUserProfile(item._id || item.id); }} activeOpacity={0.8}>
+                            <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                          </TouchableOpacity>
+                          <View>
+                            <Text style={{ fontWeight: '700', color: T.text }}>{item.fullName || item.name || item.displayName}</Text>
+                            <Text style={{ color: T.textMuted }}>{item.profileType || ''}</Text>
+                          </View>
                         </TouchableOpacity>
-                        <View>
-                          <Text style={{ fontWeight: '700', color: T.text }}>{item.fullName || item.name || item.displayName}</Text>
-                          <Text style={{ color: T.textMuted }}>{item.profileType || ''}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    )}
+                      );
+                    }}
                   />
                 )}
               </View>
@@ -726,9 +988,9 @@ export default function MessagingHome({ navigation }: any) {
                   onLongPress={() => handleLongPressChannel(item)}
                 >
                   <View style={{ position: 'relative' }}>
-                    <Image source={{ uri: avatarUri }} style={styles.avatar} />
-                    <OnlineDot isOnline={showOnlineDot} size={13} />
-                  </View>
+                      <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                      <OnlineDot isOnline={showOnlineDot} size={13} />
+                    </View>
                   <View style={styles.rowContent}>
                     <View style={styles.rowTop}>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -748,6 +1010,11 @@ export default function MessagingHome({ navigation }: any) {
                       </View>
                     </View>
                   ) : null}
+                  {item.myMuted ? (
+                    <View style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="notifications-off" size={16} color={T.textMuted} />
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               </AnimatedReanimated.View>
             );
@@ -755,13 +1022,74 @@ export default function MessagingHome({ navigation }: any) {
         />
       )}
 
+      
+
       <View style={styles.bottomHandleWrap} pointerEvents="none">
         <View style={styles.bottomHandle} />
       </View>
 
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('CreateGroup') }>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setShowCreateOptions(true)}
+      >
         <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
       </TouchableOpacity>
+
+      {/* Custom dropdown/options modal for web and mobile */}
+      <Modal
+        visible={showCreateOptions}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCreateOptions(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setShowCreateOptions(false)}
+        >
+          <View style={styles.optionsCard}>
+            <Text style={styles.optionsTitle}>{t('New Conversation')}</Text>
+            
+            <TouchableOpacity 
+              style={styles.optionItem} 
+              onPress={() => {
+                setShowCreateOptions(false);
+                navigation.navigate('CreateGroup');
+              }}
+            >
+              <View style={[styles.optionIconCircle, { backgroundColor: isDark ? '#1F3A4B' : '#E8F4FC' }]}>
+                <Ionicons name="people" size={22} color="#3498DB" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.optionText}>{t('New Group')}</Text>
+                <Text style={styles.optionSubtext}>{t('Collaborative space for discussions')}</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.optionItem} 
+              onPress={() => {
+                setShowCreateOptions(false);
+                navigation.navigate('CreateChannel');
+              }}
+            >
+              <View style={[styles.optionIconCircle, { backgroundColor: isDark ? '#1E4A3A' : '#EAF7EA' }]}>
+                <Ionicons name="megaphone" size={22} color="#8BC34A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.optionText}>{t('New Channel')}</Text>
+                <Text style={styles.optionSubtext}>{t('Broadcast updates and announcements')}</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.cancelBtn} 
+              onPress={() => setShowCreateOptions(false)}
+            >
+              <Text style={styles.cancelBtnText}>{t('Cancel')}</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       <BottomNavBar
         activeTab="community"

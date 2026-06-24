@@ -82,6 +82,18 @@ const uploadController = {
         throw err;
       }
 
+      // ── Security check for announcement channels ─────────────────────────
+      if (channel.type === 'channel') {
+        const myEntry = channel.participants && channel.participants.find(
+          p => p.userId && p.userId.toString() === senderId.toString()
+        );
+        if (!myEntry || !['owner', 'writer'].includes(myEntry.role)) {
+          const err = new Error('Forbidden: Only authorized writers can publish messages.');
+          err.status = 403;
+          throw err;
+        }
+      }
+
       // ── Upload to Cloudinary ─────────────────────────────────────────────
       const attachment = await uploadService.uploadAttachment(req.file, channelId);
 

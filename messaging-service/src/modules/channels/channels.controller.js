@@ -87,6 +87,13 @@ const channelsController = {
       targetUserId,
       role
     );
+
+    // Emit real-time channel updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`channel:${channelId}`).emit('channel:updated', mapper.toChannelResponse(channel, req.user._id));
+    }
+
     res.status(200).json({
       success: true,
       data:    mapper.toChannelResponse(channel, req.user._id),
@@ -122,18 +129,32 @@ const channelsController = {
 
   deleteChannel: asyncHandler(async (req, res) => {
     const { id: channelId } = req.params;
+    const logger = require('../../bootstrap/logger.bootstrap');
+    logger.info('[channels.controller] deleteChannel request', { channelId, requesterId: req.user._id.toString() });
+
     const channel = await service.deleteChannel(channelId, req.user._id);
 
-    // Emit socket event for real-time deletion sync to the requesting user only
+    // Emit socket event for real-time deletion sync. If the service
+    // performed a global soft-delete (channel.deletedAt set) broadcast
+    // to the channel room so all participants get notified. Otherwise
+    // emit only to the requesting user's personal room.
     const io = req.app.get('io');
     if (io) {
-      io.to(req.user._id.toString()).emit('channel:deleted', { channelId });
+      if (channel && channel.deletedAt) {
+        logger.info('[channels.controller] broadcasting channel:deleted to channel room', { channelId });
+        io.to(`channel:${channelId}`).emit('channel:deleted', { channelId });
+      } else {
+        logger.info('[channels.controller] notifying requester only about channel deletion', { channelId, userId: req.user._id.toString() });
+        io.to(req.user._id.toString()).emit('channel:deleted', { channelId });
+      }
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Channel deleted successfully',
-    });
+      logger.info('[channels.controller] delete channel response', { channelId, requester: req.user._id, deletedAt: channel && channel.deletedAt });
+      if (channel && channel.deletedAt) {
+        // broadcast deletion to everyone in the channel room
+        req.app.get('io').to(`channel:${channelId}`).emit('channel:deleted', { channelId });
+        return res.json({ ok: true, channelId, deletedAt: channel.deletedAt });
+      }
   }),
 
   clearMessages: asyncHandler(async (req, res) => {
@@ -203,6 +224,54 @@ const channelsController = {
     res.status(200).json({
       success: true,
       data:    mapper.toChannelResponse(channel, req.user._id),
+    });
+  }),
+
+  createChannel: asyncHandler(async (req, res) => {
+    const { name, description, avatarUrl, coverImageUrl } = req.body;
+    const channel = await service.createChannel(req.user._id, {
+      name,
+      description,
+      avatarUrl,
+      coverImageUrl,
+    });
+    res.status(201).json({
+      success: true,
+      data:    mapper.toChannelResponse(channel, req.user._id),
+    });
+  }),
+
+  joinChannel: asyncHandler(async (req, res) => {
+    const { id: channelId } = req.params;
+    const channel = await service.joinChannel(channelId, req.user._id);
+
+    // Emit real-time channel updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`channel:${channelId}`).emit('channel:updated', mapper.toChannelResponse(channel, req.user._id));
+    }
+
+    res.status(200).json({
+      success: true,
+      data:    mapper.toChannelResponse(channel, req.user._id),
+    });
+  }),
+
+  updateNotificationSettings: asyncHandler(async (req, res) => {
+    const { id: channelId } = req.params;
+    const { option } = req.body;
+    const channel = await service.updateNotificationSettings(channelId, req.user._id, option);
+    res.status(200).json({
+      success: true,
+      data:    mapper.toChannelResponse(channel, req.user._id),
+    });
+  }),
+
+  discover: asyncHandler(async (req, res) => {
+    const channels = await service.discoverChannels(req.user._id);
+    res.status(200).json({
+      success: true,
+      data:    channels,
     });
   }),
 };

@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndi
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import http from '../../../../core/network/http.client';
+import axios from 'axios';
 import { useTheme } from '../../../../shared/context/theme.context';
 import { useLanguage } from '../../../../shared/context/language.context';
 import { usePresence } from '../../../../shared/hooks/usePresence';
 import OnlineDot from '../../../../shared/components/OnlineDot';
+import { useAuth } from '../../../../modules/auth/state/auth.context';
 
 const getChannelVisual = (channelName: string) => {
   const name = (channelName || '').toLowerCase();
@@ -57,9 +59,12 @@ export default function CommunityJoin({ navigation }: any) {
 
   const [users, setUsers] = useState<any[]>([]);
   const [channels, setChannels] = useState<any[]>([]);
+  const [fetchedCoreChannels, setFetchedCoreChannels] = useState<any[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingChannels, setLoadingChannels] = useState(true);
   const [creatingChannelFor, setCreatingChannelFor] = useState<string | null>(null);
+  const [joiningChannelId, setJoiningChannelId] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     (async () => {
@@ -80,10 +85,84 @@ export default function CommunityJoin({ navigation }: any) {
 
     (async () => {
       try {
-        const res = await http.get('/channels');
-        const data = res.data?.data && res.data.data.length ? res.data.data : [];
-        // Only keep non-DM/group channels that the user can join
-        setChannels(data.filter((ch: any) => !isDMChannel(ch)));
+        // fetch core channels and messaging discover in parallel (discover may be on msg service port)
+        const baseURL = http.defaults.baseURL || '';
+        const msgBaseUrl = baseURL.replace(':5000', ':5001');
+
+        const corePromise = http.get('/channels').then(r => r.data?.data || []).catch(async (err) => {
+          // fallback: try unauthenticated axios call to the same URL to fetch public channels
+          try {
+            const base = http.defaults.baseURL || '';
+            const res = await axios.get(`${base}/channels`);
+            return res.data?.data || [];
+          } catch (e) {
+            console.debug('[CommunityJoin] core channels unauth fallback failed', e?.message || e);
+            return [];
+          }
+        });
+
+        const discoverPromise = http.get(`${msgBaseUrl}/channels/discover`).then(r => r.data?.data || []).catch(async (err) => {
+          try {
+            const res = await axios.get(`${msgBaseUrl}/channels/discover`);
+            return res.data?.data || [];
+          } catch (e) {
+            console.debug('[CommunityJoin] discover unauth fallback failed', e?.message || e);
+            return [];
+          }
+        });
+
+        const [coreChannels, discovered] = await Promise.all([corePromise, discoverPromise]);
+        console.debug('[CommunityJoin] coreChannels count=', (coreChannels||[]).length, 'discovered count=', (discovered||[]).length);
+        setFetchedCoreChannels(coreChannels || []);
+
+        // Build maps for core and discovered so we can merge without losing helpful fields
+        const coreMap = new Map<string, any>();
+        const discMap = new Map<string, any>();
+        (coreChannels || []).forEach((c: any) => coreMap.set(String(c._id || c.id || c.channelId || `c-${Math.random()}`), c));
+        (discovered || []).forEach((d: any) => discMap.set(String(d._id || d.id || d.channelId || `d-${Math.random()}`), d));
+
+        const allIds = new Set<string>([...coreMap.keys(), ...discMap.keys()]);
+        const merged: any[] = [];
+        allIds.forEach((id) => {
+          const c = coreMap.get(id);
+          const d = discMap.get(id);
+          // merge: prefer core for most fields but keep discovered as fallback and record source flags
+          const combined = {
+            ...(d || {}),
+            ...(c || {}),
+            _fromCore: !!c,
+            _fromDiscover: !!d,
+            _coreType: c && c.type ? String(c.type).toLowerCase() : '',
+            _discType: d && d.type ? String(d.type).toLowerCase() : '',
+          };
+          merged.push(combined);
+        });
+
+        // Filter: include non-DM channels and exclude explicit group types unless discover shows it's not a group.
+        const filtered = merged.filter((ch: any) => {
+          if (!ch) return false;
+          const name = (ch.name || ch.title || '').toString().toLowerCase();
+
+          const coreType = ch._coreType || '';
+          const discType = ch._discType || '';
+
+          // Treat as DM only when types don't explicitly mark it as a channel
+          if (isDMChannel(ch) && coreType !== 'channel' && discType !== 'channel') return false;
+
+          if (name.includes('general')) return true;
+
+          // If discovered contains this channel, keep it (discovered is authoritative for app-created channels)
+          if (ch._fromDiscover) return true;
+
+          // if core marks as group, exclude
+          if (coreType === 'group') return false;
+
+          // otherwise allow (channels, broadcasts, etc.)
+          return true;
+        });
+
+        setChannels(filtered);
+        console.debug('[CommunityJoin] filtered channels ->', filtered.map((c:any)=> ({ id: c._id||c.id, name: c.name||c.title })));
       } catch (err) {
         console.error('[community] failed to fetch channels', err);
         setChannels([]);
@@ -121,7 +200,6 @@ export default function CommunityJoin({ navigation }: any) {
     channelContent: { flex: 1, marginLeft: 12, marginRight: 8 },
     channelTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     channelTitle: { fontSize: 16, fontWeight: '800', color: T.text },
-    channelTime: { fontSize: 12, color: T.textMuted },
     channelDesc: { fontSize: 13, color: T.textMuted, marginTop: 6 },
     channelMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
     joinWrap: { alignItems: 'center', justifyContent: 'center' },
@@ -146,6 +224,45 @@ export default function CommunityJoin({ navigation }: any) {
       setCreatingChannelFor(null);
     }
   }
+
+  function isMemberOfChannel(channel: any) {
+    if (!channel || !user) return false;
+    const parts = channel.participants || channel.members || channel.userIds || channel.participantIds || [];
+    if (Array.isArray(parts) && parts.length > 0) {
+      return parts.some((p: any) => {
+        if (!p) return false;
+        if (typeof p === 'string') return String(p) === String(user._id) || String(p) === String(user.id);
+        const pid = String(p._id || p.id || p.userId || p._userId);
+        return pid && (pid === String(user._id) || pid === String(user.id));
+      });
+    }
+    return false;
+  }
+
+  const joinChannel = async (channel: any) => {
+    if (!channel) return;
+    const channelId = String(channel._id || channel.id || channel.channelId || '');
+    if (!channelId) return;
+    setJoiningChannelId(channelId);
+    try {
+      try {
+        await http.post(`/channels/${channelId}/join`, {});
+      } catch (e) {
+        // ignore join errors and try members endpoint
+        try {
+          await http.post(`/channels/${channelId}/members`, { userId: user?._id });
+        } catch (e2) {
+          // swallow
+        }
+      }
+      // navigate to chat
+      navigation.navigate('CommunityChat', { initialChannel: channel, channelId });
+    } catch (err) {
+      console.error('[community] Failed to join channel', err);
+    } finally {
+      setJoiningChannelId(null);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -212,6 +329,7 @@ export default function CommunityJoin({ navigation }: any) {
             )}
 
             <Text style={styles.sectionTitle}>Channels</Text>
+            
           </View>
         )}
         ListEmptyComponent={() => loadingChannels ? <ActivityIndicator style={{ margin: 20 }} /> : <Text style={{ padding: 16, color: T.textMuted }}>{t('No channels found')}</Text>}
@@ -226,13 +344,16 @@ export default function CommunityJoin({ navigation }: any) {
           return (
             <View style={styles.channelCard}>
               <View style={styles.channelAvatar}>
-                <Ionicons name={iconName as any} size={22} color={T.text} />
-              </View>
+                  {(item.avatarUrl || item.avatar || item.image) ? (
+                    <Image source={{ uri: item.avatarUrl || item.avatar || item.image }} style={{ width: 52, height: 52, borderRadius: 12 }} />
+                  ) : (
+                    <Ionicons name={iconName as any} size={22} color={T.text} />
+                  )}
+                </View>
 
               <View style={styles.channelContent}>
                 <View style={styles.channelTitleRow}>
                   <Text style={styles.channelTitle}>{displayName}</Text>
-                  <Text style={styles.channelTime}>{formatTime(item.lastMessage?.createdAt)}</Text>
                 </View>
                 <Text style={styles.channelDesc} numberOfLines={2}>{subtext}</Text>
               </View>
@@ -241,20 +362,25 @@ export default function CommunityJoin({ navigation }: any) {
                 {unreadCount > 0 && (
                   <View style={styles.badge}><Text style={styles.badgeText}>{unreadCount}</Text></View>
                 )}
-                <TouchableOpacity style={styles.joinBtn} onPress={async () => {
-                  try {
-                    try {
-                      await http.post(`/channels/${item.id || item._id}/join`, {});
-                    } catch (e) {
-                      // ignore join errors — still navigate
-                    }
-                    navigation.navigate('CommunityChat', { initialChannel: item });
-                  } catch (err) {
-                    console.error('Failed to join channel', err);
-                  }
-                }}>
-                  <Text style={styles.joinBtnText}>{t('Join')}</Text>
-                </TouchableOpacity>
+                {(() => {
+                  const cid = String(item._id || item.id || item.channelId || '');
+                  const member = isMemberOfChannel(item);
+                  return (
+                    <TouchableOpacity
+                      style={styles.joinBtn}
+                      onPress={async () => {
+                        if (member) {
+                          navigation.navigate('CommunityChat', { initialChannel: item, channelId: cid });
+                          return;
+                        }
+                        await joinChannel(item);
+                      }}
+                      disabled={joiningChannelId === cid}
+                    >
+                      {joiningChannelId === cid ? <ActivityIndicator /> : <Text style={styles.joinBtnText}>{member ? (t('Consult') || 'Consult') : (t('Join') || 'Join')}</Text>}
+                    </TouchableOpacity>
+                  );
+                })()}
               </View>
             </View>
           );

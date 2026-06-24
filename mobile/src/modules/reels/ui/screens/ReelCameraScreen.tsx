@@ -56,7 +56,7 @@ export default function ReelCameraScreen() {
 		}
 
 		const result = await ImagePicker.launchImageLibraryAsync({
-			mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+			mediaTypes: ImagePicker.MediaType.Videos,
 			allowsEditing: true,
 			quality: 1,
 		});

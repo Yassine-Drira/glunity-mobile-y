@@ -1,35 +1,66 @@
 'use strict';
 
-const toChannelResponse = (channel) => {
-	if (!channel) return null;
+// ── Sub-mappers ─────────────────────────────────────────────────────────────
+
+const toParticipant = (p) => ({
+	userId: p.userId?.toString() ?? null,
+	role:   p.role   ?? 'member',
+	muted:  p.muted  ?? false,
+	muteOption: p.muteOption ?? 'all',
+	muteExpiresAt: p.muteExpiresAt ?? null,
+});
+
+const toPinnedMessage = (pm) => {
+	const msgObj = pm.messageId || {};
 	return {
-		id: channel._id || channel.id,
-		name: channel.name,
-		description: channel.description,
-		icon: channel.icon,
-		// Provide a normalized avatarUrl for clients that expect an image URL
-		avatarUrl: (channel.icon && typeof channel.icon === 'string' && (channel.icon.startsWith('http') || channel.icon.startsWith('/'))) ? channel.icon : null,
-		isPrivate: channel.isPrivate,
-		pinnedMessages: channel.pinnedMessages ? channel.pinnedMessages.map(pm => {
-			const msgObj = pm.messageId || {};
-			return {
-				messageId: msgObj._id || msgObj.id || pm.messageId,
-				pinnedAt: pm.pinnedAt,
-				pinnedBy: pm.pinnedBy,
-				content: msgObj.content || '',
-				senderName: msgObj.senderId?.fullName || 'Anonymous',
-				senderAvatarUrl: msgObj.senderId?.avatar?.url || null,
-				createdAt: msgObj.createdAt
-			};
-		}) : [],
-		isPinned: channel.isPinned || false,
+		messageId: msgObj._id || msgObj.id || pm.messageId,
+		pinnedAt: pm.pinnedAt,
+		pinnedBy: pm.pinnedBy,
+		content: msgObj.content || '',
+		senderName: msgObj.senderId?.fullName || 'Anonymous',
+		senderAvatarUrl: msgObj.senderId?.avatar?.url || null,
+		createdAt: msgObj.createdAt
 	};
 };
 
-const toChannelListResponse = (channels) => {
+// ── Primary mapper ─────────────────────────────────────────────────────────────
+
+const toChannelResponse = (channel, currentUserId) => {
+	if (!channel) return null;
+
+	const myEntry = currentUserId
+		? (channel.participants ?? []).find(
+				(p) => p.userId?.toString() === currentUserId.toString()
+			)
+		: null;
+
+	// Provide a normalized avatarUrl for clients that expect an image URL
+	const iconUrl = (channel.icon && typeof channel.icon === 'string' && (channel.icon.startsWith('http') || channel.icon.startsWith('/'))) ? channel.icon : null;
+
+	return {
+		id:             (channel._id ?? channel.id).toString(),
+		name:           channel.name           ?? null,
+		description:    channel.description    ?? null,
+		icon:           channel.icon           ?? null,
+		avatarUrl:      channel.avatarUrl      ?? iconUrl,
+		coverImageUrl:  channel.coverImageUrl  ?? null,
+		type:           channel.type           ?? 'group',
+		isPrivate:      channel.isPrivate      ?? true,
+		participants:   (channel.participants  ?? []).map(toParticipant),
+		pinnedMessages: (channel.pinnedMessages ?? []).map(toPinnedMessage),
+		isPinned:       channel.isPinned       ?? false,
+		// Convenience fields for the requesting user
+		myRole:  myEntry?.role  ?? null,
+		myMuted: myEntry?.muted ?? false,
+		myMuteOption: myEntry?.muteOption ?? 'all',
+		myMuteExpiresAt: myEntry?.muteExpiresAt ?? null,
+	};
+};
+
+const toChannelListResponse = (channels, currentUserId) => {
 	return {
 		success: true,
-		data: channels.map(toChannelResponse),
+		data: (channels ?? []).map(c => toChannelResponse(c, currentUserId)),
 	};
 };
 

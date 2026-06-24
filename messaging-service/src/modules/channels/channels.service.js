@@ -2,9 +2,10 @@
 
 const mongoose   = require('mongoose');
 const repository = require('./channels.repository');
+const logger     = require('../../bootstrap/logger.bootstrap');
 
 // Roles that can be assigned via the API (owner is set at creation time only)
-const ASSIGNABLE_ROLES = ['admin', 'member'];
+const ASSIGNABLE_ROLES = ['admin', 'writer', 'member'];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -112,7 +113,13 @@ const channelsService = {
     }
     const channel = await repository.findById(channelId);
     if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
-    assertParticipant(channel, requesterId, 'You are not a participant of this channel');
+    
+    const isMember = channel.participants && channel.participants.some(
+      (p) => p.userId.toString() === requesterId.toString()
+    );
+    if (!isMember && channel.type !== 'channel') {
+      throw createError('You are not a participant of this channel', 403, 'FORBIDDEN');
+    }
     return channel;
   },
 
@@ -211,13 +218,24 @@ const channelsService = {
       'You are not a participant of this channel'
     );
 
-    if (!['owner', 'admin'].includes(requester.role)) {
-      throw createError('Only admins or owners can change participant roles', 403, 'FORBIDDEN');
-    }
-
-    // Admins cannot assign admin role — only owners can
-    if (requester.role === 'admin' && newRole === 'admin') {
-      throw createError('Only owners can promote members to admin', 403, 'FORBIDDEN');
+    if (channel.type === 'channel') {
+      if (requester.role !== 'owner') {
+        throw createError('Only the channel owner can change participant roles', 403, 'FORBIDDEN');
+      }
+      if (newRole === 'admin') {
+        throw createError('Admins cannot be created in announcement channels', 403, 'FORBIDDEN');
+      }
+    } else {
+      if (!['owner', 'admin'].includes(requester.role)) {
+        throw createError('Only admins or owners can change participant roles', 403, 'FORBIDDEN');
+      }
+      // Admins cannot assign admin role — only owners can
+      if (requester.role === 'admin' && newRole === 'admin') {
+        throw createError('Only owners can promote members to admin', 403, 'FORBIDDEN');
+      }
+      if (newRole === 'writer') {
+        throw createError('Writers can only be created in announcement channels', 403, 'FORBIDDEN');
+      }
     }
 
     // ── Validate target ───────────────────────────────────────────────────
@@ -234,9 +252,21 @@ const channelsService = {
       throw createError('You cannot change your own role', 400, 'VALIDATION_ERROR');
     }
 
+    const oldRole = target.role;
+
     // ── Apply change ──────────────────────────────────────────────────────
     const updated = await repository.updateParticipantRole(channelId, targetUserId, newRole);
     if (!updated) throw createError('Role update failed unexpectedly', 500, 'INTERNAL_ERROR');
+
+    const logger = require('../../bootstrap/logger.bootstrap');
+    logger.info('[Permission Audit] Participant role changed', {
+      channelId: channelId.toString(),
+      channelType: channel.type,
+      requesterId: requesterId.toString(),
+      targetUserId: targetUserId.toString(),
+      oldRole,
+      newRole
+    });
 
     return updated;
   },
@@ -383,9 +413,40 @@ const channelsService = {
       throw createError('Forbidden', 403, 'FORBIDDEN');
     }
 
+    logger.info('[channels.service] deleteChannel called', { channelId: String(channelId), userId: String(userId), channelType: channel.type });
+
+    // If the requester is the channel owner for a multi-user channel,
+    // treat this as a global soft-delete: mark the channel as deleted so
+    // it disappears for everyone. For DMs/direct channels, deleting
+    // only hides the channel for the requesting participant.
+    const isOwner = participant.role === 'owner' || (channel.createdById && channel.createdById.toString() === userId.toString());
+    const isDirect = (channel.type === 'direct' || channel.type === 'DM');
+
+    // Announcement channels ('channel' type) may only be deleted by the owner.
+    if (channel.type === 'channel' && !isOwner) {
+      logger.warn('[channels.service] deleteChannel forbidden: only owner may delete announcement channel', { channelId: String(channelId), requesterId: String(userId) });
+      throw createError('Only the channel owner can delete this channel', 403, 'FORBIDDEN');
+    }
+
+    if (isOwner && !isDirect) {
+      // Soft-delete entire channel
+      const now = new Date();
+      channel.deletedAt = now;
+      // Mark all participants as deleted/cleared so client caches are consistent
+      channel.participants.forEach((p) => {
+        p.deletedAt = now;
+        p.clearedAt = now;
+      });
+      await channel.save();
+      logger.info('[channels.service] channel soft-deleted by owner', { channelId: String(channelId), deletedAt: now.toISOString() });
+      return channel;
+    }
+
+    // Otherwise, only hide the channel for the requesting participant
     participant.deletedAt = new Date();
     participant.clearedAt = new Date();
     await channel.save();
+    logger.info('[channels.service] channel hidden for participant', { channelId: String(channelId), userId: String(userId), deletedAt: participant.deletedAt.toISOString() });
     return channel;
   },
 
@@ -417,8 +478,115 @@ const channelsService = {
     }
 
     participant.muted = !participant.muted;
+    if (participant.muted) {
+      participant.muteOption = 'mute_indefinite';
+    } else {
+      participant.muteOption = 'all';
+      participant.muteExpiresAt = null;
+    }
     await channel.save();
     return channel;
+  },
+
+  async createChannel(userId, { name, description, avatarUrl, coverImageUrl } = {}) {
+    if (!name || !name.trim()) {
+      throw createError('Channel name is required', 400, 'VALIDATION_ERROR');
+    }
+    if (name.trim().length > 100) {
+      throw createError('Channel name cannot exceed 100 characters', 400, 'VALIDATION_ERROR');
+    }
+
+    const participants = [{
+      userId: new mongoose.Types.ObjectId(userId),
+      role:   'owner',
+    }];
+
+    return repository.create({
+      name:        name.trim(),
+      description: description?.trim() || undefined,
+      avatarUrl:   avatarUrl?.trim() || undefined,
+      coverImageUrl: coverImageUrl?.trim() || undefined,
+      type:        'channel',
+      isPrivate:   false,
+      participants,
+      createdById: userId,
+    });
+  },
+
+  async joinChannel(channelId, userId) {
+    if (!mongoose.Types.ObjectId.isValid(String(channelId))) {
+      throw createError('Invalid channelId', 400, 'VALIDATION_ERROR');
+    }
+    const Channel = require('../../database/models/channel.model');
+    const channel = await Channel.findById(channelId);
+    if (!channel) {
+      throw createError('Channel not found', 404, 'NOT_FOUND');
+    }
+    if (channel.type !== 'channel') {
+      throw createError('Cannot join this channel directly', 403, 'FORBIDDEN');
+    }
+
+    const isMember = channel.participants.some(
+      (p) => p.userId.toString() === userId.toString()
+    );
+    if (isMember) {
+      return channel; // already a member, return channel idempotently
+    }
+
+    channel.participants.push({
+      userId: new mongoose.Types.ObjectId(userId),
+      role: 'member'
+    });
+
+    await channel.save();
+    return channel;
+  },
+
+  async updateNotificationSettings(channelId, userId, option) {
+    if (!mongoose.Types.ObjectId.isValid(String(channelId))) {
+      throw createError('Invalid channelId', 400, 'VALIDATION_ERROR');
+    }
+    const VALID_OPTIONS = ['all', 'mute_1h', 'mute_8h', 'mute_24h', 'mute_indefinite'];
+    if (!VALID_OPTIONS.includes(option)) {
+      throw createError('Invalid notification option', 400, 'VALIDATION_ERROR');
+    }
+
+    const Channel = require('../../database/models/channel.model');
+    const channel = await Channel.findById(channelId);
+    if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
+
+    const participant = channel.participants.find(p => p.userId.toString() === userId.toString());
+    if (!participant) throw createError('Forbidden', 403, 'FORBIDDEN');
+
+    participant.muteOption = option;
+    if (option === 'all') {
+      participant.muted = false;
+      participant.muteExpiresAt = null;
+    } else if (option === 'mute_indefinite') {
+      participant.muted = true;
+      participant.muteExpiresAt = null;
+    } else {
+      participant.muted = true;
+      const now = new Date();
+      let hours = 1;
+      if (option === 'mute_8h') hours = 8;
+      if (option === 'mute_24h') hours = 24;
+      participant.muteExpiresAt = new Date(now.getTime() + hours * 60 * 60 * 1000);
+    }
+
+    await channel.save();
+    return channel;
+  },
+
+  async discoverChannels(userId) {
+    const Channel = require('../../database/models/channel.model');
+    const channels = await Channel.find({
+      type: 'channel',
+      deletedAt: { $in: [null, undefined] },
+    }).lean();
+
+    const mapper = require('./channels.mapper');
+    return channels.map(c => mapper.toChannelResponse(c, userId));
   },
 };
 
