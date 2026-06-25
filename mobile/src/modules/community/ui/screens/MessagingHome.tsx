@@ -339,9 +339,9 @@ export default function MessagingHome({ navigation }: any) {
     if (Array.isArray(parts) && parts.length > 0) {
       return parts.some((p: any) => {
         if (!p) return false;
-        if (typeof p === 'string') return String(p) === String(user._id) || String(p) === String(user.id);
+        if (typeof p === 'string') return String(p) === String((user as any)._id) || String(p) === String((user as any).id);
         const pid = String(p._id || p.id || p.userId || p._userId);
-        return pid && (pid === String(user._id) || pid === String(user.id));
+        return pid && (pid === String((user as any)._id) || pid === String((user as any).id));
       });
     }
     return false;
@@ -386,7 +386,7 @@ export default function MessagingHome({ navigation }: any) {
       const tb = b?.lastMessage?.createdAt || b?.updatedAt || b?.createdAt || 0;
       const timeA = ta ? new Date(ta).getTime() : 0;
       const timeB = tb ? new Date(tb).getTime() : 0;
-      
+      return timeB - timeA;
     });
     return list;
   }, [filteredChannels]);
@@ -455,19 +455,7 @@ export default function MessagingHome({ navigation }: any) {
     }
   }
 
-  function isMemberOfChannel(channel: any) {
-    if (!channel || !user) return false;
-    const parts = channel.participants || channel.members || channel.userIds || channel.participantIds || [];
-    if (Array.isArray(parts) && parts.length > 0) {
-      return parts.some((p: any) => {
-        if (!p) return false;
-        if (typeof p === 'string') return String(p) === String(user._id) || String(p) === String(user.id);
-        const pid = String(p._id || p.id || p.userId || p._userId);
-        return pid && (pid === String(user._id) || pid === String(user.id));
-      });
-    }
-    return false;
-  }
+
 
   const joinChannel = async (channel: any) => {
     if (!channel) return;

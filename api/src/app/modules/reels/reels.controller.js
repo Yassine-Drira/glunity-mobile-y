@@ -7,9 +7,10 @@ async function list(req, res, next) {
 		const page = parseInt(req.query.page, 10) || 0;
 		const limit = parseInt(req.query.limit, 10) || 10;
 		const category = req.query.category || 'all';
+		const authorId = req.query.authorId || null;
 		const userId = req.user ? req.user._id : null;
 		
-		const result = await reelsService.getFeed({ userId, page, limit, category });
+		const result = await reelsService.getFeed({ userId, page, limit, category, authorId });
 		res.status(200).json(result);
 	} catch (err) {
 		next(err);
@@ -21,6 +22,17 @@ async function create(req, res, next) {
 		const userId = req.user._id;
 		const result = await reelsService.createReel(req.body, userId);
 		res.status(201).json({ success: true, data: result });
+	} catch (err) {
+		next(err);
+	}
+}
+
+async function update(req, res, next) {
+	try {
+		const reelId = req.params.id;
+		const userId = req.user._id;
+		const result = await reelsService.updateReel(reelId, userId, req.body);
+		res.status(200).json({ success: true, data: result });
 	} catch (err) {
 		next(err);
 	}
@@ -117,6 +129,7 @@ async function uploadVideoLocal(req, res, next) {
 module.exports = {
 	list,
 	create,
+	update,
 	remove,
 	toggleLike,
 	recordView,

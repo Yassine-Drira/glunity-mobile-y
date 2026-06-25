@@ -20,8 +20,17 @@ const createCommentSchema = [
 	body('text').isString().trim().isLength({ min: 1, max: 1000 }).withMessage('Comment must be between 1 and 1000 characters'),
 ];
 
+const updateReelSchema = [
+	param('id').isMongoId().withMessage('Invalid reel ID'),
+	body('caption').optional().isString().trim(),
+	body('category').optional().isIn(['all', 'recipes', 'tips', 'products', 'lifestyle']).withMessage('Invalid category'),
+	body('audioTitle').optional().isString().trim(),
+	body('audioArtist').optional().isString().trim(),
+];
+
 module.exports = {
 	reelIdSchema,
 	createReelSchema,
 	createCommentSchema,
+	updateReelSchema,
 };

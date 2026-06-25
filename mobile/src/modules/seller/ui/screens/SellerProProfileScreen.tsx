@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  TextInput,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
+import { ReelsService, Reel } from '@/modules/reels/services/reels.service';
+import { Video, ResizeMode } from 'expo-av';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerProProfile'>;
 
@@ -97,7 +102,430 @@ export default function SellerProProfileScreen({ navigation }: Props) {
 
   const isBadgeUnlocked = (required: number) => points >= required;
 
+  const [activeProfileTab, setActiveProfileTab] = React.useState<'dashboard' | 'reels'>('dashboard');
+  const [reels, setReels] = React.useState<Reel[]>([]);
+  const [loadingReels, setLoadingReels] = React.useState(false);
+  const [selectedReel, setSelectedReel] = React.useState<Reel | null>(null);
+  const [isStatsModalOpen, setIsStatsModalOpen] = React.useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [editCaption, setEditCaption] = React.useState('');
+  const [editCategory, setEditCategory] = React.useState<'all' | 'recipes' | 'tips' | 'products' | 'lifestyle'>('all');
+  const [updatingReel, setUpdatingReel] = React.useState(false);
+  const [deletingReel, setDeletingReel] = React.useState(false);
+  const [activeVideoUrl, setActiveVideoUrl] = React.useState<string | null>(null);
+
+  const fetchUserReels = async () => {
+    if (!user) return;
+    try {
+      setLoadingReels(true);
+      const res = await ReelsService.getUserReels(user._id);
+      if (res.success && res.data) {
+        setReels(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user reels:', err);
+    } finally {
+      setLoadingReels(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (user) {
+      fetchUserReels();
+    }
+  }, [user]);
+
+  const handleUpdateReel = async () => {
+    if (!selectedReel) return;
+    try {
+      setUpdatingReel(true);
+      const res = await ReelsService.updateReel(selectedReel.id, {
+        caption: editCaption,
+        category: editCategory,
+      });
+      if (res.success) {
+        Alert.alert(t('Success'), t('Reel updated successfully'));
+        setIsEditModalOpen(false);
+        setSelectedReel(null);
+        fetchUserReels();
+      }
+    } catch (err: any) {
+      Alert.alert(t('Error'), err?.message || t('Failed to update reel'));
+    } finally {
+      setUpdatingReel(false);
+    }
+  };
+
+  const handleDeleteReel = async (reelId: string) => {
+    Alert.alert(
+      t('Delete Reel'),
+      t('Are you sure you want to permanently delete this reel?'),
+      [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('Delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletingReel(true);
+              const res = await ReelsService.deleteReel(reelId);
+              if (res.success) {
+                Alert.alert(t('Success'), t('Reel deleted successfully'));
+                setIsStatsModalOpen(false);
+                setSelectedReel(null);
+                fetchUserReels();
+              }
+            } catch (err: any) {
+              Alert.alert(t('Error'), err?.message || t('Failed to delete reel'));
+            } finally {
+              setDeletingReel(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const s = React.useMemo(() => StyleSheet.create({
+    tabBarContainer: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      backgroundColor: T.surfaceAlt,
+      borderRadius: 14,
+      padding: 4,
+      marginBottom: 16,
+      width: '100%',
+    },
+    tabButton: {
+      flex: 1,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 10,
+      gap: 6,
+    },
+    tabButtonActive: {
+      backgroundColor: T.surface,
+      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
+      elevation: 2,
+    },
+    tabButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: T.textMuted,
+      fontFamily: F.medium,
+    },
+    tabButtonTextActive: {
+      color: T.text,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
+    reelsHeaderRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+      marginBottom: 12,
+    },
+    reelsHeaderTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: T.text,
+      fontFamily: F.bold,
+    },
+    uploadReelBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: T.red,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      gap: 4,
+    },
+    uploadReelText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
+    reelsGrid: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      width: '100%',
+    },
+    reelGridItem: {
+      width: '31%',
+      aspectRatio: 1,
+      borderRadius: 8,
+      overflow: 'hidden',
+      backgroundColor: T.surfaceAlt,
+      position: 'relative',
+    },
+    reelThumbnail: {
+      width: '100%',
+      height: '100%',
+    },
+    viewsOverlay: {
+      position: 'absolute',
+      bottom: 6,
+      left: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      gap: 2,
+    },
+    viewsOverlayText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '600',
+    },
+    reelOptionsBtn: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyStateWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 32,
+      width: '100%',
+    },
+    emptyStateTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: T.text,
+      marginTop: 12,
+      fontFamily: F.semibold,
+    },
+    emptyStateSub: {
+      fontSize: 13,
+      color: T.textMuted,
+      textAlign: 'center',
+      marginTop: 6,
+      marginBottom: 16,
+      paddingHorizontal: 24,
+      fontFamily: F.regular,
+    },
+    createReelBtnLarge: {
+      backgroundColor: T.red,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 10,
+    },
+    createReelBtnLargeText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+      fontSize: 14,
+      fontFamily: F.semibold,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    statsModalContent: {
+      backgroundColor: T.surface,
+      borderRadius: 20,
+      width: '100%',
+      maxWidth: 360,
+      padding: 20,
+      alignItems: 'center',
+      boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
+      elevation: 5,
+    },
+    statsModalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: T.text,
+      marginBottom: 16,
+      fontFamily: F.bold,
+    },
+    statsPreviewRow: {
+      flexDirection: 'row',
+      width: '100%',
+      backgroundColor: T.surfaceAlt,
+      borderRadius: 12,
+      padding: 10,
+      marginBottom: 16,
+      alignItems: 'center',
+      gap: 12,
+    },
+    statsPreviewThumb: {
+      width: 50,
+      height: 70,
+      borderRadius: 6,
+    },
+    statsPreviewInfo: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    statsPreviewCaption: {
+      fontSize: 13,
+      color: T.text,
+      fontWeight: '500',
+      fontFamily: F.medium,
+    },
+    statsPreviewCat: {
+      fontSize: 11,
+      color: T.red,
+      fontWeight: '600',
+      marginTop: 4,
+      fontFamily: F.semibold,
+      textTransform: 'uppercase',
+    },
+    insightsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      width: '100%',
+      marginBottom: 16,
+    },
+    insightCard: {
+      flex: 1,
+      minWidth: '45%',
+      backgroundColor: T.surfaceAlt,
+      borderRadius: 10,
+      padding: 12,
+      alignItems: 'center',
+    },
+    insightValue: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: T.text,
+      marginTop: 4,
+      fontFamily: F.bold,
+    },
+    insightLabel: {
+      fontSize: 11,
+      color: T.textMuted,
+      marginTop: 2,
+      fontFamily: F.regular,
+    },
+    engagementCard: {
+      width: '100%',
+      backgroundColor: T.redLight,
+      borderRadius: 12,
+      padding: 14,
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    engagementRateText: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: T.red,
+      fontFamily: F.bold,
+    },
+    engagementLabel: {
+      fontSize: 12,
+      color: T.text,
+      fontWeight: '600',
+      marginTop: 4,
+      fontFamily: F.semibold,
+    },
+    engagementBadge: {
+      backgroundColor: T.red,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      marginTop: 6,
+    },
+    engagementBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    modalActionsColumn: {
+      width: '100%',
+      gap: 10,
+    },
+    modalActionBtn: {
+      width: '100%',
+      height: 44,
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    modalActionBtnPrimary: {
+      backgroundColor: T.red,
+    },
+    modalActionBtnSecondary: {
+      backgroundColor: T.surfaceAlt,
+      borderWidth: 1,
+      borderColor: T.border,
+    },
+    modalActionBtnDanger: {
+      backgroundColor: T.redLight,
+    },
+    modalActionBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
+    inputLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: T.textSub,
+      alignSelf: 'flex-start',
+      marginBottom: 6,
+      fontFamily: F.semibold,
+    },
+    captionInput: {
+      width: '100%',
+      backgroundColor: T.surfaceAlt,
+      borderWidth: 1,
+      borderColor: T.border,
+      borderRadius: 10,
+      padding: 12,
+      fontSize: 14,
+      color: T.text,
+      minHeight: 80,
+      textAlignVertical: 'top',
+      marginBottom: 16,
+      fontFamily: F.regular,
+    },
+    catChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      width: '100%',
+      marginBottom: 20,
+    },
+    catChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: T.border,
+      backgroundColor: T.surface,
+    },
+    catChipActive: {
+      borderColor: T.red,
+      backgroundColor: T.redLight,
+    },
+    catChipText: {
+      fontSize: 12,
+      color: T.textSub,
+      fontFamily: F.medium,
+    },
+    catChipTextActive: {
+      color: T.red,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
     scrollContent: { paddingHorizontal: 20, paddingTop: 12, rowGap: 20 },
 
     headerSection: { alignItems: 'center', paddingTop: 8, paddingBottom: 6 },
@@ -385,7 +813,30 @@ export default function SellerProProfileScreen({ navigation }: Props) {
           <Text style={s.subTitle}>{user?.bio || t('Empowering the gluten-free community 🏆')}</Text>
         </View>
 
-        {/* ── Your Role ── */}
+        <View style={s.tabBarContainer}>
+          <TouchableOpacity
+            style={[s.tabButton, activeProfileTab === 'dashboard' && s.tabButtonActive]}
+            onPress={() => setActiveProfileTab('dashboard')}
+          >
+            <Feather name="grid" size={18} color={activeProfileTab === 'dashboard' ? T.red : T.textMuted} />
+            <Text style={[s.tabButtonText, activeProfileTab === 'dashboard' && s.tabButtonTextActive]}>
+              {t('Dashboard')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.tabButton, activeProfileTab === 'reels' && s.tabButtonActive]}
+            onPress={() => setActiveProfileTab('reels')}
+          >
+            <Feather name="video" size={18} color={activeProfileTab === 'reels' ? T.red : T.textMuted} />
+            <Text style={[s.tabButtonText, activeProfileTab === 'reels' && s.tabButtonTextActive]}>
+              {t('Reels')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeProfileTab === 'dashboard' ? (
+          <>
+            {/* ── Your Role ── */}
         <View style={s.sectionWrap}>
           <Text style={s.sectionLabel}>{t('Your Role')}</Text>
           <View style={s.card}>
@@ -553,8 +1004,314 @@ export default function SellerProProfileScreen({ navigation }: Props) {
             <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={17} color={T.textMuted} />
           </TouchableOpacity>
         </View>
+          </>
+        ) : (
+          <View style={{ width: '100%' }}>
+            <View style={s.reelsHeaderRow}>
+              <Text style={s.reelsHeaderTitle}>
+                {t('My Shared Reels')} ({reels.length})
+              </Text>
+              <TouchableOpacity
+                style={s.uploadReelBtn}
+                onPress={() => navigation.navigate('ReelCamera')}
+              >
+                <Feather name="plus" size={16} color="#FFFFFF" />
+                <Text style={s.uploadReelText}>{t('Upload')}</Text>
+              </TouchableOpacity>
+            </View>
 
+            {loadingReels ? (
+              <ActivityIndicator style={{ marginVertical: 30 }} color={T.red} />
+            ) : reels.length === 0 ? (
+              <View style={s.emptyStateWrap}>
+                <Feather name="video-off" size={48} color={T.textMuted} />
+                <Text style={s.emptyStateTitle}>{t('No Reels Yet')}</Text>
+                <Text style={s.emptyStateSub}>
+                  {t('Share your gluten-free recipes, dining tips, or lifestyle moments with the community!')}
+                </Text>
+                <TouchableOpacity
+                  style={s.createReelBtnLarge}
+                  onPress={() => navigation.navigate('ReelCamera')}
+                >
+                  <Text style={s.createReelBtnLargeText}>{t('Create First Reel')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={s.reelsGrid}>
+                {reels.map((reel) => (
+                  <TouchableOpacity
+                    key={reel.id}
+                    style={s.reelGridItem}
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      setSelectedReel(reel);
+                      setIsStatsModalOpen(true);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: reel.thumbnailUrl }}
+                      style={s.reelThumbnail}
+                      resizeMode="cover"
+                    />
+                    <View style={s.viewsOverlay}>
+                      <Feather name="play" size={10} color="#FFFFFF" />
+                      <Text style={s.viewsOverlayText}>
+                        {reel.viewsCount >= 1000 ? `${(reel.viewsCount / 1000).toFixed(1)}k` : reel.viewsCount}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={s.reelOptionsBtn}
+                      onPress={() => {
+                        setSelectedReel(reel);
+                        setIsStatsModalOpen(true);
+                      }}
+                    >
+                      <Feather name="more-vertical" size={12} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
+
+      {/* --- STATS & ENGAGEMENT INSIGHTS MODAL --- */}
+      <Modal
+        visible={isStatsModalOpen && !!selectedReel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setIsStatsModalOpen(false);
+          setSelectedReel(null);
+        }}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.statsModalContent}>
+            <Text style={s.statsModalTitle}>{t('Reel Insights')}</Text>
+            
+            {selectedReel && (
+              <>
+                <View style={s.statsPreviewRow}>
+                  <Image source={{ uri: selectedReel.thumbnailUrl }} style={s.statsPreviewThumb} />
+                  <View style={s.statsPreviewInfo}>
+                    <Text style={s.statsPreviewCaption} numberOfLines={2}>
+                      {selectedReel.caption || t('No caption')}
+                    </Text>
+                    <Text style={[s.statsPreviewCat, { color: T.red }]}>
+                      {selectedReel.category || 'all'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Engagement Card */}
+                <View style={[s.engagementCard, { backgroundColor: T.redLight }]}>
+                  <Text style={[s.engagementRateText, { color: T.red }]}>
+                    {((selectedReel.likesCount + selectedReel.commentsCount + selectedReel.sharesCount) / (selectedReel.viewsCount || 1) * 100).toFixed(1)}%
+                  </Text>
+                  <Text style={s.engagementLabel}>{t('Engagement Rate')}</Text>
+                  <View style={[s.engagementBadge, { backgroundColor: T.red }]}>
+                    <Text style={s.engagementBadgeText}>
+                      {((selectedReel.likesCount + selectedReel.commentsCount + selectedReel.sharesCount) / (selectedReel.viewsCount || 1) * 100) > 12
+                        ? t('🔥 High Engagement')
+                        : t('📈 Active')}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Insights grid */}
+                <View style={s.insightsGrid}>
+                  <View style={s.insightCard}>
+                    <Feather name="eye" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.viewsCount}</Text>
+                    <Text style={s.insightLabel}>{t('Views')}</Text>
+                  </View>
+                  <View style={s.insightCard}>
+                    <Feather name="heart" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.likesCount}</Text>
+                    <Text style={s.insightLabel}>{t('Likes')}</Text>
+                  </View>
+                  <View style={s.insightCard}>
+                    <Feather name="message-square" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.commentsCount}</Text>
+                    <Text style={s.insightLabel}>{t('Comments')}</Text>
+                  </View>
+                  <View style={s.insightCard}>
+                    <Feather name="share-2" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.sharesCount}</Text>
+                    <Text style={s.insightLabel}>{t('Shares')}</Text>
+                  </View>
+                </View>
+
+                {/* Actions column */}
+                <View style={s.modalActionsColumn}>
+                  <TouchableOpacity
+                    style={[s.modalActionBtn, s.modalActionBtnPrimary, { backgroundColor: T.red }]}
+                    onPress={() => {
+                      setIsStatsModalOpen(false);
+                      setActiveVideoUrl(selectedReel.videoUrl);
+                    }}
+                  >
+                    <Feather name="play" size={16} color="#FFFFFF" />
+                    <Text style={[s.modalActionBtnText, { color: '#FFFFFF' }]}>{t('Play Reel')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.modalActionBtn, s.modalActionBtnSecondary]}
+                    onPress={() => {
+                      setEditCaption(selectedReel.caption || '');
+                      setEditCategory(selectedReel.category || 'all');
+                      setIsStatsModalOpen(false);
+                      setIsEditModalOpen(true);
+                    }}
+                  >
+                    <Feather name="edit-2" size={16} color={T.text} />
+                    <Text style={[s.modalActionBtnText, { color: T.text }]}>{t('Edit Caption & Category')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.modalActionBtn, s.modalActionBtnDanger]}
+                    onPress={() => handleDeleteReel(selectedReel.id)}
+                    disabled={deletingReel}
+                  >
+                    {deletingReel ? (
+                      <ActivityIndicator size="small" color={T.red} />
+                    ) : (
+                      <>
+                        <Feather name="trash-2" size={16} color={T.red} />
+                        <Text style={[s.modalActionBtnText, { color: T.red }]}>{t('Delete Reel')}</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[s.modalActionBtn, s.modalActionBtnSecondary, { marginTop: 4 }]}
+                    onPress={() => {
+                      setIsStatsModalOpen(false);
+                      setSelectedReel(null);
+                    }}
+                  >
+                    <Text style={[s.modalActionBtnText, { color: T.text }]}>{t('Close')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- EDIT REEL MODAL --- */}
+      <Modal
+        visible={isEditModalOpen && !!selectedReel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedReel(null);
+        }}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.statsModalContent}>
+            <Text style={s.statsModalTitle}>{t('Edit Reel')}</Text>
+
+            <Text style={s.inputLabel}>{t('Caption')}</Text>
+            <TextInput
+              style={s.captionInput}
+              value={editCaption}
+              onChangeText={setEditCaption}
+              multiline
+              numberOfLines={3}
+              placeholder={t('Write a caption...')}
+              placeholderTextColor={T.textMuted}
+            />
+
+            <Text style={s.inputLabel}>{t('Category')}</Text>
+            <View style={s.catChipsRow}>
+              {(['all', 'recipes', 'tips', 'products', 'lifestyle'] as const).map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    s.catChip,
+                    editCategory === cat && s.catChipActive,
+                    editCategory === cat && { borderColor: T.red, backgroundColor: T.redLight }
+                  ]}
+                  onPress={() => setEditCategory(cat)}
+                >
+                  <Text style={[
+                    s.catChipText,
+                    editCategory === cat && s.catChipTextActive,
+                    editCategory === cat && { color: T.red }
+                  ]}>
+                    {t(cat)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={s.modalActionsColumn}>
+              <TouchableOpacity
+                style={[s.modalActionBtn, s.modalActionBtnPrimary, { backgroundColor: T.red }]}
+                onPress={handleUpdateReel}
+                disabled={updatingReel}
+              >
+                {updatingReel ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Feather name="check" size={16} color="#FFFFFF" />
+                    <Text style={[s.modalActionBtnText, { color: '#FFFFFF' }]}>{t('Save Changes')}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.modalActionBtn, s.modalActionBtnSecondary]}
+                onPress={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedReel(null);
+                }}
+              >
+                <Text style={[s.modalActionBtnText, { color: T.text }]}>{t('Cancel')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- FULL SCREEN REEL PLAYER MODAL --- */}
+      {activeVideoUrl && (
+        <Modal visible={true} transparent={false} animationType="slide">
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+            <Video
+              source={{ uri: activeVideoUrl }}
+              rate={1.0}
+              volume={1.0}
+              isMuted={false}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              style={{ width: '100%', height: '100%' }}
+            />
+            <TouchableOpacity
+              style={{
+                position: 'absolute',
+                top: Math.max(insets.top, 20),
+                right: 20,
+                zIndex: 10,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onPress={() => setActiveVideoUrl(null)}
+            >
+              <Feather name="x" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
     </AppScaffold>
   );
 }

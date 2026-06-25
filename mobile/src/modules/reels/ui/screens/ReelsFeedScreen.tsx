@@ -1,10 +1,12 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { View, StyleSheet, FlatList, ScrollView, TouchableOpacity, Text, ViewToken, Modal, TextInput, ActivityIndicator, Alert, Platform, Image } from 'react-native';
+import { View, StyleSheet, FlatList, ScrollView, TouchableOpacity, Text, ViewToken, Modal, TextInput, ActivityIndicator, Alert, Platform, Image, Dimensions, StatusBar } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReelsFeed } from '../../hooks/useReelsFeed';
 import { ReelPlayerItem } from '../components/ReelPlayerItem';
-import { AppScaffold } from '@/shared/components/AppScaffold';
+import { BottomNavBar } from '@/shared/components/BottomNavBar';
+import { useAuth } from '@/modules/auth/state/auth.context';
 import http from '../../../../core/network/http.client';
 
 export default function ReelsFeedScreen() {
@@ -18,14 +20,19 @@ export default function ReelsFeedScreen() {
 		toggleLike, 
 		recordView,
 		recordShare,
-		incrementCommentsCount 
+		incrementCommentsCount,
+		loading,
+		error
 	} = useReelsFeed();
 	const [activeIndex, setActiveIndex] = useState(0);
-	const [layoutWidth, setLayoutWidth] = useState(375);
-	const [layoutHeight, setLayoutHeight] = useState(600);
+	const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
+	const layoutHeight = windowHeight;
+	const layoutWidth = windowWidth;
 	const navigation = useNavigation<any>();
 	const route = useRoute<any>();
 	const flatListRef = useRef<FlatList>(null);
+	const insets = useSafeAreaInsets();
+	const { user } = useAuth();
 
 	useEffect(() => {
 		if (route.params?.reelId && reels.length > 0) {
@@ -147,14 +154,6 @@ export default function ReelsFeedScreen() {
 		);
 	}, [channels, users, shareSearchQuery]);
 
-	const handleLayout = (e: any) => {
-		const { width, height } = e.nativeEvent.layout;
-		if (width > 0 && height > 0) {
-			setLayoutWidth(width);
-			setLayoutHeight(height);
-		}
-	};
-
 	const handleScroll = (event: any) => {
 		const yOffset = event.nativeEvent.contentOffset.y;
 		const index = Math.round(yOffset / layoutHeight);
@@ -189,193 +188,222 @@ export default function ReelsFeedScreen() {
 	}).current;
 
 	return (
-		<AppScaffold
-			title="Reels"
-			activeTab="reels"
-			showHeader={false}
-			contentStyle={{ paddingBottom: 0 }}
-		>
-			<View style={styles.container} onLayout={handleLayout}>
-				<FlatList
-					ref={flatListRef}
-					data={reels}
-					keyExtractor={(item) => item.id}
-					renderItem={({ item, index }) => (
-						<ReelPlayerItem
-							reel={item}
-							isActive={index === activeIndex}
-							onToggleLike={toggleLike}
-							onRecordView={recordView}
-							onRecordShare={recordShare}
-							onIncrementCommentsCount={incrementCommentsCount}
-							onOpenShareSheet={openShareSheet}
-							containerHeight={layoutHeight}
-							containerWidth={layoutWidth}
-						/>
-					)}
-					pagingEnabled
-					showsVerticalScrollIndicator={false}
-					onViewableItemsChanged={onViewableItemsChanged}
-					viewabilityConfig={viewabilityConfig}
-					onScroll={handleScroll}
-					scrollEventThrottle={16}
-					onEndReached={loadMore}
-					onEndReachedThreshold={0.5}
-					refreshing={refreshing}
-					onRefresh={refresh}
-					getItemLayout={(data, index) => ({
-						length: layoutHeight,
-						offset: layoutHeight * index,
-						index,
-					})}
-					decelerationRate="fast"
-					snapToInterval={layoutHeight}
-					snapToAlignment="start"
-					windowSize={3}
-					initialNumToRender={2}
-					maxToRenderPerBatch={2}
-					removeClippedSubviews={Platform.OS !== 'web'}
-				/>
-
-				{/* Floating Back Button */}
-				<TouchableOpacity 
-					style={[styles.floatingButton, { top: 12, left: 16 }]} 
-					onPress={() => navigation.goBack()}
-				>
-					<Ionicons name="arrow-back" size={24} color="#FFF" />
-				</TouchableOpacity>
-
-				{/* Floating Camera Button */}
-				<TouchableOpacity 
-					style={[styles.floatingButton, { top: 12, right: 16 }]} 
-					onPress={() => navigation.navigate('ReelCamera')}
-				>
-					<Ionicons name="camera" size={24} color="#FFF" />
-				</TouchableOpacity>
-
-				{/* Top Category Filter Bar */}
-				<View style={[styles.categoryContainer, { top: 64 }]}>
-					<ScrollView 
-						horizontal 
-						showsHorizontalScrollIndicator={false} 
-						contentContainerStyle={styles.categoryContent}
-					>
-						{['all', 'recipes', 'tips', 'products', 'lifestyle'].map((cat) => {
-							const isActive = category === cat;
-							return (
-								<TouchableOpacity
-									key={cat}
-									style={[
-										styles.categoryPill,
-										isActive ? styles.categoryPillActive : styles.categoryPillInactive
-									]}
-									onPress={() => changeCategory(cat)}
-								>
-									<Text style={[
-										styles.categoryText,
-										isActive ? styles.categoryTextActive : styles.categoryTextInactive
-									]}>
-										{cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-									</Text>
-								</TouchableOpacity>
-							);
-						})}
-					</ScrollView>
-				</View>
-
-				{/* Empty Feed Placeholder */}
-				{reels.length === 0 && !refreshing && (
-					<View style={styles.emptyContainer}>
-						<Ionicons name="film-outline" size={60} color="#8A8A8E" />
-						<Text style={styles.emptyText}>No reels available yet</Text>
-						<TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('ReelCamera')}>
-							<Text style={styles.createButtonText}>Create a Reel</Text>
-						</TouchableOpacity>
-					</View>
+		<View style={styles.container}>
+			<StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+			
+			<FlatList
+				ref={flatListRef}
+				data={reels}
+				keyExtractor={(item, index) => item.id + '-' + index}
+				renderItem={({ item, index }) => (
+					<ReelPlayerItem
+						reel={item}
+						isActive={index === activeIndex}
+						onToggleLike={toggleLike}
+						onRecordView={recordView}
+						onRecordShare={recordShare}
+						onIncrementCommentsCount={incrementCommentsCount}
+						onOpenShareSheet={openShareSheet}
+						containerHeight={layoutHeight}
+						containerWidth={layoutWidth}
+					/>
 				)}
+				pagingEnabled
+				showsVerticalScrollIndicator={false}
+				onViewableItemsChanged={onViewableItemsChanged}
+				viewabilityConfig={viewabilityConfig}
+				onScroll={handleScroll}
+				scrollEventThrottle={16}
+				onEndReached={loadMore}
+				onEndReachedThreshold={0.5}
+				refreshing={refreshing}
+				onRefresh={refresh}
+				getItemLayout={(data, index) => ({
+					length: layoutHeight,
+					offset: layoutHeight * index,
+					index,
+				})}
+				decelerationRate="fast"
+				snapToInterval={layoutHeight}
+				snapToAlignment="start"
+				windowSize={3}
+				initialNumToRender={2}
+				maxToRenderPerBatch={2}
+				removeClippedSubviews={Platform.OS !== 'web'}
+			/>
 
-				{/* Share bottom sheet Modal */}
-				<Modal
-					visible={shareModalVisible}
-					animationType="slide"
-					transparent
-					onRequestClose={() => setShareModalVisible(false)}
+			{/* Floating Back Button */}
+			<TouchableOpacity 
+				style={[styles.floatingButton, { top: Math.max(insets.top, 12) + 8, left: 16 }]} 
+				onPress={() => navigation.goBack()}
+			>
+				<Ionicons name="arrow-back" size={24} color="#FFF" />
+			</TouchableOpacity>
+
+			{/* Floating Camera Button */}
+			<TouchableOpacity 
+				style={[styles.floatingButton, { top: Math.max(insets.top, 12) + 8, right: 16 }]} 
+				onPress={() => navigation.navigate('ReelCamera')}
+			>
+				<Ionicons name="camera" size={24} color="#FFF" />
+			</TouchableOpacity>
+
+			{/* Top Category Filter Bar */}
+			<View style={[styles.categoryContainer, { top: Math.max(insets.top, 12) + 60 }]}>
+				<ScrollView 
+					horizontal 
+					showsHorizontalScrollIndicator={false} 
+					contentContainerStyle={styles.categoryContent}
 				>
-					<View style={styles.shareOverlay}>
-						<TouchableOpacity
-							style={{ flex: 1 }}
-							activeOpacity={1}
-							onPress={() => setShareModalVisible(false)}
-						/>
-						<View style={styles.shareContainer}>
-							<View style={styles.shareHeader}>
-								<Text style={styles.shareTitle}>Send Reel</Text>
-								<TouchableOpacity onPress={() => setShareModalVisible(false)}>
-									<Ionicons name="close" size={24} color="#FFF" />
-								</TouchableOpacity>
-							</View>
-							
-							<View style={styles.shareSearchContainer}>
-								<Ionicons name="search" size={18} color="#8A8A8E" />
-								<TextInput
-									style={styles.shareSearchInput}
-									placeholder="Search friends or groups..."
-									placeholderTextColor="#8A8A8E"
-									value={shareSearchQuery}
-									onChangeText={setShareSearchQuery}
-									autoCorrect={false}
-								/>
-							</View>
-
-							{loadingShareData ? (
-								<ActivityIndicator size="large" color="#6DAE3F" style={{ marginVertical: 40 }} />
-							) : filteredTargets.length === 0 ? (
-								<Text style={styles.emptyShareText}>No matches found</Text>
-							) : (
-								<FlatList
-									data={filteredTargets}
-									keyExtractor={(item) => item.id}
-									renderItem={({ item }) => {
-										const isSent = sentRecipients.has(item.id);
-										const isSending = sendingToId === item.id;
-										return (
-											<View style={styles.shareItem}>
-												<View style={styles.shareItemLeft}>
-													<Image
-														source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=8BC34A&color=fff` }}
-														style={styles.shareAvatar}
-													/>
-													<View>
-														<Text style={styles.shareItemName} numberOfLines={1}>{item.name}</Text>
-														<Text style={styles.shareItemSubtitle}>{item.subtitle}</Text>
-													</View>
-												</View>
-												<TouchableOpacity
-													style={[styles.sendBtn, isSent && styles.sendBtnSent]}
-													disabled={isSent || isSending}
-													onPress={() => sendReelToTarget(item, item.isChannel)}
-												>
-													{isSending ? (
-														<ActivityIndicator size="small" color="#FFF" />
-													) : (
-														<Text style={[styles.sendBtnText, isSent && styles.sendBtnTextSent]}>
-															{isSent ? 'Sent ✓' : 'Send'}
-														</Text>
-													)}
-												</TouchableOpacity>
-											</View>
-										);
-									}}
-									style={styles.shareList}
-									showsVerticalScrollIndicator={false}
-									contentContainerStyle={{ paddingBottom: 24 }}
-								/>
-							)}
-						</View>
-					</View>
-				</Modal>
+					{['all', 'recipes', 'tips', 'products', 'lifestyle'].map((cat) => {
+						const isActive = category === cat;
+						return (
+							<TouchableOpacity
+								key={cat}
+								style={[
+									styles.categoryPill,
+									isActive ? styles.categoryPillActive : styles.categoryPillInactive
+								]}
+								onPress={() => changeCategory(cat)}
+							>
+								<Text style={[
+									styles.categoryText,
+									isActive ? styles.categoryTextActive : styles.categoryTextInactive
+								]}>
+									{cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+								</Text>
+							</TouchableOpacity>
+						);
+					})}
+				</ScrollView>
 			</View>
-		</AppScaffold>
+
+			{/* Loading State */}
+			{loading && reels.length === 0 && (
+				<View style={styles.loadingContainer}>
+					<ActivityIndicator size="large" color="#6DAE3F" />
+				</View>
+			)}
+
+			{/* Error State */}
+			{error && reels.length === 0 && !refreshing && (
+				<View style={styles.emptyContainer}>
+					<Ionicons name="alert-circle-outline" size={60} color="#FF2D55" />
+					<Text style={[styles.emptyText, { color: '#FF2D55', textAlign: 'center' }]}>{error}</Text>
+					<TouchableOpacity style={styles.createButton} onPress={refresh}>
+						<Text style={styles.createButtonText}>Retry</Text>
+					</TouchableOpacity>
+				</View>
+			)}
+
+			{/* Empty Feed Placeholder */}
+			{!loading && !error && reels.length === 0 && !refreshing && (
+				<View style={styles.emptyContainer}>
+					<Ionicons name="film-outline" size={60} color="#8A8A8E" />
+					<Text style={styles.emptyText}>No reels available yet</Text>
+					<TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('ReelCamera')}>
+						<Text style={styles.createButtonText}>Create a Reel</Text>
+					</TouchableOpacity>
+				</View>
+			)}
+
+			{/* Floating Bottom Navigation Bar */}
+			<BottomNavBar
+				activeTab="reels"
+				onPressHome={() => navigation.navigate('Home')}
+				onPressEvents={() => navigation.navigate('Events')}
+				onPressCenter={() => navigation.navigate('Map')}
+				onPressReels={() => navigation.navigate('ReelsFeed')}
+				onPressProfile={() => {
+					if (user?.profileType === 'pro_commerce') {
+						navigation.navigate('SellerProProfile');
+					} else {
+						navigation.navigate('Profile');
+					}
+				}}
+			/>
+
+			{/* Share bottom sheet Modal */}
+			<Modal
+				visible={shareModalVisible}
+				animationType="slide"
+				transparent
+				onRequestClose={() => setShareModalVisible(false)}
+			>
+				<View style={styles.shareOverlay}>
+					<TouchableOpacity
+						style={{ flex: 1 }}
+						activeOpacity={1}
+						onPress={() => setShareModalVisible(false)}
+					/>
+					<View style={styles.shareContainer}>
+						<View style={styles.shareHeader}>
+							<Text style={styles.shareTitle}>Send Reel</Text>
+							<TouchableOpacity onPress={() => setShareModalVisible(false)}>
+								<Ionicons name="close" size={24} color="#FFF" />
+							</TouchableOpacity>
+						</View>
+						
+						<View style={styles.shareSearchContainer}>
+							<Ionicons name="search" size={18} color="#8A8A8E" />
+							<TextInput
+								style={styles.shareSearchInput}
+								placeholder="Search friends or groups..."
+								placeholderTextColor="#8A8A8E"
+								value={shareSearchQuery}
+								onChangeText={setShareSearchQuery}
+								autoCorrect={false}
+							/>
+						</View>
+
+						{loadingShareData ? (
+							<ActivityIndicator size="large" color="#6DAE3F" style={{ marginVertical: 40 }} />
+						) : filteredTargets.length === 0 ? (
+							<Text style={styles.emptyShareText}>No matches found</Text>
+						) : (
+							<FlatList
+								data={filteredTargets}
+								keyExtractor={(item) => item.id}
+								renderItem={({ item }) => {
+									const isSent = sentRecipients.has(item.id);
+									const isSending = sendingToId === item.id;
+									return (
+										<View style={styles.shareItem}>
+											<View style={styles.shareItemLeft}>
+												<Image
+													source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=8BC34A&color=fff` }}
+													style={styles.shareAvatar}
+												/>
+												<View>
+													<Text style={styles.shareItemName} numberOfLines={1}>{item.name}</Text>
+													<Text style={styles.shareItemSubtitle}>{item.subtitle}</Text>
+												</View>
+											</View>
+											<TouchableOpacity
+												style={[styles.sendBtn, isSent && styles.sendBtnSent]}
+												disabled={isSent || isSending}
+												onPress={() => sendReelToTarget(item, item.isChannel)}
+											>
+												{isSending ? (
+													<ActivityIndicator size="small" color="#FFF" />
+												) : (
+													<Text style={[styles.sendBtnText, isSent && styles.sendBtnTextSent]}>
+														{isSent ? 'Sent ✓' : 'Send'}
+													</Text>
+												)}
+											</TouchableOpacity>
+										</View>
+									);
+								}}
+								style={styles.shareList}
+								showsVerticalScrollIndicator={false}
+								contentContainerStyle={{ paddingBottom: 24 }}
+							/>
+						)}
+					</View>
+				</View>
+			</Modal>
+		</View>
 	);
 }
 
@@ -384,6 +412,14 @@ const styles = StyleSheet.create({
 		flex: 1,
 		backgroundColor: '#000',
 		position: 'relative',
+	},
+	loadingContainer: {
+		position: 'absolute',
+		top: '45%',
+		left: 0,
+		right: 0,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	floatingButton: {
 		position: 'absolute',

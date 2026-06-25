@@ -4,6 +4,7 @@ export interface ReelAuthor {
 	id: string;
 	fullName: string;
 	avatarUrl?: string;
+	profileType?: string;
 }
 
 export interface Reel {
@@ -22,6 +23,9 @@ export interface Reel {
 	category: 'all' | 'recipes' | 'tips' | 'products' | 'lifestyle';
 	channelRef?: string;
 	createdAt: string;
+	audioTitle?: string | null;
+	audioArtist?: string | null;
+	audioUrl?: string | null;
 }
 
 export interface ReelComment {
@@ -81,7 +85,16 @@ export const ReelsService = {
 		return response.data;
 	},
 
-	async createReel(payload: { videoUrl: string; thumbnailUrl: string; caption: string; duration: number; category?: string }): Promise<{ success: boolean; data: Reel }> {
+	async createReel(payload: { 
+		videoUrl: string; 
+		thumbnailUrl: string; 
+		caption: string; 
+		duration: number; 
+		category?: string;
+		audioTitle?: string | null;
+		audioArtist?: string | null;
+		audioUrl?: string | null;
+	}): Promise<{ success: boolean; data: Reel }> {
 		const response = await http.post<{ success: boolean; data: Reel }>('/reels', payload);
 		return response.data;
 	},
@@ -93,6 +106,21 @@ export const ReelsService = {
 
 	async postComment(reelId: string, text: string): Promise<{ success: boolean; data: ReelComment }> {
 		const response = await http.post<{ success: boolean; data: ReelComment }>(`/reels/${reelId}/comments`, { text });
+		return response.data;
+	},
+
+	async getUserReels(authorId: string, page = 0, limit = 50): Promise<{ success: boolean; data: Reel[] }> {
+		const response = await http.get<{ success: boolean; data: Reel[] }>(`/reels?authorId=${authorId}&page=${page}&limit=${limit}`);
+		return response.data;
+	},
+
+	async updateReel(reelId: string, payload: { caption?: string; category?: string; audioTitle?: string | null; audioArtist?: string | null }): Promise<{ success: boolean; data: Reel }> {
+		const response = await http.put<{ success: boolean; data: Reel }>(`/reels/${reelId}`, payload);
+		return response.data;
+	},
+
+	async deleteReel(reelId: string): Promise<{ success: boolean }> {
+		const response = await http.delete<{ success: boolean }>(`/reels/${reelId}`);
 		return response.data;
 	}
 };

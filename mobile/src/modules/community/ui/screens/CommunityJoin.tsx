@@ -96,7 +96,7 @@ export default function CommunityJoin({ navigation }: any) {
             const res = await axios.get(`${base}/channels`);
             return res.data?.data || [];
           } catch (e) {
-            console.debug('[CommunityJoin] core channels unauth fallback failed', e?.message || e);
+            console.debug('[CommunityJoin] core channels unauth fallback failed', (e as any)?.message || e);
             return [];
           }
         });
@@ -106,7 +106,7 @@ export default function CommunityJoin({ navigation }: any) {
             const res = await axios.get(`${msgBaseUrl}/channels/discover`);
             return res.data?.data || [];
           } catch (e) {
-            console.debug('[CommunityJoin] discover unauth fallback failed', e?.message || e);
+            console.debug('[CommunityJoin] discover unauth fallback failed', (e as any)?.message || e);
             return [];
           }
         });
@@ -231,9 +231,9 @@ export default function CommunityJoin({ navigation }: any) {
     if (Array.isArray(parts) && parts.length > 0) {
       return parts.some((p: any) => {
         if (!p) return false;
-        if (typeof p === 'string') return String(p) === String(user._id) || String(p) === String(user.id);
+        if (typeof p === 'string') return String(p) === String((user as any)._id) || String(p) === String((user as any).id);
         const pid = String(p._id || p.id || p.userId || p._userId);
-        return pid && (pid === String(user._id) || pid === String(user.id));
+        return pid && (pid === String((user as any)._id) || pid === String((user as any).id));
       });
     }
     return false;

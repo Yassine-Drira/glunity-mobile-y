@@ -21,10 +21,10 @@ import { ReelsService } from '../../services/reels.service';
 import { useTheme } from '../../../../shared/context/theme.context';
 
 const MOCK_MUSIC_LIBRARY = [
-	{ id: '1', title: 'Gluten-Free Grooves', artist: 'DJ Celic', duration: '2:30' },
-	{ id: '2', title: 'Kitchen Chill Beats', artist: 'Lofi Baker', duration: '3:15' },
-	{ id: '3', title: 'Energetic Cooking', artist: 'Chef Pop', duration: '2:45' },
-	{ id: '4', title: 'Healthy Vibes Only', artist: 'Acoustic Soul', duration: '3:02' },
+	{ id: '1', title: 'Gluten-Free Grooves', artist: 'DJ Celic', duration: '2:30', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+	{ id: '2', title: 'Kitchen Chill Beats', artist: 'Lofi Baker', duration: '3:15', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+	{ id: '3', title: 'Energetic Cooking', artist: 'Chef Pop', duration: '2:45', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
+	{ id: '4', title: 'Healthy Vibes Only', artist: 'Acoustic Soul', duration: '3:02', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
 ];
 
 export default function ReelCameraScreen() {
@@ -48,6 +48,49 @@ export default function ReelCameraScreen() {
 	const [showSuccessModal, setShowSuccessModal] = useState(false);
 	const [successCountdown, setSuccessCountdown] = useState(3);
 
+	const soundRef = useRef<Audio.Sound | null>(null);
+
+	// Load & play background music during preview
+	React.useEffect(() => {
+		let isMounted = true;
+		const loadAndPlayMusic = async () => {
+			if (videoUri && selectedMusic?.url) {
+				try {
+					if (soundRef.current) {
+						await soundRef.current.unloadAsync();
+					}
+					const { sound } = await Audio.Sound.createAsync(
+						{ uri: selectedMusic.url },
+						{ shouldPlay: true, isLooping: true, volume: musicVolume }
+					);
+					if (isMounted) {
+						soundRef.current = sound;
+					} else {
+						await sound.unloadAsync();
+					}
+				} catch (err) {
+					console.warn('Failed to load preview music:', err);
+				}
+			}
+		};
+
+		if (videoUri && selectedMusic?.url) {
+			loadAndPlayMusic();
+		} else {
+			if (soundRef.current) {
+				soundRef.current.stopAsync().catch(() => {});
+			}
+		}
+
+		return () => {
+			isMounted = false;
+			if (soundRef.current) {
+				soundRef.current.unloadAsync().catch(() => {});
+				soundRef.current = null;
+			}
+		};
+	}, [videoUri, selectedMusic, musicVolume]);
+
 	const pickVideo = async () => {
 		const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 		if (!permission.granted) {
@@ -56,7 +99,7 @@ export default function ReelCameraScreen() {
 		}
 
 		const result = await ImagePicker.launchImageLibraryAsync({
-			mediaTypes: ImagePicker.MediaType.Videos,
+			mediaTypes: ImagePicker.MediaTypeOptions.Videos,
 			allowsEditing: true,
 			quality: 1,
 		});
@@ -179,6 +222,9 @@ export default function ReelCameraScreen() {
 				caption: caption.trim(),
 				duration: 0,
 				category,
+				audioTitle: selectedMusic?.title,
+				audioArtist: selectedMusic?.artist,
+				audioUrl: selectedMusic?.url,
 			});
 
 			if (createRes.success) {

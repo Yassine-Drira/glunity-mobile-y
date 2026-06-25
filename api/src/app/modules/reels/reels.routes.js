@@ -5,7 +5,7 @@ const controller = require('./reels.controller');
 const validate = require('../../common/middleware/validation.middleware');
 const authMiddleware = require('../../common/middleware/auth.middleware');
 const env = require('../../config/env');
-const { reelIdSchema, createReelSchema, createCommentSchema } = require('./reels.schema');
+const { reelIdSchema, createReelSchema, createCommentSchema, updateReelSchema } = require('./reels.schema');
 const multer = require('multer');
 
 // Configure multer for memory uploads (local fallback)
@@ -28,6 +28,7 @@ router.post('/upload', authMiddleware, upload.single('video'), controller.upload
 // ── Reels CRUD ───────────────────────────────────────────────────────────────
 router.get('/', authMiddleware, controller.list);
 router.post('/', authMiddleware, createReelSchema, validate, controller.create);
+router.put('/:id', authMiddleware, updateReelSchema, validate, controller.update);
 router.delete('/:id', authMiddleware, reelIdSchema, validate, controller.remove);
 
 // ── Interactions ─────────────────────────────────────────────────────────────

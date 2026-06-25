@@ -17,6 +17,9 @@ const reelSchema = new Schema(
 		status: { type: String, enum: ['processing', 'ready', 'failed'], default: 'ready', index: true },
 		category: { type: String, enum: ['all', 'recipes', 'tips', 'products', 'lifestyle'], default: 'all', index: true },
 		channelRef: { type: Types.ObjectId, ref: 'Channel', default: null, index: true },
+		audioTitle: { type: String, default: null },
+		audioArtist: { type: String, default: null },
+		audioUrl: { type: String, default: null },
 	},
 	{
 		timestamps: true,

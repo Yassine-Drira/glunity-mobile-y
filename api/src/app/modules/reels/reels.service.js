@@ -17,9 +17,9 @@ if (env.cloudinary && env.cloudinary.cloudName && env.cloudinary.apiKey && env.c
 }
 
 const reelsService = {
-	async getFeed({ userId, page = 0, limit = 10, category }) {
+	async getFeed({ userId, page = 0, limit = 10, category, authorId }) {
 		const skip = page * limit;
-		const reels = await reelsRepository.findFeed({ limit, skip, category });
+		const reels = await reelsRepository.findFeed({ limit, skip, category, authorId });
 		
 		const reelIds = reels.map(r => r._id);
 		const likesMap = userId ? await reelsRepository.hasLikedMany(reelIds, userId) : {};
@@ -36,6 +36,22 @@ const reelsService = {
 		
 		const populatedReel = await reelsRepository.findById(reel._id);
 		return reelsMapper.toReelResponse(populatedReel, false);
+	},
+
+	async updateReel(reelId, userId, payload) {
+		const reel = await reelsRepository.findById(reelId);
+		if (!reel) {
+			throw AppError.notFound('Reel');
+		}
+		
+		const authorIdStr = reel.authorId?._id?.toString() || reel.authorId?.toString();
+		if (authorIdStr !== userId.toString()) {
+			throw AppError.forbidden('You are not authorized to update this reel');
+		}
+		
+		const updatedReel = await reelsRepository.updateReel(reelId, payload);
+		const liked = await reelsRepository.hasLiked(reelId, userId);
+		return reelsMapper.toReelResponse(updatedReel, liked);
 	},
 
 	async deleteReel(reelId, userId) {

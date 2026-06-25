@@ -10,6 +10,7 @@ const toReelResponse = (reel, isLiked = false) => {
 			id: author._id || author.id || null,
 			fullName: author.fullName || 'Anonymous',
 			avatarUrl: author.avatar?.url || null,
+			profileType: author.profileType || null,
 		},
 		videoUrl: reel.videoUrl,
 		thumbnailUrl: reel.thumbnailUrl,
@@ -23,6 +24,9 @@ const toReelResponse = (reel, isLiked = false) => {
 		status: reel.status,
 		category: reel.category || 'all',
 		channelRef: reel.channelRef || null,
+		audioTitle: reel.audioTitle || null,
+		audioArtist: reel.audioArtist || null,
+		audioUrl: reel.audioUrl || null,
 		createdAt: reel.createdAt,
 	};
 };

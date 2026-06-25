@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ActivityIndicator,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,6 +19,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useLanguage } from '@/shared/context/language.context';
+import authApi from '@/modules/auth/api/auth.api';
+import http from '@/core/network/http.client';
+import { ReelsService, Reel } from '@/modules/reels/services/reels.service';
+import { Video, ResizeMode } from 'expo-av';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
@@ -78,16 +85,473 @@ const PRO_BADGES = [
   },
 ];
 
-export default function ProfileScreen({ navigation }: Props) {
-  const { user, logout, checkIn } = useAuth();
+export default function ProfileScreen({ navigation, route }: Props) {
+  const { user: currentUser, logout, checkIn } = useAuth();
   const { theme: T } = useTheme();
   const { isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
+
+  const targetUserId = route?.params?.userId;
+  const isOwnProfile = !targetUserId || targetUserId === currentUser?._id;
+
+  const [profileUser, setProfileUser] = React.useState<any>(null);
+  const [loadingUser, setLoadingUser] = React.useState(false);
+
+  const [activeProfileTab, setActiveProfileTab] = React.useState<'achievements' | 'reels'>('achievements');
+  const [reels, setReels] = React.useState<Reel[]>([]);
+  const [loadingReels, setLoadingReels] = React.useState(false);
+  const [selectedReel, setSelectedReel] = React.useState<Reel | null>(null);
+  const [isStatsModalOpen, setIsStatsModalOpen] = React.useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [editCaption, setEditCaption] = React.useState('');
+  const [editCategory, setEditCategory] = React.useState<'all' | 'recipes' | 'tips' | 'products' | 'lifestyle'>('all');
+  const [updatingReel, setUpdatingReel] = React.useState(false);
+  const [deletingReel, setDeletingReel] = React.useState(false);
+  const [activeVideoUrl, setActiveVideoUrl] = React.useState<string | null>(null);
+
+  const fetchUserReels = async () => {
+    if (!profileUser) return;
+    try {
+      setLoadingReels(true);
+      const res = await ReelsService.getUserReels(profileUser._id || profileUser.id);
+      if (res.success && res.data) {
+        setReels(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user reels:', err);
+    } finally {
+      setLoadingReels(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (profileUser) {
+      fetchUserReels();
+    }
+  }, [profileUser]);
+
+  const handleUpdateReel = async () => {
+    if (!selectedReel) return;
+    try {
+      setUpdatingReel(true);
+      const res = await ReelsService.updateReel(selectedReel.id, {
+        caption: editCaption,
+        category: editCategory,
+      });
+      if (res.success) {
+        Alert.alert(t('Success'), t('Reel updated successfully'));
+        setIsEditModalOpen(false);
+        setSelectedReel(null);
+        fetchUserReels();
+      }
+    } catch (err: any) {
+      Alert.alert(t('Error'), err?.message || t('Failed to update reel'));
+    } finally {
+      setUpdatingReel(false);
+    }
+  };
+
+  const handleDeleteReel = async (reelId: string) => {
+    Alert.alert(
+      t('Delete Reel'),
+      t('Are you sure you want to permanently delete this reel?'),
+      [
+        { text: t('Cancel'), style: 'cancel' },
+        {
+          text: t('Delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletingReel(true);
+              const res = await ReelsService.deleteReel(reelId);
+              if (res.success) {
+                Alert.alert(t('Success'), t('Reel deleted successfully'));
+                setIsStatsModalOpen(false);
+                setSelectedReel(null);
+                fetchUserReels();
+              }
+            } catch (err: any) {
+              Alert.alert(t('Error'), err?.message || t('Failed to delete reel'));
+            } finally {
+              setDeletingReel(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  React.useEffect(() => {
+    if (isOwnProfile) {
+      setProfileUser(currentUser);
+    } else {
+      let isMounted = true;
+      const fetchUserProfile = async () => {
+        try {
+          setLoadingUser(true);
+          const data = await authApi.getUserById(targetUserId);
+          if (isMounted) {
+            setProfileUser(data);
+          }
+        } catch (err) {
+          Alert.alert(t('Error'), t('Failed to load profile details'));
+          navigation.goBack();
+        } finally {
+          if (isMounted) {
+            setLoadingUser(false);
+          }
+        }
+      };
+      fetchUserProfile();
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [isOwnProfile, targetUserId, currentUser]);
 
   const bottomInset = Math.max(insets.bottom, 8) + 110;
   const mascotImage = require('../../../../../assets/Logo/image 3.png');
 
   const s = React.useMemo(() => StyleSheet.create({
+    tabBarContainer: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      backgroundColor: T.surfaceAlt,
+      borderRadius: 14,
+      padding: 4,
+      marginBottom: 16,
+      width: '100%',
+    },
+    tabButton: {
+      flex: 1,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      borderRadius: 10,
+      gap: 6,
+    },
+    tabButtonActive: {
+      backgroundColor: T.surface,
+      boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.08)',
+      elevation: 2,
+    },
+    tabButtonText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: T.textMuted,
+      fontFamily: F.medium,
+    },
+    tabButtonTextActive: {
+      color: T.text,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
+    reelsHeaderRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+      marginBottom: 12,
+    },
+    reelsHeaderTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: T.text,
+      fontFamily: F.bold,
+    },
+    uploadReelBtn: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: T.green,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      gap: 4,
+    },
+    uploadReelText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
+    reelsGrid: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      width: '100%',
+    },
+    reelGridItem: {
+      width: '31%',
+      aspectRatio: 1,
+      borderRadius: 8,
+      overflow: 'hidden',
+      backgroundColor: T.surfaceAlt,
+      position: 'relative',
+    },
+    reelThumbnail: {
+      width: '100%',
+      height: '100%',
+    },
+    viewsOverlay: {
+      position: 'absolute',
+      bottom: 6,
+      left: 6,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+      gap: 2,
+    },
+    viewsOverlayText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '600',
+    },
+    reelOptionsBtn: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emptyStateWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 32,
+      width: '100%',
+    },
+    emptyStateTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: T.text,
+      marginTop: 12,
+      fontFamily: F.semibold,
+    },
+    emptyStateSub: {
+      fontSize: 13,
+      color: T.textMuted,
+      textAlign: 'center',
+      marginTop: 6,
+      marginBottom: 16,
+      paddingHorizontal: 24,
+      fontFamily: F.regular,
+    },
+    createReelBtnLarge: {
+      backgroundColor: T.green,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 10,
+    },
+    createReelBtnLargeText: {
+      color: '#FFFFFF',
+      fontWeight: '600',
+      fontSize: 14,
+      fontFamily: F.semibold,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    statsModalContent: {
+      backgroundColor: T.surface,
+      borderRadius: 20,
+      width: '100%',
+      maxWidth: 360,
+      padding: 20,
+      alignItems: 'center',
+      boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.15)',
+      elevation: 5,
+    },
+    statsModalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: T.text,
+      marginBottom: 16,
+      fontFamily: F.bold,
+    },
+    statsPreviewRow: {
+      flexDirection: 'row',
+      width: '100%',
+      backgroundColor: T.surfaceAlt,
+      borderRadius: 12,
+      padding: 10,
+      marginBottom: 16,
+      alignItems: 'center',
+      gap: 12,
+    },
+    statsPreviewThumb: {
+      width: 50,
+      height: 70,
+      borderRadius: 6,
+    },
+    statsPreviewInfo: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    statsPreviewCaption: {
+      fontSize: 13,
+      color: T.text,
+      fontWeight: '500',
+      fontFamily: F.medium,
+    },
+    statsPreviewCat: {
+      fontSize: 11,
+      color: T.green,
+      fontWeight: '600',
+      marginTop: 4,
+      fontFamily: F.semibold,
+      textTransform: 'uppercase',
+    },
+    insightsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+      width: '100%',
+      marginBottom: 16,
+    },
+    insightCard: {
+      flex: 1,
+      minWidth: '45%',
+      backgroundColor: T.surfaceAlt,
+      borderRadius: 10,
+      padding: 12,
+      alignItems: 'center',
+    },
+    insightValue: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: T.text,
+      marginTop: 4,
+      fontFamily: F.bold,
+    },
+    insightLabel: {
+      fontSize: 11,
+      color: T.textMuted,
+      marginTop: 2,
+      fontFamily: F.regular,
+    },
+    engagementCard: {
+      width: '100%',
+      backgroundColor: T.greenLight,
+      borderRadius: 12,
+      padding: 14,
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    engagementRateText: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: T.green,
+      fontFamily: F.bold,
+    },
+    engagementLabel: {
+      fontSize: 12,
+      color: T.text,
+      fontWeight: '600',
+      marginTop: 4,
+      fontFamily: F.semibold,
+    },
+    engagementBadge: {
+      backgroundColor: T.green,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      marginTop: 6,
+    },
+    engagementBadgeText: {
+      color: '#FFFFFF',
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    modalActionsColumn: {
+      width: '100%',
+      gap: 10,
+    },
+    modalActionBtn: {
+      width: '100%',
+      height: 44,
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    modalActionBtnPrimary: {
+      backgroundColor: T.green,
+    },
+    modalActionBtnSecondary: {
+      backgroundColor: T.surfaceAlt,
+      borderWidth: 1,
+      borderColor: T.border,
+    },
+    modalActionBtnDanger: {
+      backgroundColor: T.redLight,
+    },
+    modalActionBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
+    inputLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: T.textSub,
+      alignSelf: 'flex-start',
+      marginBottom: 6,
+      fontFamily: F.semibold,
+    },
+    captionInput: {
+      width: '100%',
+      backgroundColor: T.surfaceAlt,
+      borderWidth: 1,
+      borderColor: T.border,
+      borderRadius: 10,
+      padding: 12,
+      fontSize: 14,
+      color: T.text,
+      minHeight: 80,
+      textAlignVertical: 'top',
+      marginBottom: 16,
+      fontFamily: F.regular,
+    },
+    catChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      width: '100%',
+      marginBottom: 20,
+    },
+    catChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: T.border,
+      backgroundColor: T.surface,
+    },
+    catChipActive: {
+      borderColor: T.green,
+      backgroundColor: T.greenLight,
+    },
+    catChipText: {
+      fontSize: 12,
+      color: T.textSub,
+      fontFamily: F.medium,
+    },
+    catChipTextActive: {
+      color: T.green,
+      fontWeight: '600',
+      fontFamily: F.semibold,
+    },
     safe: {
       flex: 1,
       backgroundColor: T.bg,
@@ -614,12 +1078,48 @@ export default function ProfileScreen({ navigation }: Props) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    customerActionsRow: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      gap: 12,
+      marginVertical: 12,
+      width: '100%',
+      justifyContent: 'center',
+    },
+    customerActionBtn: {
+      flex: 1,
+      height: 44,
+      borderRadius: 12,
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    customerFollowBtn: {
+      backgroundColor: T.green,
+    },
+    customerFollowText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontFamily: F.bold,
+      fontSize: 14,
+    },
+    customerMessageBtn: {
+      backgroundColor: T.surface,
+      borderWidth: 1.5,
+      borderColor: T.green,
+    },
+    customerMessageText: {
+      color: T.green,
+      fontWeight: '700',
+      fontFamily: F.bold,
+      fontSize: 14,
+    },
   }), [T, isRTL]);
 
   const [checkingIn, setCheckingIn] = React.useState(false);
 
-  const points = user?.points || 0;
-  const isPro = user?.profileType?.startsWith('pro_');
+  const points = profileUser?.points || 0;
+  const isPro = profileUser?.profileType?.startsWith('pro_');
 
   const GENERAL_THRESHOLDS = [0, 150, 500, 1000, 2500];
   const PRO_THRESHOLDS = [0, 120, 300, 1000, 2500];
@@ -653,21 +1153,46 @@ export default function ProfileScreen({ navigation }: Props) {
   const nextLevelLabel = activeIndex < levels.length - 1 ? levels[activeIndex + 1] : null;
   const isMaxLevel = activeIndex >= levels.length - 1;
 
-  const roleName = user?.profileType === 'pro_commerce'
+  const roleName = profileUser?.profileType === 'pro_commerce'
     ? t('Pro Partner')
-    : user?.profileType === 'pro_health'
+    : profileUser?.profileType === 'pro_health'
     ? t('Pro Contributor')
     : t('Gluten-Free Warrior');
 
-  const roleDesc = user?.profileType === 'pro_commerce'
+  const roleDesc = profileUser?.profileType === 'pro_commerce'
     ? t('You are a verified business supporting the gluten-free community.')
-    : user?.profileType === 'pro_health'
+    : profileUser?.profileType === 'pro_health'
     ? t('You are a verified health professional providing expert gluten-free guidance.')
     : t('You actively manage your gluten-free lifestyle and inspire others.');
 
 
-  const lastCheckIn = user?.lastCheckInAt ? new Date(user.lastCheckInAt) : null;
+  const lastCheckIn = profileUser?.lastCheckInAt ? new Date(profileUser.lastCheckInAt) : null;
   const isAlreadyCheckedIn = !!(lastCheckIn && lastCheckIn.toDateString() === new Date().toDateString());
+
+  const [messagingLoading, setMessagingLoading] = React.useState(false);
+
+  const handleMessageUser = async () => {
+    if (messagingLoading || !targetUserId) return;
+    try {
+      setMessagingLoading(true);
+      const response = await http.post(
+        `/channels/direct`,
+        { userId: targetUserId }
+      );
+      if (response.data?.success && response.data?.data) {
+        const channel = response.data.data;
+        navigation.navigate('CommunityChat', {
+          channelId: channel.id,
+          initialChannel: channel
+        });
+      }
+    } catch (error) {
+      console.error('Error opening direct message:', error);
+      Alert.alert(t('Error'), t('Failed to open chat with this user'));
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
 
   const handleCheckIn = async () => {
     try {
@@ -701,17 +1226,33 @@ export default function ProfileScreen({ navigation }: Props) {
     return points >= badge.pointsRequired;
   };
 
+  if (loadingUser || !profileUser) {
+    return (
+      <AppScaffold
+        title={t('Loading Profile...')}
+        activeTab="profile"
+        onBack={() => navigation.goBack()}
+        contentStyle={{ backgroundColor: T.bg }}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={T.green} />
+        </View>
+      </AppScaffold>
+    );
+  }
+
   return (
     <AppScaffold
-      title={t('Profile')}
+      title={isOwnProfile ? t('Profile') : (profileUser?.fullName || t('User Profile'))}
       activeTab="profile"
-      rightIcon="bell-outline"
+      rightIcon={isOwnProfile ? "bell-outline" : undefined}
+      onBack={isOwnProfile ? undefined : () => navigation.goBack()}
       onPressHome={() => navigation.navigate('Home')}
       onPressEvents={() => navigation.navigate('Events')}
       onPressCenter={() => {}}
       onPressReels={() => {}}
       onPressProfile={() => {
-        if (user?.profileType === 'pro_commerce') {
+        if (currentUser?.profileType === 'pro_commerce') {
           navigation.navigate('SellerProProfile');
         } else {
           navigation.navigate('Profile');
@@ -729,7 +1270,7 @@ export default function ProfileScreen({ navigation }: Props) {
         <View style={s.headerSection}>
           <View style={s.avatarWrap}>
             <Image
-              source={{ uri: user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
+              source={{ uri: profileUser?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
               style={s.avatar}
             />
             <View style={[s.checkBadge, isPro && { backgroundColor: T.red }]}>
@@ -741,7 +1282,7 @@ export default function ProfileScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <Text style={s.name}>{user?.fullName || 'Yassmine Cherif'}</Text>
+          <Text style={s.name}>{profileUser?.fullName || 'Anonymous'}</Text>
           <View style={s.statsRow}>
             <View style={[s.roleBadgePill, isPro && { backgroundColor: T.redLight }]}>
               <Text style={[s.roleBadgeText, isPro && { color: T.red }]}>{roleName}</Text>
@@ -752,242 +1293,614 @@ export default function ProfileScreen({ navigation }: Props) {
               <MaterialCommunityIcons name="star" size={12} color={isPro ? T.red : T.green} style={{ marginRight: 4 }} />
               <Text style={s.pointsBadgeText}>{points} XP</Text>
             </View>
-            <TouchableOpacity
-              style={[
-                s.pointsBadgePill,
-                isAlreadyCheckedIn && { borderColor: '#FFA000', backgroundColor: T.surfaceAlt },
-              ]}
-              disabled={isAlreadyCheckedIn || checkingIn}
-              onPress={handleCheckIn}
-            >
-              <MaterialCommunityIcons
-                name="fire"
-                size={12}
-                color={isAlreadyCheckedIn ? '#FF5722' : T.textMuted}
-                style={{ marginRight: 4 }}
-              />
-              <Text style={[s.pointsBadgeText, isAlreadyCheckedIn && { color: '#FF5722', fontWeight: '700' }]}>
-                {checkingIn ? '...' : isAlreadyCheckedIn ? `${user?.streakDays || 0} ${t('days')}` : t('Check In')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={s.subTitle}>{user?.bio || t('Living gluten-free for 12 years 🌿')}</Text>
-        </View>
-
-        <View style={s.sectionWrap}>
-          <Text style={s.sectionLabel}>{t('Your Role')}</Text>
-          <View style={s.card}>
-            <View style={[s.roleIconBlock, isPro && { backgroundColor: T.redLight }]}>
-              <Feather name={isPro ? "award" : "shield"} size={22} color={isPro ? T.red : T.green} />
-            </View>
-            <View style={s.roleTextWrap}>
-              <Text style={s.roleTitle}>{roleName}</Text>
-              <Text style={s.roleSubtitle}>{roleDesc}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={s.sectionWrap}>
-          <Text style={s.sectionLabel}>{t('Your Journey')}</Text>
-          <View style={s.journeyCard}>
-            <View style={[s.journeyGlow, isPro && { backgroundColor: T.red }]} />
-            <View style={s.journeyHeaderRow}>
-              <View style={s.journeyHeaderLeft}>
-                <View style={[s.journeyLevelPill, isPro && { backgroundColor: T.redLight, borderColor: T.red }]}>
-                  <MaterialCommunityIcons name="trophy-variant" size={12} color={isPro ? T.red : T.green} />
-                  <Text style={[s.journeyLevelText, isPro && { color: T.red }]}>
-                    {t('Level')} {activeIndex + 1}
-                  </Text>
-                </View>
-                <Text style={s.journeyLevelTitle}>{t(currentLevelLabel)}</Text>
+            {!isOwnProfile ? (
+              <View style={s.pointsBadgePill}>
+                <MaterialCommunityIcons name="fire" size={12} color="#FF5722" style={{ marginRight: 4 }} />
+                <Text style={s.pointsBadgeText}>{profileUser?.streakDays || 0} {t('days')}</Text>
               </View>
-              <View style={[s.journeyXpPill, isPro && { backgroundColor: T.redLight, borderColor: T.red }]}>
+            ) : (
+              <TouchableOpacity
+                style={[
+                  s.pointsBadgePill,
+                  isAlreadyCheckedIn && { borderColor: '#FFA000', backgroundColor: T.surfaceAlt },
+                ]}
+                disabled={isAlreadyCheckedIn || checkingIn}
+                onPress={handleCheckIn}
+              >
                 <MaterialCommunityIcons
-                  name={isMaxLevel ? 'crown' : 'rocket-launch'}
+                  name="fire"
                   size={12}
-                  color={isPro ? T.red : T.green}
+                  color={isAlreadyCheckedIn ? '#FF5722' : T.textMuted}
+                  style={{ marginRight: 4 }}
                 />
-                <Text style={[s.journeyXpText, isPro && { color: T.red }]}>
-                  {isMaxLevel ? t('Max Level') : `${pointsToNext} XP ${t('to next')}`}
+                <Text style={[s.pointsBadgeText, isAlreadyCheckedIn && { color: '#FF5722', fontWeight: '700' }]}>
+                  {checkingIn ? '...' : isAlreadyCheckedIn ? `${profileUser?.streakDays || 0} ${t('days')}` : t('Check In')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={s.subTitle}>{profileUser?.bio || t('Living gluten-free for 12 years 🌿')}</Text>
+
+          {!isOwnProfile && (
+            <View style={s.customerActionsRow}>
+              <TouchableOpacity style={[s.customerActionBtn, s.customerFollowBtn]}>
+                <Feather name="user-plus" size={16} color="#FFFFFF" />
+                <Text style={s.customerFollowText}>{t('Follow')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[s.customerActionBtn, s.customerMessageBtn]}
+                onPress={handleMessageUser}
+                disabled={messagingLoading}
+              >
+                {messagingLoading ? (
+                  <ActivityIndicator size="small" color={T.green} />
+                ) : (
+                  <>
+                    <Feather name="message-square" size={16} color={T.green} />
+                    <Text style={s.customerMessageText}>{t('Message')}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+        <View style={s.tabBarContainer}>
+          <TouchableOpacity
+            style={[s.tabButton, activeProfileTab === 'achievements' && s.tabButtonActive]}
+            onPress={() => setActiveProfileTab('achievements')}
+          >
+            <Feather name="award" size={18} color={activeProfileTab === 'achievements' ? (isPro ? T.red : T.green) : T.textMuted} />
+            <Text style={[s.tabButtonText, activeProfileTab === 'achievements' && s.tabButtonTextActive]}>
+              {t('Achievements')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.tabButton, activeProfileTab === 'reels' && s.tabButtonActive]}
+            onPress={() => setActiveProfileTab('reels')}
+          >
+            <Feather name="video" size={18} color={activeProfileTab === 'reels' ? (isPro ? T.red : T.green) : T.textMuted} />
+            <Text style={[s.tabButtonText, activeProfileTab === 'reels' && s.tabButtonTextActive]}>
+              {t('Reels')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeProfileTab === 'achievements' ? (
+          <>
+            <View style={s.sectionWrap}>
+              <Text style={s.sectionLabel}>{t('Your Role')}</Text>
+              <View style={s.card}>
+                <View style={[s.roleIconBlock, isPro && { backgroundColor: T.redLight }]}>
+                  <Feather name={isPro ? "award" : "shield"} size={22} color={isPro ? T.red : T.green} />
+                </View>
+                <View style={s.roleTextWrap}>
+                  <Text style={s.roleTitle}>{roleName}</Text>
+                  <Text style={s.roleSubtitle}>{roleDesc}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={s.sectionWrap}>
+              <Text style={s.sectionLabel}>{t('Your Journey')}</Text>
+              <View style={s.journeyCard}>
+                <View style={[s.journeyGlow, isPro && { backgroundColor: T.red }]} />
+                <View style={s.journeyHeaderRow}>
+                  <View style={s.journeyHeaderLeft}>
+                    <View style={[s.journeyLevelPill, isPro && { backgroundColor: T.redLight, borderColor: T.red }]}>
+                      <MaterialCommunityIcons name="trophy-variant" size={12} color={isPro ? T.red : T.green} />
+                      <Text style={[s.journeyLevelText, isPro && { color: T.red }]}>
+                        {t('Level')} {activeIndex + 1}
+                      </Text>
+                    </View>
+                    <Text style={s.journeyLevelTitle}>{t(currentLevelLabel)}</Text>
+                  </View>
+                  <View style={[s.journeyXpPill, isPro && { backgroundColor: T.redLight, borderColor: T.red }]}>
+                    <MaterialCommunityIcons
+                      name={isMaxLevel ? 'crown' : 'rocket-launch'}
+                      size={12}
+                      color={isPro ? T.red : T.green}
+                    />
+                    <Text style={[s.journeyXpText, isPro && { color: T.red }]}>
+                      {isMaxLevel ? t('Max Level') : `${pointsToNext} XP ${t('to next')}`}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={s.journeyProgressWrap}>
+                  <View style={s.journeyTrack}>
+                    <View
+                      style={[
+                        s.journeyTrackGlow,
+                        isPro && { backgroundColor: T.red },
+                        { width: `${progressPercent}%` },
+                      ]}
+                    />
+                    <View
+                      style={[
+                        s.journeyTrackDone,
+                        isPro && { backgroundColor: T.red },
+                        { width: `${progressPercent}%` },
+                      ]}
+                    />
+                  </View>
+
+                  <View style={s.journeyRow}>
+                    {levels.map((label, index) => {
+                      const isCompleted = index < activeIndex;
+                      const isActive = index === activeIndex;
+
+                      return (
+                        <View key={label} style={s.stepItem}>
+                          <View style={s.stepNodeRow}>
+                            <View
+                              style={[
+                                s.node,
+                                isActive ? s.nodeActive : isCompleted ? s.nodeCompleted : s.nodeInactive,
+                                isActive && isPro && { backgroundColor: T.red },
+                                isCompleted && isPro && { backgroundColor: T.surface, borderColor: T.red },
+                              ]}
+                            >
+                              {isActive && <View style={s.nodeActiveCenter} />}
+                              {isCompleted && !isActive && (
+                                <MaterialCommunityIcons
+                                  name="check"
+                                  size={10}
+                                  color={isPro ? T.red : T.green}
+                                />
+                              )}
+                            </View>
+                          </View>
+
+                          <Text
+                            style={[
+                              s.stepLabel,
+                              isActive && s.stepLabelActive,
+                              isCompleted && s.stepLabelCompleted,
+                              !isCompleted && !isActive && s.stepLabelInactive,
+                              isActive && isPro && { color: T.red },
+                            ]}
+                          >
+                            {t(label)}
+                          </Text>
+                          <Text
+                            style={[
+                              s.stepValue,
+                              (isActive || isCompleted) && { color: isPro ? T.red : T.green },
+                            ]}
+                          >
+                            {thresholds[index]} XP
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+              <View style={s.journeyFooterRow}>
+                <MaterialCommunityIcons name="star-four-points" size={14} color={isPro ? T.red : T.green} />
+                <Text style={s.progressText}>
+                  {isMaxLevel
+                    ? t('Max Level Reached!')
+                    : `${points} XP • ${pointsToNext} XP ${t('to')} ${t(nextLevelLabel || '')}`}
                 </Text>
               </View>
             </View>
 
-            <View style={s.journeyProgressWrap}>
-              <View style={s.journeyTrack}>
-                <View
-                  style={[
-                    s.journeyTrackGlow,
-                    isPro && { backgroundColor: T.red },
-                    { width: `${progressPercent}%` },
-                  ]}
-                />
-                <View
-                  style={[
-                    s.journeyTrackDone,
-                    isPro && { backgroundColor: T.red },
-                    { width: `${progressPercent}%` },
-                  ]}
-                />
-              </View>
-
-              <View style={s.journeyRow}>
-                {levels.map((label, index) => {
-                  const isCompleted = index < activeIndex;
-                  const isActive = index === activeIndex;
-
+            {/* Badges Grid Section */}
+            <View style={s.sectionWrap}>
+              <Text style={s.sectionLabel}>{isPro ? t('Your Medals') : t('Your Badges')}</Text>
+              <View style={s.badgesGrid}>
+                {currentBadges.map((badge) => {
+                  const isUnlocked = isBadgeUnlocked(badge.id);
                   return (
-                    <View key={label} style={s.stepItem}>
-                      <View style={s.stepNodeRow}>
-                        <View
-                          style={[
-                            s.node,
-                            isActive ? s.nodeActive : isCompleted ? s.nodeCompleted : s.nodeInactive,
-                            isActive && isPro && { backgroundColor: T.red },
-                            isCompleted && isPro && { backgroundColor: T.surface, borderColor: T.red },
-                          ]}
-                        >
-                          {isActive && <View style={s.nodeActiveCenter} />}
-                          {isCompleted && !isActive && (
-                            <MaterialCommunityIcons
-                              name="check"
-                              size={10}
-                              color={isPro ? T.red : T.green}
-                            />
-                          )}
-                        </View>
+                    <View 
+                      key={badge.id} 
+                      style={[
+                        s.badgeItem, 
+                        isPro && { maxWidth: '48%' },
+                        !isUnlocked && s.badgeItemLocked
+                      ]}
+                    >
+                      <View 
+                        style={[
+                          s.badgeIconWrap, 
+                          isUnlocked ? { backgroundColor: badge.bgColor } : s.badgeIconWrapLocked,
+                        ]}
+                      >
+                        <Image
+                          source={badge.source}
+                          style={[{ width: 60, height: 60 }, !isUnlocked ? { opacity: 0.35 } : undefined]}
+                          resizeMode="contain"
+                        />
                       </View>
-
-                      <Text
-                        style={[
-                          s.stepLabel,
-                          isActive && s.stepLabelActive,
-                          isCompleted && s.stepLabelCompleted,
-                          !isCompleted && !isActive && s.stepLabelInactive,
-                          isActive && isPro && { color: T.red },
-                        ]}
-                      >
-                        {t(label)}
-                      </Text>
-                      <Text
-                        style={[
-                          s.stepValue,
-                          (isActive || isCompleted) && { color: isPro ? T.red : T.green },
-                        ]}
-                      >
-                        {thresholds[index]} XP
-                      </Text>
+                      <View style={s.badgeNameWrap}>
+                        <Text style={s.badgeName} numberOfLines={2}>{t(badge.name)}</Text>
+                      </View>
+                      <View style={s.badgeDescWrap}>
+                        <Text style={s.badgeDesc} numberOfLines={3}>{t(badge.description)}</Text>
+                      </View>
+                      
+                      {!isUnlocked && (
+                        <View style={s.badgeLockIcon}>
+                          <Feather name="lock" size={11} color={T.textMuted} />
+                        </View>
+                      )}
                     </View>
                   );
                 })}
               </View>
             </View>
-          </View>
-          <View style={s.journeyFooterRow}>
-            <MaterialCommunityIcons name="star-four-points" size={14} color={isPro ? T.red : T.green} />
-            <Text style={s.progressText}>
-              {isMaxLevel
-                ? t('Max Level Reached!')
-                : `${points} XP • ${pointsToNext} XP ${t('to')} ${t(nextLevelLabel || '')}`}
-            </Text>
-          </View>
-        </View>
 
-        {/* Badges Grid Section */}
-        <View style={s.sectionWrap}>
-          <Text style={s.sectionLabel}>{isPro ? t('Your Medals') : t('Your Badges')}</Text>
-          <View style={s.badgesGrid}>
-            {currentBadges.map((badge) => {
-              const isUnlocked = isBadgeUnlocked(badge.id);
-              return (
-                <View 
-                  key={badge.id} 
-                  style={[
-                    s.badgeItem, 
-                    isPro && { maxWidth: '48%' },
-                    !isUnlocked && s.badgeItemLocked
-                  ]}
+            <View style={s.bannerCard}>
+              <Image source={mascotImage} style={s.bannerMascotImage} resizeMode="contain" />
+              <Text style={s.bannerText}>{t('Every action makes the ecosystem stronger.')}</Text>
+            </View>
+          </>
+        ) : (
+          <View style={{ width: '100%' }}>
+            <View style={s.reelsHeaderRow}>
+              <Text style={s.reelsHeaderTitle}>
+                {isOwnProfile ? t('My Shared Reels') : t('Shared Reels')} ({reels.length})
+              </Text>
+              {isOwnProfile && (
+                <TouchableOpacity
+                  style={[s.uploadReelBtn, isPro && { backgroundColor: T.red }]}
+                  onPress={() => navigation.navigate('ReelCamera')}
                 >
-                  <View 
-                    style={[
-                      s.badgeIconWrap, 
-                      isUnlocked ? { backgroundColor: badge.bgColor } : s.badgeIconWrapLocked,
-                    ]}
+                  <Feather name="plus" size={16} color="#FFFFFF" />
+                  <Text style={s.uploadReelText}>{t('Upload')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {loadingReels ? (
+              <ActivityIndicator style={{ marginVertical: 30 }} color={isPro ? T.red : T.green} />
+            ) : reels.length === 0 ? (
+              <View style={s.emptyStateWrap}>
+                <Feather name="video-off" size={48} color={T.textMuted} />
+                <Text style={s.emptyStateTitle}>{t('No Reels Yet')}</Text>
+                <Text style={s.emptyStateSub}>
+                  {isOwnProfile
+                    ? t('Share your gluten-free recipes, dining tips, or lifestyle moments with the community!')
+                    : t('This user has not shared any reels yet.')}
+                </Text>
+                {isOwnProfile && (
+                  <TouchableOpacity
+                    style={[s.createReelBtnLarge, isPro && { backgroundColor: T.red }]}
+                    onPress={() => navigation.navigate('ReelCamera')}
+                  >
+                    <Text style={s.createReelBtnLargeText}>{t('Create First Reel')}</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={s.reelsGrid}>
+                {reels.map((reel) => (
+                  <TouchableOpacity
+                    key={reel.id}
+                    style={s.reelGridItem}
+                    activeOpacity={0.9}
+                    onPress={() => {
+                      setSelectedReel(reel);
+                      setIsStatsModalOpen(true);
+                    }}
                   >
                     <Image
-                      source={badge.source}
-                      style={[{ width: 60, height: 60 }, !isUnlocked ? { opacity: 0.35 } : undefined]}
-                      resizeMode="contain"
+                      source={{ uri: reel.thumbnailUrl }}
+                      style={s.reelThumbnail}
+                      resizeMode="cover"
                     />
-                  </View>
-                  <View style={s.badgeNameWrap}>
-                    <Text style={s.badgeName} numberOfLines={2}>{t(badge.name)}</Text>
-                  </View>
-                  <View style={s.badgeDescWrap}>
-                    <Text style={s.badgeDesc} numberOfLines={3}>{t(badge.description)}</Text>
-                  </View>
-                  
-                  {!isUnlocked && (
-                    <View style={s.badgeLockIcon}>
-                      <Feather name="lock" size={11} color={T.textMuted} />
+                    <View style={s.viewsOverlay}>
+                      <Feather name="play" size={10} color="#FFFFFF" />
+                      <Text style={s.viewsOverlayText}>
+                        {reel.viewsCount >= 1000 ? `${(reel.viewsCount / 1000).toFixed(1)}k` : reel.viewsCount}
+                      </Text>
                     </View>
-                  )}
-                </View>
-              );
-            })}
+                    {isOwnProfile && (
+                      <TouchableOpacity
+                        style={s.reelOptionsBtn}
+                        onPress={() => {
+                          setSelectedReel(reel);
+                          setIsStatsModalOpen(true);
+                        }}
+                      >
+                        <Feather name="more-vertical" size={12} color="#FFFFFF" />
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-        </View>
+        )}
 
-        <View style={s.bannerCard}>
-          <Image source={mascotImage} style={s.bannerMascotImage} resizeMode="contain" />
-          <Text style={s.bannerText}>{t('Every action makes the ecosystem stronger.')}</Text>
-        </View>
-
-        <View style={s.menuStack}>
-          <TouchableOpacity
-            style={s.menuRowCard}
-            onPress={() => navigation.navigate('Settings')}
-            id="profile-settings-btn"
-          >
-            <View style={s.menuLeft}>
-              <View style={s.menuIconCircle}>
-                <Feather name="settings" size={18} color={T.red} />
+        {isOwnProfile && (
+          <View style={s.menuStack}>
+            <TouchableOpacity
+              style={s.menuRowCard}
+              onPress={() => navigation.navigate('Settings')}
+              id="profile-settings-btn"
+            >
+              <View style={s.menuLeft}>
+                <View style={s.menuIconCircle}>
+                  <Feather name="settings" size={18} color={T.red} />
+                </View>
+                <Text style={s.menuLabel}>{t('Settings')}</Text>
               </View>
-              <Text style={s.menuLabel}>{t('Settings')}</Text>
-            </View>
-            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
-          </TouchableOpacity>
+              <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
+            </TouchableOpacity>
 
-          <View style={s.menuDivider} />
+            <View style={s.menuDivider} />
 
-          <TouchableOpacity
-            style={s.menuRowCard}
-            onPress={() => navigation.navigate('Privacy')}
-            id="profile-privacy-btn"
-          >
-            <View style={s.menuLeft}>
-              <View style={s.menuIconCircle}>
-                <Feather name="shield" size={18} color={T.red} />
+            <TouchableOpacity
+              style={s.menuRowCard}
+              onPress={() => navigation.navigate('Privacy')}
+              id="profile-privacy-btn"
+            >
+              <View style={s.menuLeft}>
+                <View style={s.menuIconCircle}>
+                  <Feather name="shield" size={18} color={T.red} />
+                </View>
+                <Text style={s.menuLabel}>{t('Privacy & Security')}</Text>
               </View>
-              <Text style={s.menuLabel}>{t('Privacy & Security')}</Text>
-            </View>
-            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
-          </TouchableOpacity>
+              <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
+            </TouchableOpacity>
 
-          <View style={s.menuDivider} />
+            <View style={s.menuDivider} />
 
-          <TouchableOpacity style={s.menuRowCard} onPress={logout} id="profile-logout-btn">
-            <View style={s.menuLeft}>
-              <View style={s.menuIconCircle}>
-                <Feather name="log-out" size={18} color={T.red} />
+            <TouchableOpacity style={s.menuRowCard} onPress={logout} id="profile-logout-btn">
+              <View style={s.menuLeft}>
+                <View style={s.menuIconCircle}>
+                  <Feather name="log-out" size={18} color={T.red} />
+                </View>
+                <Text style={s.menuLabel}>{t('Log out')}</Text>
               </View>
-              <Text style={s.menuLabel}>{t('Log out')}</Text>
-            </View>
-            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
-          </TouchableOpacity>
-        </View>
+              <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
+      {/* --- STATS & ENGAGEMENT INSIGHTS MODAL --- */}
+      <Modal
+        visible={isStatsModalOpen && !!selectedReel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setIsStatsModalOpen(false);
+          setSelectedReel(null);
+        }}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.statsModalContent}>
+            <Text style={s.statsModalTitle}>{t('Reel Insights')}</Text>
+            
+            {selectedReel && (
+              <>
+                <View style={s.statsPreviewRow}>
+                  <Image source={{ uri: selectedReel.thumbnailUrl }} style={s.statsPreviewThumb} />
+                  <View style={s.statsPreviewInfo}>
+                    <Text style={s.statsPreviewCaption} numberOfLines={2}>
+                      {selectedReel.caption || t('No caption')}
+                    </Text>
+                    <Text style={[s.statsPreviewCat, isPro && { color: T.red }]}>
+                      {selectedReel.category || 'all'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Engagement Card */}
+                <View style={[s.engagementCard, isPro && { backgroundColor: T.redLight }]}>
+                  <Text style={[s.engagementRateText, isPro && { color: T.red }]}>
+                    {((selectedReel.likesCount + selectedReel.commentsCount + selectedReel.sharesCount) / (selectedReel.viewsCount || 1) * 100).toFixed(1)}%
+                  </Text>
+                  <Text style={s.engagementLabel}>{t('Engagement Rate')}</Text>
+                  <View style={[s.engagementBadge, isPro && { backgroundColor: T.red }]}>
+                    <Text style={s.engagementBadgeText}>
+                      {((selectedReel.likesCount + selectedReel.commentsCount + selectedReel.sharesCount) / (selectedReel.viewsCount || 1) * 100) > 12
+                        ? t('🔥 High Engagement')
+                        : t('📈 Active')}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Insights grid */}
+                <View style={s.insightsGrid}>
+                  <View style={s.insightCard}>
+                    <Feather name="eye" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.viewsCount}</Text>
+                    <Text style={s.insightLabel}>{t('Views')}</Text>
+                  </View>
+                  <View style={s.insightCard}>
+                    <Feather name="heart" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.likesCount}</Text>
+                    <Text style={s.insightLabel}>{t('Likes')}</Text>
+                  </View>
+                  <View style={s.insightCard}>
+                    <Feather name="message-square" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.commentsCount}</Text>
+                    <Text style={s.insightLabel}>{t('Comments')}</Text>
+                  </View>
+                  <View style={s.insightCard}>
+                    <Feather name="share-2" size={16} color={T.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={s.insightValue}>{selectedReel.sharesCount}</Text>
+                    <Text style={s.insightLabel}>{t('Shares')}</Text>
+                  </View>
+                </View>
+
+                {/* Actions column */}
+                <View style={s.modalActionsColumn}>
+                  <TouchableOpacity
+                    style={[s.modalActionBtn, s.modalActionBtnPrimary, isPro && { backgroundColor: T.red }]}
+                    onPress={() => {
+                      setIsStatsModalOpen(false);
+                      setActiveVideoUrl(selectedReel.videoUrl);
+                    }}
+                  >
+                    <Feather name="play" size={16} color="#FFFFFF" />
+                    <Text style={[s.modalActionBtnText, { color: '#FFFFFF' }]}>{t('Play Reel')}</Text>
+                  </TouchableOpacity>
+
+                  {isOwnProfile && (
+                    <>
+                      <TouchableOpacity
+                        style={[s.modalActionBtn, s.modalActionBtnSecondary]}
+                        onPress={() => {
+                          setEditCaption(selectedReel.caption || '');
+                          setEditCategory(selectedReel.category || 'all');
+                          setIsStatsModalOpen(false);
+                          setIsEditModalOpen(true);
+                        }}
+                      >
+                        <Feather name="edit-2" size={16} color={T.text} />
+                        <Text style={[s.modalActionBtnText, { color: T.text }]}>{t('Edit Caption & Category')}</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[s.modalActionBtn, s.modalActionBtnDanger]}
+                        onPress={() => handleDeleteReel(selectedReel.id)}
+                        disabled={deletingReel}
+                      >
+                        {deletingReel ? (
+                          <ActivityIndicator size="small" color={T.red} />
+                        ) : (
+                          <>
+                            <Feather name="trash-2" size={16} color={T.red} />
+                            <Text style={[s.modalActionBtnText, { color: T.red }]}>{t('Delete Reel')}</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  )}
+
+                  <TouchableOpacity
+                    style={[s.modalActionBtn, s.modalActionBtnSecondary, { marginTop: 4 }]}
+                    onPress={() => {
+                      setIsStatsModalOpen(false);
+                      setSelectedReel(null);
+                    }}
+                  >
+                    <Text style={[s.modalActionBtnText, { color: T.text }]}>{t('Close')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- EDIT REEL MODAL --- */}
+      <Modal
+        visible={isEditModalOpen && !!selectedReel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedReel(null);
+        }}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.statsModalContent}>
+            <Text style={s.statsModalTitle}>{t('Edit Reel')}</Text>
+
+            <Text style={s.inputLabel}>{t('Caption')}</Text>
+            <TextInput
+              style={s.captionInput}
+              value={editCaption}
+              onChangeText={setEditCaption}
+              multiline
+              numberOfLines={3}
+              placeholder={t('Write a caption...')}
+              placeholderTextColor={T.textMuted}
+            />
+
+            <Text style={s.inputLabel}>{t('Category')}</Text>
+            <View style={s.catChipsRow}>
+              {(['all', 'recipes', 'tips', 'products', 'lifestyle'] as const).map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    s.catChip,
+                    editCategory === cat && s.catChipActive,
+                    editCategory === cat && isPro && { borderColor: T.red, backgroundColor: T.redLight }
+                  ]}
+                  onPress={() => setEditCategory(cat)}
+                >
+                  <Text style={[
+                    s.catChipText,
+                    editCategory === cat && s.catChipTextActive,
+                    editCategory === cat && isPro && { color: T.red }
+                  ]}>
+                    {t(cat)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <View style={s.modalActionsColumn}>
+              <TouchableOpacity
+                style={[s.modalActionBtn, s.modalActionBtnPrimary, isPro && { backgroundColor: T.red }]}
+                onPress={handleUpdateReel}
+                disabled={updatingReel}
+              >
+                {updatingReel ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Feather name="check" size={16} color="#FFFFFF" />
+                    <Text style={[s.modalActionBtnText, { color: '#FFFFFF' }]}>{t('Save Changes')}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.modalActionBtn, s.modalActionBtnSecondary]}
+                onPress={() => {
+                  setIsEditModalOpen(false);
+                  setSelectedReel(null);
+                }}
+              >
+                <Text style={[s.modalActionBtnText, { color: T.text }]}>{t('Cancel')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- FULL SCREEN REEL PLAYER MODAL --- */}
+      {activeVideoUrl && (
+        <Modal visible={true} transparent={false} animationType="slide">
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+            <Video
+              source={{ uri: activeVideoUrl }}
+              rate={1.0}
+              volume={1.0}
+              isMuted={false}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay
+              isLooping
+              style={{ width: '100%', height: '100%' }}
+            />
+            <TouchableOpacity
+              style={{
+                position: 'absolute',
+                top: Math.max(insets.top, 20),
+                right: 20,
+                zIndex: 10,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onPress={() => setActiveVideoUrl(null)}
+            >
+              <Feather name="x" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </Modal>
+      )}
     </AppScaffold>
   );
 }

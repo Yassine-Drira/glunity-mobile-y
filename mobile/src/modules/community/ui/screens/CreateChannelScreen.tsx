@@ -38,7 +38,7 @@ export default function CreateChannelScreen({ navigation }: any) {
         return;
       }
       const res = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaType.Images,
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.8,
         allowsEditing: true,
         aspect: type === 'avatar' ? [1, 1] : [16, 9],

@@ -5,27 +5,63 @@ const ReelLike = require('../../../database/models/reel-like.model');
 const ReelComment = require('../../../database/models/reel-comment.model');
 
 const reelsRepository = {
-	findFeed({ limit = 10, skip = 0, category } = {}) {
+	async findFeed({ limit = 10, skip = 0, category, authorId } = {}) {
 		const filter = { status: 'ready' };
 		if (category && category !== 'all') {
 			filter.category = category;
 		}
-		return Reel.find(filter)
-			.populate('authorId', 'fullName avatar')
-			.sort({ createdAt: -1 })
-			.skip(skip)
+		if (authorId) {
+			filter.authorId = authorId;
+		}
+		
+		const totalCount = await Reel.countDocuments(filter);
+		if (totalCount === 0) {
+			return [];
+		}
+		
+		const safeSkip = authorId ? skip : (skip % totalCount);
+		
+		let reels = await Reel.find(filter)
+			.populate('authorId', 'fullName avatar profileType')
+			.sort(authorId ? { createdAt: -1 } : { viewsCount: -1, createdAt: -1 })
+			.skip(safeSkip)
 			.limit(limit)
 			.lean();
+			
+		// If we run out of new feed, repeat already seen reels (only for general feed, not author profile)
+		if (!authorId && reels.length < limit && totalCount > reels.length) {
+			const needed = limit - reels.length;
+			const extraReels = await Reel.find(filter)
+				.populate('authorId', 'fullName avatar profileType')
+				.sort({ viewsCount: -1, createdAt: -1 })
+				.limit(needed)
+				.lean();
+				
+			const existingIds = new Set(reels.map(r => r._id.toString()));
+			for (const extra of extraReels) {
+				if (!existingIds.has(extra._id.toString()) && reels.length < limit) {
+					reels.push(extra);
+				}
+			}
+		}
+		
+		return reels;
 	},
 
 	findById(id) {
 		return Reel.findById(id)
-			.populate('authorId', 'fullName avatar')
+			.populate('authorId', 'fullName avatar profileType')
 			.lean();
 	},
 
 	createReel(payload) {
 		return Reel.create(payload);
+	},
+
+	updateReel(id, payload) {
+		return Reel.findByIdAndUpdate(id, { $set: payload }, { new: true })
+			.populate('authorId', 'fullName avatar profileType')
+			.lean();
 	},
 
 	deleteReel(id) {
