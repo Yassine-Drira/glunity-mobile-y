@@ -30,7 +30,7 @@ const MOCK_MUSIC_LIBRARY = [
 export default function ReelCameraScreen() {
 	const navigation = useNavigation<any>();
 	const { theme: T } = useTheme();
-	
+
 	const [videoUri, setVideoUri] = useState<string | null>(null);
 	const [caption, setCaption] = useState('');
 	const [category, setCategory] = useState<'recipes' | 'tips' | 'products' | 'lifestyle'>('recipes');
@@ -78,14 +78,14 @@ export default function ReelCameraScreen() {
 			loadAndPlayMusic();
 		} else {
 			if (soundRef.current) {
-				soundRef.current.stopAsync().catch(() => {});
+				soundRef.current.stopAsync().catch(() => { });
 			}
 		}
 
 		return () => {
 			isMounted = false;
 			if (soundRef.current) {
-				soundRef.current.unloadAsync().catch(() => {});
+				soundRef.current.unloadAsync().catch(() => { });
 				soundRef.current = null;
 			}
 		};
@@ -112,7 +112,7 @@ export default function ReelCameraScreen() {
 	const recordVideo = async () => {
 		const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
 		const audioPermission = await Audio.requestPermissionsAsync();
-		
+
 		if (!cameraPermission.granted || !audioPermission.granted) {
 			Alert.alert('Permission Denied', 'We need camera and audio permissions to record a video.');
 			return;
@@ -138,7 +138,7 @@ export default function ReelCameraScreen() {
 			// 1. Get signed signature from backend
 			setProgress('Requesting upload credentials...');
 			const sigRes = await ReelsService.getUploadSignature();
-			
+
 			if (!sigRes.success) {
 				throw new Error('Failed to fetch signature');
 			}
@@ -176,7 +176,7 @@ export default function ReelCameraScreen() {
 				setProgress('Uploading video to backend server...');
 				const localFormData = new FormData();
 				localFormData.append('video', videoFile);
-				
+
 				const uploadRes = await ReelsService.uploadVideoLocal(localFormData);
 				if (uploadRes.success) {
 					finalVideoUrl = uploadRes.data.videoUrl;
@@ -204,14 +204,9 @@ export default function ReelCameraScreen() {
 
 				const result = cloudRes.data;
 				finalVideoUrl = result.secure_url || result.url;
-				
-				// Cloudinary auto-generates thumbnails. If eager transformation succeeded, use it, else replace extension
-				if (result.eager && result.eager.length > 0) {
-					// Use a smaller poster image from eager transformations if available
-					finalThumbnailUrl = result.eager[0].secure_url || result.eager[0].url;
-				} else {
-					finalThumbnailUrl = finalVideoUrl.replace(/\.[^.]+$/, '.jpg');
-				}
+
+				// Cloudinary auto-generates image thumbnails when requesting the video URL with a .jpg extension
+				finalThumbnailUrl = finalVideoUrl.replace(/\.[^.]+$/, '.jpg');
 			}
 
 			// 3. Create Reel document in Mongoose DB
@@ -237,7 +232,7 @@ export default function ReelCameraScreen() {
 					if (countdown <= 0) {
 						clearInterval(interval);
 						setShowSuccessModal(false);
-						navigation.navigate('ReelsFeed');
+						navigation.navigate('ReelsFeed', { refresh: true });
 					}
 				}, 1000);
 			}
@@ -260,8 +255,8 @@ export default function ReelCameraScreen() {
 					<Ionicons name="close" size={28} color="#FFF" />
 				</TouchableOpacity>
 				<Text style={styles.headerTitle}>Create Reel</Text>
-				<TouchableOpacity 
-					onPress={handlePost} 
+				<TouchableOpacity
+					onPress={handlePost}
 					disabled={!videoUri || uploading}
 					style={[styles.postButton, (!videoUri || uploading) && { opacity: 0.5 }]}
 				>
@@ -291,7 +286,7 @@ export default function ReelCameraScreen() {
 						<Ionicons name="film-outline" size={80} color="#555" />
 						<Text style={styles.selectorTitle}>Capture or Select Video</Text>
 						<Text style={styles.selectorSubtitle}>Share your gluten-free journey in short video reels!</Text>
-						
+
 						<TouchableOpacity style={styles.selectBtn} onPress={pickVideo}>
 							<Ionicons name="images-outline" size={22} color="#FFF" style={styles.btnIcon} />
 							<Text style={styles.selectBtnText}>Choose from Gallery</Text>
@@ -333,7 +328,7 @@ export default function ReelCameraScreen() {
 						{/* Audio & Music controls */}
 						<View style={styles.audioSection}>
 							<Text style={styles.audioTitle}>Audio & Music</Text>
-							
+
 							<View style={styles.musicSelectorRow}>
 								{selectedMusic ? (
 									<View style={styles.selectedMusicContainer}>
@@ -370,12 +365,12 @@ export default function ReelCameraScreen() {
 											{isMuted ? "Muted" : "Mute"}
 										</Text>
 									</TouchableOpacity>
-									
+
 									<View style={styles.segmentContainer}>
 										{[0.0, 0.2, 0.4, 0.6, 0.8, 1.0].map((step, idx) => {
 											const isFilled = !isMuted && videoVolume >= step - 0.05;
 											return (
-												<TouchableOpacity 
+												<TouchableOpacity
 													key={idx}
 													onPress={() => {
 														setIsMuted(false);
@@ -401,12 +396,12 @@ export default function ReelCameraScreen() {
 										<Text style={styles.volumeLabel}>Music Volume</Text>
 									</View>
 									<View style={styles.volumeSliderContainer}>
-										<View style={{ width: 50 }} /> 
+										<View style={{ width: 50 }} />
 										<View style={styles.segmentContainer}>
 											{[0.0, 0.2, 0.4, 0.6, 0.8, 1.0].map((step, idx) => {
 												const isFilled = musicVolume >= step - 0.05;
 												return (
-													<TouchableOpacity 
+													<TouchableOpacity
 														key={idx}
 														onPress={() => setMusicVolume(step)}
 														style={[
@@ -456,7 +451,7 @@ export default function ReelCameraScreen() {
 						<Text style={styles.successTitle}>Reel Posted Successfully! 🎉</Text>
 						<Text style={styles.successSubtitle}>Your video is now live on Glunity Reels.</Text>
 						<Text style={styles.successRedirect}>Redirecting to Feed in {successCountdown}s...</Text>
-						<TouchableOpacity 
+						<TouchableOpacity
 							style={styles.successBtn}
 							onPress={() => {
 								setShowSuccessModal(false);

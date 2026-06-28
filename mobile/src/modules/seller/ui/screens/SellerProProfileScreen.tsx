@@ -1087,11 +1087,15 @@ export default function SellerProProfileScreen({ navigation }: Props) {
         }}
       >
         <View style={s.modalOverlay}>
-          <View style={s.statsModalContent}>
+          <View style={[s.statsModalContent, { maxHeight: '90%' }]}>
             <Text style={s.statsModalTitle}>{t('Reel Insights')}</Text>
             
             {selectedReel && (
-              <>
+              <ScrollView
+                style={{ width: '100%' }}
+                contentContainerStyle={{ alignItems: 'center' }}
+                showsVerticalScrollIndicator={false}
+              >
                 <View style={s.statsPreviewRow}>
                   <Image source={{ uri: selectedReel.thumbnailUrl }} style={s.statsPreviewThumb} />
                   <View style={s.statsPreviewInfo}>
@@ -1194,7 +1198,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
                     <Text style={[s.modalActionBtnText, { color: T.text }]}>{t('Close')}</Text>
                   </TouchableOpacity>
                 </View>
-              </>
+              </ScrollView>
             )}
           </View>
         </View>

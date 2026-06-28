@@ -1,3 +1,4 @@
+import { AxiosRequestConfig } from 'axios';
 import http from '../../../core/network/http.client';
 
 export interface ReelAuthor {
@@ -47,8 +48,8 @@ export interface UploadSignatureResponse {
 }
 
 export const ReelsService = {
-	async getFeed(page: number, limit = 10, category = 'all'): Promise<{ success: boolean; data: Reel[] }> {
-		const response = await http.get<{ success: boolean; data: Reel[] }>(`/reels?page=${page}&limit=${limit}&category=${category}`);
+	async getFeed(page: number, limit = 10, category = 'all', config?: AxiosRequestConfig): Promise<{ success: boolean; data: Reel[] }> {
+		const response = await http.get<{ success: boolean; data: Reel[] }>(`/reels?page=${page}&limit=${limit}&category=${category}`, config);
 		return response.data;
 	},
 
@@ -58,7 +59,7 @@ export const ReelsService = {
 	},
 
 	async recordView(reelId: string): Promise<{ success: boolean }> {
-		const response = await http.post<{ success: boolean }>(`/reels/${reelId}/view`, {});
+		const response = await http.post<{ success: boolean }>(`/reels/${reelId}/view`, {}, { timeout: 20000 });
 		return response.data;
 	},
 

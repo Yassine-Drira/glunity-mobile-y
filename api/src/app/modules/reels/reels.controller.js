@@ -6,7 +6,7 @@ async function list(req, res, next) {
 	try {
 		const page = parseInt(req.query.page, 10) || 0;
 		const limit = parseInt(req.query.limit, 10) || 10;
-		const category = req.query.category || 'all';
+		const category = String(req.query.category || 'all').trim().toLowerCase();
 		const authorId = req.query.authorId || null;
 		const userId = req.user ? req.user._id : null;
 		

@@ -1,144 +1,315 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import axios from 'axios';
 import { ReelsService, Reel } from '../services/reels.service';
 
-export function useReelsFeed(initialCategory = 'all') {
-	const [reels, setReels] = useState<Reel[]>([]);
-	const [category, setCategory] = useState<string>(initialCategory);
-	const [loading, setLoading] = useState<boolean>(false);
-	const [refreshing, setRefreshing] = useState<boolean>(false);
-	const [error, setError] = useState<string | null>(null);
-	const [page, setPage] = useState<number>(0);
-	const [hasMore, setHasMore] = useState<boolean>(true);
+export interface CategoryFeedState {
+	reels: Reel[];
+	page: number;
+	hasMore: boolean;
+	activeIndex: number;
+	lastFetched: number;
+	loading: boolean;
+	error: string | null;
+}
 
-	const loadFeed = useCallback(async (pageNum: number, isRefresh = false, cat = category) => {
-		if (loading && !isRefresh) return;
+const INITIAL_CATEGORY_FEED: CategoryFeedState = {
+	reels: [],
+	page: 0,
+	hasMore: true,
+	activeIndex: 0,
+	lastFetched: 0,
+	loading: false,
+	error: null,
+};
+
+const INITIAL_FEEDS: Record<string, CategoryFeedState> = {
+	all: { ...INITIAL_CATEGORY_FEED },
+	recipes: { ...INITIAL_CATEGORY_FEED },
+	tips: { ...INITIAL_CATEGORY_FEED },
+	products: { ...INITIAL_CATEGORY_FEED },
+	lifestyle: { ...INITIAL_CATEGORY_FEED },
+};
+
+const CACHE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+
+export function useReelsFeed(initialCategory = 'all') {
+	const [feeds, setFeeds] = useState<Record<string, CategoryFeedState>>(INITIAL_FEEDS);
+	const [category, setCategory] = useState<string>(initialCategory);
+	const [refreshing, setRefreshing] = useState<boolean>(false);
+	const viewedReelsRef = useRef<Set<string>>(new Set());
+	const abortControllersRef = useRef<Record<string, AbortController>>({});
+	const feedsRef = useRef<Record<string, CategoryFeedState>>(INITIAL_FEEDS);
+
+	// Sync feedsRef with state
+	useEffect(() => {
+		feedsRef.current = feeds;
+	}, [feeds]);
+
+	const loadFeed = useCallback(async (cat: string, isRefresh = false, forceFetch = false) => {
+		const currentFeed = feedsRef.current[cat] || INITIAL_CATEGORY_FEED;
 		
+		// If we are already loading this category and it's not a refresh, return
+		if (currentFeed.loading && !isRefresh) return;
+
+		// Check cache validity
+		const isCacheValid = currentFeed.reels.length > 0 && (Date.now() - currentFeed.lastFetched < CACHE_EXPIRATION_MS);
+		if (isCacheValid && !isRefresh && !forceFetch) {
+			// Cache is valid, no need to fetch
+			return;
+		}
+
+		// Cancel any existing request for this category
+		if (abortControllersRef.current[cat]) {
+			abortControllersRef.current[cat].abort();
+		}
+		const controller = new AbortController();
+		abortControllersRef.current[cat] = controller;
+
+		// Determine the page to fetch
+		const targetPage = isRefresh ? 0 : currentFeed.page;
+
+		// Set loading status
 		if (isRefresh) {
 			setRefreshing(true);
-		} else {
-			setLoading(true);
 		}
-		setError(null);
+		
+		setFeeds(prev => ({
+			...prev,
+			[cat]: {
+				...prev[cat],
+				loading: !isRefresh,
+				error: null,
+				reels: isRefresh || targetPage === 0 ? [] : prev[cat].reels,
+				activeIndex: isRefresh || targetPage === 0 ? 0 : prev[cat].activeIndex,
+			}
+		}));
 
 		try {
-			const response = await ReelsService.getFeed(pageNum, 10, cat);
+			const response = await ReelsService.getFeed(targetPage, 10, cat, { signal: controller.signal });
+			
+			if (controller.signal.aborted) {
+				return;
+			}
+
 			if (response.success) {
 				const newReels = response.data;
-				if (isRefresh) {
-					setReels(newReels);
-					setHasMore(newReels.length > 0);
-					setPage(0);
-				} else {
-					setReels(prev => {
-						const existingIds = new Set(prev.map(r => r.id));
+				setFeeds(prev => {
+					const existingFeed = prev[cat];
+					let updatedReels = [];
+					if (isRefresh || targetPage === 0) {
+						updatedReels = newReels;
+					} else {
+						const existingIds = new Set(existingFeed.reels.map(r => r.id));
 						const filteredNew = newReels.filter(r => !existingIds.has(r.id));
-						return [...prev, ...filteredNew];
-					});
-					setHasMore(newReels.length > 0);
-					setPage(pageNum);
-				}
+						updatedReels = [...existingFeed.reels, ...filteredNew];
+					}
+					
+					return {
+						...prev,
+						[cat]: {
+							reels: updatedReels,
+							page: targetPage + 1,
+							hasMore: newReels.length > 0,
+							activeIndex: isRefresh || targetPage === 0 ? 0 : existingFeed.activeIndex,
+							lastFetched: Date.now(),
+							loading: false,
+							error: null,
+						}
+					};
+				});
 			} else {
-				setError('Failed to fetch reels feed');
+				setFeeds(prev => ({
+					...prev,
+					[cat]: {
+						...prev[cat],
+						loading: false,
+						error: 'Failed to fetch reels feed',
+					}
+				}));
 			}
 		} catch (err: any) {
-			setError(err.message || 'An error occurred while loading feed');
+			if (err.name === 'CanceledError' || axios.isCancel?.(err) || controller.signal.aborted) {
+				// Request was cancelled, ignore
+				return;
+			}
+			setFeeds(prev => ({
+				...prev,
+				[cat]: {
+					...prev[cat],
+					loading: false,
+					error: err.message || 'An error occurred while loading feed',
+				}
+			}));
 		} finally {
-			setLoading(false);
-			setRefreshing(false);
+			if (abortControllersRef.current[cat] === controller) {
+				delete abortControllersRef.current[cat];
+			}
+			if (isRefresh) {
+				setRefreshing(false);
+			}
 		}
-	}, [loading, category]);
+	}, []);
 
 	const refresh = useCallback(() => {
-		setHasMore(true);
-		loadFeed(0, true);
-	}, [loadFeed]);
+		loadFeed(category, true);
+	}, [category, loadFeed]);
 
 	const loadMore = useCallback(() => {
-		if (!loading && hasMore) {
-			loadFeed(page + 1);
+		const currentFeed = feedsRef.current[category];
+		if (currentFeed && !currentFeed.loading && currentFeed.hasMore) {
+			loadFeed(category);
 		}
-	}, [loading, hasMore, page, loadFeed]);
+	}, [category, loadFeed]);
 
 	const changeCategory = useCallback((newCat: string) => {
 		setCategory(newCat);
-		setHasMore(true);
-		loadFeed(0, true, newCat);
+		loadFeed(newCat);
 	}, [loadFeed]);
 
+	const setActiveIndex = useCallback((index: number) => {
+		setFeeds(prev => ({
+			...prev,
+			[category]: {
+				...prev[category],
+				activeIndex: index,
+			}
+		}));
+	}, [category]);
+
 	const toggleLike = useCallback(async (reelId: string) => {
-		// Store snapshot of original reel in case of rollback
+		const cat = category;
+		const currentFeed = feedsRef.current[cat];
 		let originalReel: Reel | undefined;
 		
-		setReels(prev => prev.map(r => {
-			if (r.id === reelId) {
-				originalReel = { ...r };
-				const isLiked = !r.isLiked;
-				const likesCount = isLiked ? r.likesCount + 1 : Math.max(0, r.likesCount - 1);
-				return { ...r, isLiked, likesCount };
-			}
-			return r;
-		}));
+		setFeeds(prev => {
+			const feed = prev[cat];
+			const updatedReels = feed.reels.map(r => {
+				if (r.id === reelId) {
+					originalReel = { ...r };
+					const isLiked = !r.isLiked;
+					const likesCount = isLiked ? r.likesCount + 1 : Math.max(0, r.likesCount - 1);
+					return { ...r, isLiked, likesCount };
+				}
+				return r;
+			});
+			return {
+				...prev,
+				[cat]: {
+					...feed,
+					reels: updatedReels
+				}
+			};
+		});
 
 		try {
 			const res = await ReelsService.toggleLike(reelId);
 			if (!res.success) {
-				// Rollback
 				if (originalReel) {
-					setReels(prev => prev.map(r => r.id === reelId ? originalReel! : r));
+					setFeeds(prev => ({
+						...prev,
+						[cat]: {
+							...prev[cat],
+							reels: prev[cat].reels.map(r => r.id === reelId ? originalReel! : r)
+						}
+					}));
 				}
 			} else {
-				// Match exact server state
-				setReels(prev => prev.map(r => r.id === reelId ? {
-					...r,
-					isLiked: res.data.liked,
-					likesCount: res.data.likesCount
-				} : r));
+				setFeeds(prev => ({
+					...prev,
+					[cat]: {
+						...prev[cat],
+						reels: prev[cat].reels.map(r => r.id === reelId ? {
+							...r,
+							isLiked: res.data.liked,
+							likesCount: res.data.likesCount
+						} : r)
+					}
+				}));
 			}
 		} catch (err) {
-			// Rollback on error
 			if (originalReel) {
-				setReels(prev => prev.map(r => r.id === reelId ? originalReel! : r));
+				setFeeds(prev => ({
+					...prev,
+					[cat]: {
+						...prev[cat],
+						reels: prev[cat].reels.map(r => r.id === reelId ? originalReel! : r)
+					}
+				}));
 			}
 		}
-	}, []);
+	}, [category]);
 
 	const recordView = useCallback(async (reelId: string) => {
+		if (viewedReelsRef.current.has(reelId)) {
+			return;
+		}
+		const cat = category;
 		try {
 			await ReelsService.recordView(reelId);
-			setReels(prev => prev.map(r => r.id === reelId ? { ...r, viewsCount: r.viewsCount + 1 } : r));
+			viewedReelsRef.current.add(reelId);
+			setFeeds(prev => ({
+				...prev,
+				[cat]: {
+					...prev[cat],
+					reels: prev[cat].reels.map(r => r.id === reelId ? { ...r, viewsCount: r.viewsCount + 1 } : r)
+				}
+			}));
 		} catch (err) {
 			console.warn('Failed to record view for reel:', reelId, err);
 		}
-	}, []);
+	}, [category]);
 
 	const recordShare = useCallback(async (reelId: string) => {
+		const cat = category;
 		try {
 			const res = await ReelsService.recordShare(reelId);
 			if (res.success) {
-				setReels(prev => prev.map(r => r.id === reelId ? { ...r, sharesCount: res.data.sharesCount } : r));
+				setFeeds(prev => ({
+					...prev,
+					[cat]: {
+						...prev[cat],
+						reels: prev[cat].reels.map(r => r.id === reelId ? { ...r, sharesCount: res.data.sharesCount } : r)
+					}
+				}));
 			}
 		} catch (err) {
 			console.warn('Failed to record share for reel:', reelId, err);
 		}
-	}, []);
+	}, [category]);
 
 	const incrementCommentsCount = useCallback((reelId: string) => {
-		setReels(prev => prev.map(r => r.id === reelId ? { ...r, commentsCount: r.commentsCount + 1 } : r));
-	}, []);
+		const cat = category;
+		setFeeds(prev => ({
+			...prev,
+			[cat]: {
+				...prev[cat],
+				reels: prev[cat].reels.map(r => r.id === reelId ? { ...r, commentsCount: r.commentsCount + 1 } : r)
+			}
+		}));
+	}, [category]);
 
 	useEffect(() => {
-		loadFeed(0, true);
+		loadFeed(initialCategory);
+		
+		return () => {
+			Object.values(abortControllersRef.current).forEach(c => c.abort());
+		};
 	}, []);
 
+	const currentFeedState = feeds[category] || INITIAL_CATEGORY_FEED;
+
 	return {
-		reels,
+		reels: currentFeedState.reels,
 		category,
-		loading,
+		loading: currentFeedState.loading,
 		refreshing,
-		error,
+		error: currentFeedState.error,
+		hasMore: currentFeedState.hasMore,
+		activeIndex: currentFeedState.activeIndex,
 		refresh,
 		loadMore,
 		changeCategory,
+		setActiveIndex,
 		toggleLike,
 		recordView,
 		recordShare,

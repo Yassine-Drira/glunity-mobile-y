@@ -1,13 +1,51 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ScrollView, TouchableOpacity, Text, ViewToken, Modal, TextInput, ActivityIndicator, Alert, Platform, Image, Dimensions, StatusBar } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { useReelsFeed } from '../../hooks/useReelsFeed';
 import { ReelPlayerItem } from '../components/ReelPlayerItem';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import http from '../../../../core/network/http.client';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedText = Animated.createAnimatedComponent(Text);
+
+interface CategoryPillProps {
+	cat: string;
+	isActive: boolean;
+	onPress: () => void;
+}
+
+function CategoryPill({ cat, isActive, onPress }: CategoryPillProps) {
+	const animatedStyle = useAnimatedStyle(() => {
+		return {
+			backgroundColor: withTiming(isActive ? '#FFFFFF' : '#6DAE3F', { duration: 200 }),
+			transform: [{ scale: withSpring(isActive ? 1.05 : 1.0, { damping: 15, stiffness: 150 }) }],
+		};
+	}, [isActive]);
+
+	const animatedTextStyle = useAnimatedStyle(() => {
+		return {
+			color: withTiming(isActive ? '#000000' : '#FFFFFF', { duration: 200 }),
+		};
+	}, [isActive]);
+
+	return (
+		<AnimatedTouchableOpacity
+			style={[styles.categoryPill, animatedStyle]}
+			onPress={onPress}
+			activeOpacity={0.8}
+		>
+			<AnimatedText style={[styles.categoryText, animatedTextStyle]}>
+				{cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+			</AnimatedText>
+		</AnimatedTouchableOpacity>
+	);
+}
 
 export default function ReelsFeedScreen() {
 	const { 
@@ -17,22 +55,56 @@ export default function ReelsFeedScreen() {
 		refreshing, 
 		refresh, 
 		loadMore, 
+		hasMore,
 		toggleLike, 
 		recordView,
 		recordShare,
 		incrementCommentsCount,
 		loading,
-		error
+		error,
+		activeIndex,
+		setActiveIndex
 	} = useReelsFeed();
-	const [activeIndex, setActiveIndex] = useState(0);
-	const { height: windowHeight, width: windowWidth } = Dimensions.get('window');
-	const layoutHeight = windowHeight;
-	const layoutWidth = windowWidth;
+	const [layoutHeight, setLayoutHeight] = useState(Dimensions.get('window').height);
+	const [layoutWidth, setLayoutWidth] = useState(Dimensions.get('window').width);
 	const navigation = useNavigation<any>();
 	const route = useRoute<any>();
 	const flatListRef = useRef<FlatList>(null);
 	const insets = useSafeAreaInsets();
 	const { user } = useAuth();
+
+	// Transition Opacity
+	const feedOpacity = useSharedValue(1);
+
+	const animatedFeedStyle = useAnimatedStyle(() => ({
+		opacity: feedOpacity.value,
+	}));
+
+	const handleCategoryChange = useCallback(async (newCat: string) => {
+		if (newCat === category) return;
+
+		// Subtle haptic tick for filter tap
+		try {
+			await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+		} catch (err) {}
+
+		// Fade out current content
+		feedOpacity.value = withTiming(0, { duration: 150 });
+
+		// Perform category change after fade-out completes
+		setTimeout(() => {
+			changeCategory(newCat);
+			// Fade in new content
+			feedOpacity.value = withTiming(1, { duration: 250 });
+		}, 150);
+	}, [category, changeCategory, feedOpacity]);
+
+	// Optimized layout lookup to prevent blank screens/jumping in FlatList
+	const getItemLayout = useCallback((data: any, index: number) => ({
+		length: layoutHeight,
+		offset: layoutHeight * index,
+		index,
+	}), [layoutHeight]);
 
 	useEffect(() => {
 		if (route.params?.reelId && reels.length > 0) {
@@ -46,6 +118,19 @@ export default function ReelsFeedScreen() {
 			}
 		}
 	}, [route.params?.reelId, reels]);
+
+	useEffect(() => {
+		if (route.params?.refresh) {
+			refresh();
+			navigation.setParams({ refresh: undefined });
+		}
+	}, [route.params?.refresh, refresh, navigation]);
+
+	useEffect(() => {
+		if (hasMore && reels.length > 0 && activeIndex >= reels.length - 2) {
+			loadMore();
+		}
+	}, [activeIndex, reels.length, hasMore, loadMore]);
 
 	// Share Sheet States
 	const [shareModalVisible, setShareModalVisible] = useState(false);
@@ -162,119 +247,97 @@ export default function ReelsFeedScreen() {
 		}
 	};
 
-	const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-		if (viewableItems.length > 0) {
-			let maxPercent = -1;
-			let activeIdx = 0;
-			
-			for (const token of viewableItems) {
-				const percent = token.isViewable ? 100 : 0;
-				const actualPercent = typeof (token as any).percentVisible === 'number'
-					? (token as any).percentVisible
-					: percent;
-					
-				if (actualPercent > maxPercent && token.index !== null) {
-					maxPercent = actualPercent;
-					activeIdx = token.index;
-				}
-			}
-			
-			setActiveIndex(activeIdx);
-		}
-	}).current;
-
-	const viewabilityConfig = useRef({
-		itemVisiblePercentThreshold: 50
-	}).current;
-
 	return (
 		<View style={styles.container}>
 			<StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 			
-			<FlatList
-				ref={flatListRef}
-				data={reels}
-				keyExtractor={(item, index) => item.id + '-' + index}
-				renderItem={({ item, index }) => (
-					<ReelPlayerItem
-						reel={item}
-						isActive={index === activeIndex}
-						onToggleLike={toggleLike}
-						onRecordView={recordView}
-						onRecordShare={recordShare}
-						onIncrementCommentsCount={incrementCommentsCount}
-						onOpenShareSheet={openShareSheet}
-						containerHeight={layoutHeight}
-						containerWidth={layoutWidth}
-					/>
+			<Animated.View style={[{ flex: 1 }, animatedFeedStyle]}>
+				<FlatList
+					key={category}
+					ref={flatListRef}
+					data={reels}
+					keyExtractor={(item) => item.id}
+					renderItem={({ item, index }) => (
+						<ReelPlayerItem
+							reel={item}
+							isActive={index === activeIndex}
+							onToggleLike={toggleLike}
+							onRecordView={recordView}
+							onRecordShare={recordShare}
+							onIncrementCommentsCount={incrementCommentsCount}
+							onOpenShareSheet={openShareSheet}
+							containerHeight={layoutHeight}
+							containerWidth={layoutWidth}
+						/>
+					)}
+					pagingEnabled
+					showsVerticalScrollIndicator={false}
+					onScroll={handleScroll}
+					onMomentumScrollEnd={handleScroll}
+					scrollEventThrottle={16}
+					onEndReached={loadMore}
+					onEndReachedThreshold={0.5}
+					refreshing={refreshing}
+					onRefresh={refresh}
+					decelerationRate="fast"
+					onLayout={(event) => {
+						const { height, width } = event.nativeEvent.layout;
+						if (height > 0) setLayoutHeight(height);
+						if (width > 0) setLayoutWidth(width);
+					}}
+					windowSize={5}
+					initialNumToRender={10}
+					maxToRenderPerBatch={10}
+					removeClippedSubviews={false}
+					getItemLayout={getItemLayout}
+					initialScrollIndex={reels.length > 0 && activeIndex < reels.length ? activeIndex : undefined}
+				/>
+
+				{/* Loading State */}
+				{loading && reels.length === 0 && (
+					<View style={styles.loadingContainer}>
+						<ActivityIndicator size="large" color="#6DAE3F" />
+					</View>
 				)}
-				pagingEnabled
-				showsVerticalScrollIndicator={false}
-				onViewableItemsChanged={onViewableItemsChanged}
-				viewabilityConfig={viewabilityConfig}
-				onScroll={handleScroll}
-				scrollEventThrottle={16}
-				onEndReached={loadMore}
-				onEndReachedThreshold={0.5}
-				refreshing={refreshing}
-				onRefresh={refresh}
-				getItemLayout={(data, index) => ({
-					length: layoutHeight,
-					offset: layoutHeight * index,
-					index,
-				})}
-				decelerationRate="fast"
-				snapToInterval={layoutHeight}
-				snapToAlignment="start"
-				windowSize={3}
-				initialNumToRender={2}
-				maxToRenderPerBatch={2}
-				removeClippedSubviews={Platform.OS !== 'web'}
-			/>
 
-			{/* Floating Back Button */}
-			<TouchableOpacity 
-				style={[styles.floatingButton, { top: Math.max(insets.top, 12) + 8, left: 16 }]} 
-				onPress={() => navigation.goBack()}
-			>
-				<Ionicons name="arrow-back" size={24} color="#FFF" />
-			</TouchableOpacity>
+				{/* Error State */}
+				{error && reels.length === 0 && !refreshing && (
+					<View style={styles.emptyContainer}>
+						<Ionicons name="alert-circle-outline" size={60} color="#FF2D55" />
+						<Text style={[styles.emptyText, { color: '#FF2D55', textAlign: 'center' }]}>{error}</Text>
+						<TouchableOpacity style={styles.createButton} onPress={refresh}>
+							<Text style={styles.createButtonText}>Retry</Text>
+						</TouchableOpacity>
+					</View>
+				)}
 
-			{/* Floating Camera Button */}
-			<TouchableOpacity 
-				style={[styles.floatingButton, { top: Math.max(insets.top, 12) + 8, right: 16 }]} 
-				onPress={() => navigation.navigate('ReelCamera')}
-			>
-				<Ionicons name="camera" size={24} color="#FFF" />
-			</TouchableOpacity>
+				{/* Empty Feed Placeholder */}
+				{!loading && !error && reels.length === 0 && !refreshing && (
+					<View style={styles.emptyContainer}>
+						<Ionicons name="film-outline" size={60} color="#8A8A8E" />
+						<Text style={styles.emptyText}>No reels available yet</Text>
+						<TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('ReelCamera')}>
+							<Text style={styles.createButtonText}>Create a Reel</Text>
+						</TouchableOpacity>
+					</View>
+				)}
+			</Animated.View>
 
 			{/* Top Category Filter Bar */}
-			<View style={[styles.categoryContainer, { top: Math.max(insets.top, 12) + 60 }]}>
+			<View style={[styles.categoryContainer, { top: Math.max(insets.top, 12) + 12 }]}>
 				<ScrollView 
 					horizontal 
 					showsHorizontalScrollIndicator={false} 
 					contentContainerStyle={styles.categoryContent}
 				>
-					{['all', 'recipes', 'tips', 'products', 'lifestyle'].map((cat) => {
-						const isActive = category === cat;
-						return (
-							<TouchableOpacity
-								key={cat}
-								style={[
-									styles.categoryPill,
-									isActive ? styles.categoryPillActive : styles.categoryPillInactive
-								]}
-								onPress={() => changeCategory(cat)}
-							>
-								<Text style={[
-									styles.categoryText,
-									isActive ? styles.categoryTextActive : styles.categoryTextInactive
-								]}>
-									{cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
-								</Text>
-							</TouchableOpacity>
-						);
-					})}
+					{['all', 'recipes', 'tips', 'products', 'lifestyle'].map((cat) => (
+						<CategoryPill
+							key={cat}
+							cat={cat}
+							isActive={category === cat}
+							onPress={() => handleCategoryChange(cat)}
+						/>
+					))}
 				</ScrollView>
 			</View>
 

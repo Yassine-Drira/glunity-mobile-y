@@ -19,6 +19,7 @@ import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import Animated, {
 	useSharedValue,
 	useAnimatedStyle,
@@ -60,6 +61,7 @@ export function ReelPlayerItem({
 	const [status, setStatus] = useState<AVPlaybackStatus | null>(null);
 	const [isMuted, setIsMuted] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(true);
+	const hasRecordedView = useRef(false);
 	
 	// Comments state
 	const [commentsVisible, setCommentsVisible] = useState(false);
@@ -81,11 +83,14 @@ export function ReelPlayerItem({
 	useEffect(() => {
 		if (isActive && isFocused) {
 			videoRef.current?.playAsync().catch(() => {});
-			onRecordView(reel.id);
+			if (!hasRecordedView.current) {
+				onRecordView(reel.id);
+				hasRecordedView.current = true;
+			}
 		} else {
 			videoRef.current?.stopAsync().catch(() => {});
 		}
-	}, [isActive, isFocused]);
+	}, [isActive, isFocused, onRecordView, reel.id]);
 
 	// Handle single/double tap on the screen
 	const handlePress = () => {
@@ -118,6 +123,9 @@ export function ReelPlayerItem({
 	const handleDoubleTap = () => {
 		if (!reel.isLiked) {
 			onToggleLike(reel.id);
+			try {
+				Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+			} catch (err) {}
 		}
 		
 		// Animate pop heart
@@ -172,18 +180,14 @@ export function ReelPlayerItem({
 				<View style={StyleSheet.absoluteFill}>
 					<Video
 						ref={videoRef}
-						source={isActive && isFocused ? { uri: reel.videoUrl } : undefined}
-						posterSource={{ uri: reel.thumbnailUrl }}
-						usePoster
-						resizeMode={ResizeMode.COVER}
-						shouldPlay={isActive && isPlaying && isFocused}
+					source={{ uri: reel.videoUrl }}
 						isLooping
 						isMuted={isMuted}
 						style={StyleSheet.absoluteFillObject}
 						onPlaybackStatusUpdate={(statusObj) => setStatus(statusObj)}
 					/>
 
-					{!(isActive && isFocused) && (
+					{(!(isActive && isFocused) || !status || !status.isLoaded) && (
 						<Image
 							source={{ uri: reel.thumbnailUrl }}
 							style={StyleSheet.absoluteFillObject}
@@ -256,7 +260,12 @@ export function ReelPlayerItem({
 				</View>
 
 				{/* Like Button */}
-				<TouchableOpacity style={styles.actionButton} onPress={() => onToggleLike(reel.id)}>
+				<TouchableOpacity style={styles.actionButton} onPress={() => {
+					onToggleLike(reel.id);
+					try {
+						Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+					} catch (err) {}
+				}}>
 					<Ionicons
 						name={reel.isLiked ? "heart" : "heart-outline"}
 						size={34}

@@ -19,23 +19,21 @@ const reelsRepository = {
 			return [];
 		}
 		
-		const safeSkip = authorId ? skip : (skip % totalCount);
+		const safeSkip = skip;
 		
 		let reels = await Reel.find(filter)
 			.populate('authorId', 'fullName avatar profileType')
-			.sort(authorId ? { createdAt: -1 } : { viewsCount: -1, createdAt: -1 })
+			.sort({ createdAt: -1 })
 			.skip(safeSkip)
 			.limit(limit)
 			.lean();
-			
+				
 		// If we run out of new feed, repeat already seen reels (only for general feed, not author profile)
 		if (!authorId && reels.length < limit && totalCount > reels.length) {
 			const needed = limit - reels.length;
 			const extraReels = await Reel.find(filter)
 				.populate('authorId', 'fullName avatar profileType')
-				.sort({ viewsCount: -1, createdAt: -1 })
-				.limit(needed)
-				.lean();
+				.sort({ createdAt: -1 })
 				
 			const existingIds = new Set(reels.map(r => r._id.toString()));
 			for (const extra of extraReels) {
