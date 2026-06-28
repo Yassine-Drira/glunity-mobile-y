@@ -9,6 +9,7 @@ import { useReelsFeed } from '../../hooks/useReelsFeed';
 import { ReelPlayerItem } from '../components/ReelPlayerItem';
 import { BottomNavBar } from '@/shared/components/BottomNavBar';
 import { useAuth } from '@/modules/auth/state/auth.context';
+import { useTheme } from '@/shared/context/theme.context';
 import http from '../../../../core/network/http.client';
 import messagingHttp from '../../../../core/network/messaging-http.client';
 
@@ -55,6 +56,7 @@ interface ContactAvatarProps {
 }
 
 const ContactAvatar = React.memo(({ item, selected, onToggle }: ContactAvatarProps) => {
+	const { theme: T } = useTheme();
 	const avatarSize = 80;
 	const badgeScale = useSharedValue(selected ? 1 : 0);
 
@@ -85,12 +87,13 @@ const ContactAvatar = React.memo(({ item, selected, onToggle }: ContactAvatarPro
 					</View>
 				</Animated.View>
 			</View>
-			<Text numberOfLines={1} style={styles.contactName}>{item.name}</Text>
+			<Text numberOfLines={1} style={[styles.contactName, { color: T.text }]}>{item.name}</Text>
 		</TouchableOpacity>
 	);
 });
 
 export default function ReelsFeedScreen() {
+	const { theme: T, isDark } = useTheme();
 	const { 
 		reels, 
 		category, 
@@ -221,8 +224,8 @@ export default function ReelsFeedScreen() {
 
 			const channelsRes = results[0].status === 'fulfilled' ? results[0].value : null;
 			const usersRes = results[1].status === 'fulfilled' ? results[1].value : null;
-			const channelsError = results[0].status === 'rejected' ? results[0].reason : null;
-			const usersError = results[1].status === 'rejected' ? results[1].reason : null;
+			const channelsError = results[0].status === 'rejected' ? (results[0] as PromiseRejectedResult).reason : null;
+			const usersError = results[1].status === 'rejected' ? (results[1] as PromiseRejectedResult).reason : null;
 
 			if (channelsRes) {
 				const channelsList = channelsRes.data?.data || channelsRes.data || [];
@@ -237,7 +240,7 @@ export default function ReelsFeedScreen() {
 				setHasMoreUsers((usersList || []).length === 30);
 				setUserPage(1);
 			} else {
-				console.warn('Failed to load users for share sheet:', results[1].reason);
+				console.warn('Failed to load users for share sheet:', usersError);
 			}
 		} catch (err) {
 			console.warn('Failed to load share targets:', err);
@@ -423,6 +426,8 @@ export default function ReelsFeedScreen() {
 						/>
 					)}
 					pagingEnabled
+					snapToInterval={layoutHeight}
+					snapToAlignment="start"
 					showsVerticalScrollIndicator={false}
 					onScroll={handleScroll}
 					onMomentumScrollEnd={handleScroll}
@@ -476,7 +481,7 @@ export default function ReelsFeedScreen() {
 			</Animated.View>
 
 			{/* Top Category Filter Bar */}
-			<View style={[styles.categoryContainer, { top: Math.max(insets.top, 12) + 12 }]}>
+			<View style={[styles.categoryContainer, { top: Math.max(insets.top, 12) + 12 }]} pointerEvents="box-none">
 				<ScrollView 
 					horizontal 
 					showsHorizontalScrollIndicator={false} 
@@ -545,20 +550,20 @@ export default function ReelsFeedScreen() {
 				onRequestClose={() => setShareModalVisible(false)}
 			>
 				<View style={styles.shareOverlay}>
-					<View style={styles.shareContainer}>
-						<View style={styles.shareHeader}>
-							<Text style={styles.shareTitle}>Share Reel</Text>
+					<View style={[styles.shareContainer, { backgroundColor: T.surface, borderColor: T.border }]}>
+						<View style={[styles.shareHeader, { borderBottomColor: T.divider }]}>
+							<Text style={[styles.shareTitle, { color: T.text }]}>Share Reel</Text>
 							<TouchableOpacity onPress={() => setShareModalVisible(false)}>
-								<Ionicons name="close" size={22} color="#1C1C1E" />
+								<Ionicons name="close" size={22} color={T.text} />
 							</TouchableOpacity>
 						</View>
 							<View style={styles.searchRow}>
-							<View style={styles.shareSearchContainer}>
-								<Ionicons name="search" size={18} color="#8A8A8E" />
+							<View style={[styles.shareSearchContainer, { backgroundColor: T.inputBg }]}>
+								<Ionicons name="search" size={18} color={T.textMuted} />
 								<TextInput
-									style={styles.shareSearchInput}
+									style={[styles.shareSearchInput, { color: T.text }]}
 									placeholder="Search"
-									placeholderTextColor="#8A8A8E"
+									placeholderTextColor={T.textMuted}
 									value={shareSearchQuery}
 									onChangeText={setShareSearchQuery}
 									returnKeyType="search"
@@ -568,7 +573,7 @@ export default function ReelsFeedScreen() {
 						{loadingShareData ? (
 							<ActivityIndicator size="large" color="#6DAE3F" style={{ marginTop: 24 }} />
 						) : filteredTargets.length === 0 ? (
-							<Text style={styles.emptyShareText}>No recipients found</Text>
+							<Text style={[styles.emptyShareText, { color: T.textMuted }]}>No recipients found</Text>
 						) : (
 							<FlatList
 								data={filteredTargets}
@@ -581,11 +586,11 @@ export default function ReelsFeedScreen() {
 						ListFooterComponent={loadingUsersPage ? <ActivityIndicator size="small" color="#6DAE3F" style={{ marginTop: 16 }} /> : null}
 							/>
 						)}
-						<Animated.View style={[styles.composerContainer, composerAnimatedStyle]}>
+						<Animated.View style={[styles.composerContainer, composerAnimatedStyle, { backgroundColor: T.surface, shadowColor: T.shadow }]}>
 							<TextInput
-								style={styles.composerInput}
+								style={[styles.composerInput, { backgroundColor: T.inputBg, color: T.text }]}
 								placeholder="Add a message (optional)"
-								placeholderTextColor="#8A8A8E"
+								placeholderTextColor={T.textMuted}
 								value={messageText}
 								onChangeText={setMessageText}
 							/>

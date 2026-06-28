@@ -171,6 +171,11 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   const listRef = useRef<any>(null);
   const isNearBottomRef = useRef(true);
   const shouldScrollToEndRef = useRef(false);
+  const scrollToEnd = useCallback((animated = true) => {
+    setTimeout(() => {
+      listRef.current?.scrollToEnd({ animated });
+    }, 60);
+  }, []);
   const [unreadCount, setUnreadCount] = useState(0);
   // Tracks real message IDs already confirmed by the send ack callback.
   // Prevents the subsequent message:new socket event from re-inserting the same message.
@@ -339,6 +344,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         if (mounted && cached && cached.length > 0) {
           const filtered = cached.filter((m: any) => !m.status || m.status === 'sent');
           setMessages(filtered);
+          scrollToEnd(false);
         }
       } catch (err) {
         console.warn('[community] failed to load cached messages', err);
@@ -355,6 +361,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         if (fresh.length < 60) {
           setHasMore(false);
         }
+        scrollToEnd(false);
 
         // 3. Update the local cache
         await ChatCacheService.saveMessages(id, fresh);
@@ -383,7 +390,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     } catch (e) { }
 
     return () => { mounted = false; };
-  }, [channelId, markAsRead]);
+  }, [channelId, markAsRead, scrollToEnd]);
 
   // Synchronize state mutations (new WS messages, reactions, edits, deletions) to cache
   useEffect(() => {
@@ -464,6 +471,11 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         if (!isNearBottomRef.current) {
           setUnreadCount((prev) => prev + 1);
         }
+      }
+
+      const isMyMessage = String(message.senderId) === String(user?._id);
+      if (isMyMessage || isNearBottomRef.current) {
+        scrollToEnd(true);
       }
     };
 
@@ -599,7 +611,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       socket.off('channel:read', handleChannelRead);
       socket.off('connect', handleReconnect);
     };
-  }, [channelId, socket, markAsRead, user?._id]);
+  }, [channelId, socket, markAsRead, user?._id, scrollToEnd]);
 
   // Automatically handle finished audio track
   useEffect(() => {
@@ -712,6 +724,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       }
       return [...prev, optimisticMsg];
     });
+    scrollToEnd(true);
 
     const payload: any = {
       channelId: channel.id || channel._id,
@@ -762,7 +775,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         setMessages((prev) => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
       }
     });
-  }, [input, editingMsgId, socket, channel, user, t]);
+  }, [input, editingMsgId, socket, channel, user, t, scrollToEnd]);
 
   const handleRetrySend = useCallback((message: any) => {
     if (!message || message.status !== 'failed') return;
@@ -961,6 +974,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       }
       setMessages((prev) => [...prev, optimistic]);
+      scrollToEnd(true);
 
       // Build multipart form
       const form = new FormData();
@@ -1012,7 +1026,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           : m
       ));
     }
-  }, [socket, channel, user, t, listRef]);
+  }, [socket, channel, user, t, listRef, scrollToEnd]);
 
   const uploadAudioAndSend = useCallback(async (uri: string, durationSec?: number) => {
     if (!socket || !channel) return;
@@ -1036,6 +1050,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       }
       setMessages((prev) => [...prev, optimistic]);
+      scrollToEnd(true);
 
       // 2. Build multipart form
       const form = new FormData();
@@ -1092,7 +1107,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           : m
       ));
     }
-  }, [socket, channel, user, t, listRef]);
+  }, [socket, channel, user, t, listRef, scrollToEnd]);
 
   const stopRecordingAndSend = useCallback(async () => {
     if (isPreparingRecordingRef.current) {

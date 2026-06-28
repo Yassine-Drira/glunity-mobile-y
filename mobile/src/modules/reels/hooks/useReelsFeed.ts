@@ -76,8 +76,11 @@ export function useReelsFeed(initialCategory = 'all') {
 		// If we are already loading this category and it's not a refresh, return
 		if (currentFeed.loading && !isRefresh) return;
 
-		// Check cache validity
-		const isCacheValid = currentFeed.reels.length > 0 && (Date.now() - currentFeed.lastFetched < CACHE_EXPIRATION_MS);
+		// Determine the page to fetch
+		const targetPage = isRefresh ? 0 : currentFeed.page;
+
+		// Check cache validity (only for page 0)
+		const isCacheValid = targetPage === 0 && currentFeed.reels.length > 0 && (Date.now() - currentFeed.lastFetched < CACHE_EXPIRATION_MS);
 		if (isCacheValid && !isRefresh && !forceFetch) {
 			// Cache is valid, no need to fetch
 			return;
@@ -89,9 +92,6 @@ export function useReelsFeed(initialCategory = 'all') {
 		}
 		const controller = new AbortController();
 		abortControllersRef.current[cat] = controller;
-
-		// Determine the page to fetch
-		const targetPage = isRefresh ? 0 : currentFeed.page;
 
 		// Set loading status
 		if (isRefresh) {

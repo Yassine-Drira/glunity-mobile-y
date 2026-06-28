@@ -32,6 +32,7 @@ import Animated, {
 import { Reel, ReelComment, ReelsService } from '../../services/reels.service';
 import { useReelComments } from '../../hooks/useReelComments';
 import { useAuth } from '../../../auth/state/auth.context';
+import { useTheme } from '@/shared/context/theme.context';
 
 function formatRelativeTime(dateString: string): string {
 	const now = new Date();
@@ -93,6 +94,7 @@ export function ReelPlayerItem({
 	const inputRef = useRef<TextInput>(null);
 
 	const { user } = useAuth();
+	const { theme: T, isDark } = useTheme();
 
 	const {
 		comments,
@@ -113,6 +115,7 @@ export function ReelPlayerItem({
 		updateComment,
 		deleteComment,
 		toggleCommentLike,
+		showToast,
 	} = useReelComments(reel.id);
 
 	useEffect(() => {
@@ -233,7 +236,7 @@ export function ReelPlayerItem({
 	};
 
 	const handleCommentPress = (comment: ReelComment) => {
-		const isOwner = comment.authorId === (user?._id || user?.id);
+		const isOwner = comment.authorId === user?._id;
 		if (isOwner) {
 			setSelectedCommentForActions(comment);
 			setActionSheetVisible(true);
@@ -402,7 +405,7 @@ export function ReelPlayerItem({
 					/>
 					<KeyboardAvoidingView
 						behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-						style={styles.commentsContainer}
+						style={[styles.commentsContainer, { backgroundColor: T.surface, borderColor: T.border }]}
 					>
 						{/* Toast notification for failures */}
 						{toastMessage && (
@@ -411,28 +414,28 @@ export function ReelPlayerItem({
 							</View>
 						)}
 
-						<View style={styles.commentsHeader}>
-							<View style={styles.commentsHeaderIndicator} />
+						<View style={[styles.commentsHeader, { borderBottomColor: T.divider }]}>
+							<View style={[styles.commentsHeaderIndicator, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }]} />
 							<View style={styles.commentsHeaderTitleRow}>
-								<Text style={styles.commentsTitle}>Comments</Text>
+								<Text style={[styles.commentsTitle, { color: T.text }]}>Comments</Text>
 								<TouchableOpacity onPress={() => setCommentsVisible(false)} style={styles.commentsCloseBtn}>
-									<Ionicons name="close" size={24} color="#FFF" />
+									<Ionicons name="close" size={24} color={T.text} />
 								</TouchableOpacity>
 							</View>
 						</View>
 
 						{loadingComments && comments.length === 0 ? (
 							<View style={styles.centerSpinner}>
-								<ActivityIndicator size="large" color="#FFF" />
+								<ActivityIndicator size="large" color={T.green} />
 							</View>
 						) : (
 							<FlatList
 								data={comments}
 								keyExtractor={(item) => item.id}
 								renderItem={({ item }) => {
-									const isOwner = item.authorId === (user?._id || user?.id);
+									const isOwner = item.authorId === user?._id;
 									const relativeTime = formatRelativeTime(item.createdAt);
-									const isLikedByMe = item.likedBy.includes(user?._id || user?.id);
+									const isLikedByMe = user?._id ? item.likedBy.includes(user._id) : false;
 									const isExpanded = !!expandedComments[item.id];
 									const commentReplies = replies[item.id] || [];
 									const loadingRepliesForComment = !!loadingReplies[item.id];
@@ -451,14 +454,14 @@ export function ReelPlayerItem({
 												/>
 												<View style={styles.commentTextContainer}>
 													<View style={styles.commentAuthorHeader}>
-														<Text style={styles.commentAuthor}>
+														<Text style={[styles.commentAuthor, { color: T.text }]}>
 															{item.authorUsername}
 														</Text>
-														<Text style={styles.commentTime}>
+														<Text style={[styles.commentTime, { color: T.textMuted }]}>
 															{relativeTime}{item.edited ? ' • Edited' : ''}
 														</Text>
 													</View>
-													<Text style={styles.commentText}>{item.text}</Text>
+													<Text style={[styles.commentText, { color: T.text }]}>{item.text}</Text>
 													
 													<View style={styles.commentActionsRow}>
 														{!isOwner && (
@@ -466,16 +469,16 @@ export function ReelPlayerItem({
 																setReplyingTo(item);
 																inputRef.current?.focus();
 															}}>
-																<Text style={styles.commentActionText}>Reply</Text>
+																<Text style={[styles.commentActionText, { color: T.textMuted }]}>Reply</Text>
 															</TouchableOpacity>
 														)}
 														{isOwner && (
 															<>
 																<TouchableOpacity style={styles.commentActionButton} onPress={() => handleStartEdit(item)}>
-																	<Text style={styles.commentActionText}>Edit</Text>
+																	<Text style={[styles.commentActionText, { color: T.textMuted }]}>Edit</Text>
 																</TouchableOpacity>
 																<TouchableOpacity style={styles.commentActionButton} onPress={() => deleteComment(item.id)}>
-																	<Text style={styles.commentActionText}>Delete</Text>
+																	<Text style={[styles.commentActionText, { color: T.textMuted }]}>Delete</Text>
 																</TouchableOpacity>
 															</>
 														)}
@@ -488,11 +491,11 @@ export function ReelPlayerItem({
 														<Ionicons
 															name={isLikedByMe ? "heart" : "heart-outline"}
 															size={16}
-															color={isLikedByMe ? "#FF2D55" : "#8A8A8E"}
+															color={isLikedByMe ? "#FF2D55" : T.textMuted}
 														/>
 													</TouchableOpacity>
 													{item.likeCount > 0 && (
-														<Text style={styles.commentLikeCount}>
+														<Text style={[styles.commentLikeCount, { color: T.textMuted }]}>
 															{item.likeCount.toLocaleString()}
 														</Text>
 													)}
@@ -506,8 +509,8 @@ export function ReelPlayerItem({
 														style={styles.viewRepliesButton}
 														onPress={() => toggleReplies(item.id)}
 													>
-														<View style={styles.viewRepliesLine} />
-														<Text style={styles.viewRepliesText}>
+														<View style={[styles.viewRepliesLine, { backgroundColor: T.textMuted }]} />
+														<Text style={[styles.viewRepliesText, { color: T.textMuted }]}>
 															{isExpanded ? 'Hide replies' : `View ${item.replyCount} more repl${item.replyCount > 1 ? 'ies' : 'y'}`}
 														</Text>
 													</TouchableOpacity>
@@ -515,11 +518,11 @@ export function ReelPlayerItem({
 													{isExpanded && (
 														<View style={styles.repliesList}>
 															{loadingRepliesForComment && commentReplies.length === 0 ? (
-																<ActivityIndicator size="small" color="#FFF" style={{ marginVertical: 8, alignSelf: 'flex-start' }} />
+																<ActivityIndicator size="small" color={T.green} style={{ marginVertical: 8, alignSelf: 'flex-start' }} />
 															) : (
 																commentReplies.map((reply) => {
-																	const replyIsOwner = reply.authorId === (user?._id || user?.id);
-																	const replyIsLikedByMe = reply.likedBy.includes(user?._id || user?.id);
+																	const replyIsOwner = reply.authorId === user?._id;
+																	const replyIsLikedByMe = user?._id ? reply.likedBy.includes(user._id) : false;
 																	const replyRelativeTime = formatRelativeTime(reply.createdAt);
 
 																	return (
@@ -535,14 +538,14 @@ export function ReelPlayerItem({
 																			/>
 																			<View style={styles.commentTextContainer}>
 																				<View style={styles.commentAuthorHeader}>
-																					<Text style={styles.commentAuthor}>
+																					<Text style={[styles.commentAuthor, { color: T.text }]}>
 																						{reply.authorUsername}
 																					</Text>
-																					<Text style={styles.commentTime}>
+																					<Text style={[styles.commentTime, { color: T.textMuted }]}>
 																						{replyRelativeTime}{reply.edited ? ' • Edited' : ''}
 																					</Text>
 																				</View>
-																				<Text style={styles.commentText}>{reply.text}</Text>
+																				<Text style={[styles.commentText, { color: T.text }]}>{reply.text}</Text>
 																				
 																				<View style={styles.commentActionsRow}>
 																					{!replyIsOwner && (
@@ -550,16 +553,16 @@ export function ReelPlayerItem({
 																							setReplyingTo(item);
 																							inputRef.current?.focus();
 																						}}>
-																							<Text style={styles.commentActionText}>Reply</Text>
+																							<Text style={[styles.commentActionText, { color: T.textMuted }]}>Reply</Text>
 																						</TouchableOpacity>
 																					)}
 																					{replyIsOwner && (
 																						<>
 																							<TouchableOpacity style={styles.commentActionButton} onPress={() => handleStartEdit(reply)}>
-																								<Text style={styles.commentActionText}>Edit</Text>
+																								<Text style={[styles.commentActionText, { color: T.textMuted }]}>Edit</Text>
 																							</TouchableOpacity>
 																							<TouchableOpacity style={styles.commentActionButton} onPress={() => deleteComment(reply.id)}>
-																								<Text style={styles.commentActionText}>Delete</Text>
+																								<Text style={[styles.commentActionText, { color: T.textMuted }]}>Delete</Text>
 																							</TouchableOpacity>
 																						</>
 																					)}
@@ -572,11 +575,11 @@ export function ReelPlayerItem({
 																					<Ionicons
 																						name={replyIsLikedByMe ? "heart" : "heart-outline"}
 																						size={14}
-																						color={replyIsLikedByMe ? "#FF2D55" : "#8A8A8E"}
+																						color={replyIsLikedByMe ? "#FF2D55" : T.textMuted}
 																					/>
 																				</TouchableOpacity>
 																				{reply.likeCount > 0 && (
-																					<Text style={styles.replyLikeCount}>
+																					<Text style={[styles.replyLikeCount, { color: T.textMuted }]}>
 																						{reply.likeCount.toLocaleString()}
 																					</Text>
 																				)}
@@ -593,7 +596,7 @@ export function ReelPlayerItem({
 									);
 								}}
 								ListEmptyComponent={
-									<Text style={styles.emptyComments}>No comments yet. Start the conversation!</Text>
+									<Text style={[styles.emptyComments, { color: T.textMuted }]}>No comments yet. Start the conversation!</Text>
 								}
 								contentContainerStyle={styles.commentList}
 								onEndReached={() => {
@@ -604,14 +607,14 @@ export function ReelPlayerItem({
 								onEndReachedThreshold={0.3}
 								ListFooterComponent={
 									loadingMore ? (
-										<ActivityIndicator size="small" color="#FFF" style={{ marginVertical: 12 }} />
+										<ActivityIndicator size="small" color={T.green} style={{ marginVertical: 12 }} />
 									) : null
 								}
 							/>
 						)}
 
 						{/* Quick Emojis reaction bar */}
-						<View style={styles.emojiBar}>
+						<View style={[styles.emojiBar, { backgroundColor: T.surface, borderTopColor: T.border }]}>
 							{['❤️', '🙌', '🔥', '👏', '😢', '😍', '😮', '😂'].map((emoji) => (
 								<TouchableOpacity key={emoji} onPress={() => handleEmojiPress(emoji)}>
 									<Text style={styles.emojiText}>{emoji}</Text>
@@ -621,43 +624,43 @@ export function ReelPlayerItem({
 
 						{/* Replying/Editing Banner indicator */}
 						{replyingTo && (
-							<View style={styles.inputBanner}>
-								<Text style={styles.inputBannerText}>Replying to @{replyingTo.authorUsername}</Text>
+							<View style={[styles.inputBanner, { backgroundColor: T.surfaceAlt, borderTopColor: T.border }]}>
+								<Text style={[styles.inputBannerText, { color: T.textMuted }]}>Replying to @{replyingTo.authorUsername}</Text>
 								<TouchableOpacity onPress={() => setReplyingTo(null)}>
-									<Ionicons name="close-circle" size={18} color="#8A8A8E" />
+									<Ionicons name="close-circle" size={18} color={T.textMuted} />
 								</TouchableOpacity>
 							</View>
 						)}
 						{editingComment && (
-							<View style={styles.inputBanner}>
-								<Text style={styles.inputBannerText}>Editing comment</Text>
+							<View style={[styles.inputBanner, { backgroundColor: T.surfaceAlt, borderTopColor: T.border }]}>
+								<Text style={[styles.inputBannerText, { color: T.textMuted }]}>Editing comment</Text>
 								<TouchableOpacity onPress={() => setEditingComment(null)}>
-									<Ionicons name="close-circle" size={18} color="#8A8A8E" />
+									<Ionicons name="close-circle" size={18} color={T.textMuted} />
 								</TouchableOpacity>
 							</View>
 						)}
 
 						{/* Comment input area */}
-						<View style={styles.commentInputRow}>
+						<View style={[styles.commentInputRow, { backgroundColor: T.surface, borderTopColor: T.border }]}>
 							<Image
-								source={{ uri: user?.avatarUrl || user?.avatar?.url || DEFAULT_AVATAR_URL }}
+								source={{ uri: user?.avatarUrl || DEFAULT_AVATAR_URL }}
 								style={styles.inputAvatar}
 							/>
-							<View style={styles.commentInputContainer}>
+							<View style={[styles.commentInputContainer, { backgroundColor: T.inputBg }]}>
 								<TextInput
 									ref={inputRef}
 									value={text}
 									onChangeText={setText}
 									placeholder={replyingTo ? `Reply to @${replyingTo.authorUsername}...` : "Join the conversation..."}
-									placeholderTextColor="#8A8A8E"
-									style={styles.commentInput}
+									placeholderTextColor={T.textMuted}
+									style={[styles.commentInput, { color: T.text }]}
 									multiline
 								/>
 								<TouchableOpacity style={styles.inputIconButton} onPress={() => showToast("Image comments are coming soon!")}>
-									<Ionicons name="image-outline" size={20} color="#FFF" />
+									<Ionicons name="image-outline" size={20} color={T.textMuted} />
 								</TouchableOpacity>
-								<TouchableOpacity style={styles.gifButton} onPress={() => showToast("GIF comments are coming soon!")}>
-									<Text style={styles.gifButtonText}>GIF</Text>
+								<TouchableOpacity style={[styles.gifButton, { borderColor: T.textMuted }]} onPress={() => showToast("GIF comments are coming soon!")}>
+									<Text style={[styles.gifButtonText, { color: T.textMuted }]}>GIF</Text>
 								</TouchableOpacity>
 							</View>
 							
@@ -667,7 +670,7 @@ export function ReelPlayerItem({
 								</TouchableOpacity>
 							) : (
 								<TouchableOpacity style={styles.giftButtonIcon} onPress={() => showToast("Reels Gifts are not available in this region.")}>
-									<Ionicons name="gift-outline" size={22} color="#FFF" />
+									<Ionicons name="gift-outline" size={22} color={T.textMuted} />
 								</TouchableOpacity>
 							)}
 						</View>
@@ -687,31 +690,31 @@ export function ReelPlayerItem({
 					activeOpacity={1}
 					onPress={() => setActionSheetVisible(false)}
 				>
-					<View style={styles.actionSheetContainer}>
-						<View style={styles.actionSheetHeaderIndicator} />
+					<View style={[styles.actionSheetContainer, { backgroundColor: T.surfaceAlt }]}>
+						<View style={[styles.actionSheetHeaderIndicator, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)' }]} />
 						<TouchableOpacity
-							style={styles.actionSheetButton}
+							style={[styles.actionSheetButton, { borderBottomColor: T.divider }]}
 							onPress={() => selectedCommentForActions && handleCopyText(selectedCommentForActions)}
 						>
-							<Text style={styles.actionSheetButtonText}>Copy Text</Text>
+							<Text style={[styles.actionSheetButtonText, { color: T.text }]}>Copy Text</Text>
 						</TouchableOpacity>
 						<TouchableOpacity
-							style={styles.actionSheetButton}
+							style={[styles.actionSheetButton, { borderBottomColor: T.divider }]}
 							onPress={() => selectedCommentForActions && handleStartEdit(selectedCommentForActions)}
 						>
-							<Text style={styles.actionSheetButtonText}>Edit Comment</Text>
+							<Text style={[styles.actionSheetButtonText, { color: T.text }]}>Edit Comment</Text>
 						</TouchableOpacity>
 						<TouchableOpacity
-							style={[styles.actionSheetButton, styles.actionSheetDeleteButton]}
+							style={[styles.actionSheetButton, styles.actionSheetDeleteButton, { borderBottomColor: T.divider }]}
 							onPress={() => selectedCommentForActions && handleDelete(selectedCommentForActions)}
 						>
 							<Text style={[styles.actionSheetButtonText, styles.actionSheetDeleteText]}>Delete Comment</Text>
 						</TouchableOpacity>
 						<TouchableOpacity
-							style={[styles.actionSheetButton, styles.actionSheetCancelButton]}
+							style={[styles.actionSheetButton, styles.actionSheetCancelButton, { backgroundColor: T.surface, borderTopWidth: 1, borderTopColor: T.divider }]}
 							onPress={() => setActionSheetVisible(false)}
 						>
-							<Text style={styles.actionSheetCancelText}>Cancel</Text>
+							<Text style={[styles.actionSheetCancelText, { color: T.textMuted }]}>Cancel</Text>
 						</TouchableOpacity>
 					</View>
 				</TouchableOpacity>
