@@ -5,7 +5,7 @@ const ReelLike = require('../../../database/models/reel-like.model');
 const ReelComment = require('../../../database/models/reel-comment.model');
 
 const reelsRepository = {
-	async findFeed({ limit = 10, skip = 0, category, authorId } = {}) {
+	async findFeed({ limit = 50, skip = 0, category, authorId } = {}) {
 		const filter = { status: 'ready' };
 		if (category && category !== 'all') {
 			filter.category = category;

@@ -61,7 +61,7 @@ function deleteLocalFile(url) {
 }
 
 const reelsService = {
-	async getFeed({ userId, page = 0, limit = 10, category, authorId }) {
+	async getFeed({ userId, page = 0, limit = 50, category, authorId }) {
 		const skip = page * limit;
 		const reels = await reelsRepository.findFeed({ limit, skip, category, authorId });
 		

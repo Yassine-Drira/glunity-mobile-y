@@ -110,7 +110,8 @@ export function useReelsFeed(initialCategory = 'all') {
 		}));
 
 		try {
-			const response = await ReelsService.getFeed(targetPage, 10, cat, { signal: controller.signal });
+			// Request a larger page size to attempt fetching more reels per page
+			const response = await ReelsService.getFeed(targetPage, 100, cat, { signal: controller.signal });
 			
 			if (controller.signal.aborted) {
 				return;
@@ -118,6 +119,9 @@ export function useReelsFeed(initialCategory = 'all') {
 
 			if (response.success) {
 				const newReels = response.data;
+                try {
+                    console.debug('[useReelsFeed] fetched', { cat, targetPage, newReelsLength: Array.isArray(newReels) ? newReels.length : undefined });
+                } catch (e) {}
 				setFeeds(prev => {
 					const existingFeed = prev[cat];
 					let updatedReels = [];

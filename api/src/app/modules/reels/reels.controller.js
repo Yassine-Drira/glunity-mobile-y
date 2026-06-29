@@ -4,8 +4,11 @@ const reelsService = require('./reels.service');
 
 async function list(req, res, next) {
 	try {
-		const page = parseInt(req.query.page, 10) || 0;
-		const limit = parseInt(req.query.limit, 10) || 10;
+		const page = Math.max(0, parseInt(req.query.page, 10) || 0);
+		// Default page size 50, clamp between 1 and 200 to prevent expensive queries
+		let parsedLimit = parseInt(req.query.limit, 10);
+		if (!parsedLimit || parsedLimit < 1) parsedLimit = 50;
+		const limit = Math.min(parsedLimit, 200);
 		const category = String(req.query.category || 'all').trim().toLowerCase();
 		const authorId = req.query.authorId || null;
 		const userId = req.user ? req.user._id : null;

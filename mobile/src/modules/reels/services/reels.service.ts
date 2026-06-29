@@ -57,8 +57,16 @@ export interface UploadSignatureResponse {
 }
 
 export const ReelsService = {
-	async getFeed(page: number, limit = 10, category = 'all', config?: AxiosRequestConfig): Promise<{ success: boolean; data: Reel[] }> {
-		const response = await http.get<{ success: boolean; data: Reel[] }>(`/reels?page=${page}&limit=${limit}&category=${category}`, config);
+	async getFeed(page: number, limit = 50, category = 'all', config?: AxiosRequestConfig): Promise<{ success: boolean; data: Reel[] }> {
+		const qs = `page=${page}&category=${category}` + (typeof limit === 'number' && limit > 0 ? `&limit=${limit}` : '');
+		const url = `/reels?${qs}`;
+		try {
+			console.debug('[ReelsService] GET', url);
+		} catch (e) {}
+		const response = await http.get<{ success: boolean; data: Reel[] }>(url, config);
+		try {
+			console.debug('[ReelsService] response', { page, limit, category, count: Array.isArray(response.data?.data) ? response.data.data.length : undefined });
+		} catch (e) {}
 		return response.data;
 	},
 
