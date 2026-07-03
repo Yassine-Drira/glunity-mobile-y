@@ -31,7 +31,7 @@ const INITIAL_FEEDS: Record<string, CategoryFeedState> = {
 	lifestyle: { ...INITIAL_CATEGORY_FEED },
 };
 
-const CACHE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_EXPIRATION_MS = 30 * 1000; // 30 seconds — keeps score-based order fresh
 
 export function useReelsFeed(initialCategory = 'all') {
 	const [feeds, setFeeds] = useState<Record<string, CategoryFeedState>>(INITIAL_FEEDS);

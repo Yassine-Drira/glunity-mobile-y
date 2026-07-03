@@ -13,6 +13,7 @@ const reelsRepository = require('./reels.repository');
 const reelsMapper = require('./reels.mapper');
 const AppError = require('../../common/errors/app-error');
 const env = require('../../config/env');
+const { computeTrendingScore } = require('./reels.scoring');
 const cloudinary = require('cloudinary').v2;
 const cloudinaryClient = require('../../integrations/cloudinary/cloudinary.client');
 
@@ -61,7 +62,24 @@ function deleteLocalFile(url) {
 }
 
 const reelsService = {
-	async getFeed({ userId, page = 0, limit = 50, category, authorId }) {
+	/**
+	 * Recompute and persist the trendingScore for a reel.
+	 * Called after every interaction (view, like, comment, share) so the feed
+	 * query stays a simple sort with no in-query arithmetic.
+	 */
+	async recomputeScore(reelId) {
+		try {
+			const reel = await reelsRepository.findById(reelId);
+			if (!reel) return;
+			const score = computeTrendingScore(reel);
+			await reelsRepository.updateScore(reelId, score);
+		} catch (err) {
+			// Non-critical — do not bubble up scoring errors to the caller
+			console.error('[Scoring] Failed to recompute score for reel', reelId, err);
+		}
+	},
+
+	async getFeed({ userId, page = 0, limit = 20, category, authorId }) {
 		const skip = page * limit;
 		const reels = await reelsRepository.findFeed({ limit, skip, category, authorId });
 		
@@ -77,7 +95,12 @@ const reelsService = {
 			authorId: userId,
 			status: 'ready'
 		});
-		
+
+		// Compute initial trendingScore immediately so the reel is never
+		// stranded at score=0 in the feed. Fresh videos start with
+		// freshnessBoost ~100 which gives them strong initial visibility.
+		await this.recomputeScore(reel._id);
+
 		const populatedReel = await reelsRepository.findById(reel._id);
 		return reelsMapper.toReelResponse(populatedReel, false);
 	},
@@ -188,24 +211,53 @@ const reelsService = {
 		}
 
 		const existingLike = await reelsRepository.findLike(reelId, userId);
+		let result;
 		if (existingLike) {
 			await reelsRepository.deleteLike(reelId, userId);
 			const updatedReel = await reelsRepository.incrementLikes(reelId, -1);
-			return { liked: false, likesCount: updatedReel.likesCount };
+			result = { liked: false, likesCount: updatedReel.likesCount };
 		} else {
 			await reelsRepository.createLike(reelId, userId);
 			const updatedReel = await reelsRepository.incrementLikes(reelId, 1);
-			return { liked: true, likesCount: updatedReel.likesCount };
+			result = { liked: true, likesCount: updatedReel.likesCount };
 		}
+
+		// Recompute score asynchronously — fire and forget
+		this.recomputeScore(reelId);
+		return result;
 	},
 
-	async recordView(reelId) {
+	/**
+	 * Record a view for a reel.
+	 *
+	 * Deduplication rules:
+	 * - Authenticated users: only 1 view counted per 24 hours (enforced via
+	 *   ReelView TTL collection).
+	 * - Anonymous users: every call counts (no identity to deduplicate on).
+	 *
+	 * @param {string} reelId
+	 * @param {string|null} userId  — null for unauthenticated requests
+	 */
+	async recordView(reelId, userId = null) {
 		const reel = await reelsRepository.findById(reelId);
 		if (!reel) {
 			throw AppError.notFound('Reel');
 		}
+
+		// Skip if this user already viewed today
+		if (userId) {
+			const alreadyViewed = await reelsRepository.hasViewedToday(reelId, userId);
+			if (alreadyViewed) {
+				return { success: true, counted: false };
+			}
+			// Record the event — TTL index purges it after 24 h
+			await reelsRepository.recordViewEvent(reelId, userId);
+		}
+
 		await reelsRepository.incrementViews(reelId);
-		return { success: true };
+		// Recompute score asynchronously — fire and forget
+		this.recomputeScore(reelId);
+		return { success: true, counted: true };
 	},
 
 	async recordShare(reelId) {
@@ -214,6 +266,8 @@ const reelsService = {
 			throw AppError.notFound('Reel');
 		}
 		const updatedReel = await reelsRepository.incrementShares(reelId);
+		// Recompute score asynchronously — fire and forget
+		this.recomputeScore(reelId);
 		return { sharesCount: updatedReel.sharesCount || 0 };
 	},
 
@@ -250,6 +304,9 @@ const reelsService = {
 			// Increment replyCount on the parent comment
 			await ReelComment.findByIdAndUpdate(parentCommentId, { $inc: { replyCount: 1 } });
 		}
+
+		// Recompute score asynchronously — fire and forget
+		this.recomputeScore(reelId);
 		
 		// Fetch populated comment to build a complete response
 		const createdComment = await ReelComment.findById(comment._id)

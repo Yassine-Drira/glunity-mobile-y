@@ -114,6 +114,10 @@ function ReelPlayerItemComponent({
 	// Resets automatically when the reel becomes active (swipe).
 	const [userPaused, setUserPaused] = useState(false);
 	const hasRecordedView = useRef(false);
+	// Timer ref for the 3-second view eligibility gate.
+	// The view is only counted after the video has been continuously visible
+	// and active for VIEW_THRESHOLD_MS milliseconds.
+	const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const insets = useSafeAreaInsets();
 
 	// Calculate dynamic offsets so layout elements float perfectly above the bottom navigation bar and gesture area.
@@ -279,15 +283,41 @@ function ReelPlayerItemComponent({
 		}
 	}, [shouldPlay]);
 
-	// Reset user-pause when this reel becomes active (user swiped to it).
+	// ── 3-second view eligibility gate ──────────────────────────────────────
+	// The view is only counted when:
+	//   1. The reel is the active (currently visible) item.
+	//   2. It has been continuously active for at least 3 seconds.
+	//   3. It hasn't already been counted in this session (hasRecordedView).
+	// If the user scrolls away before 3 seconds the timer is cleared and no
+	// view event is fired.
 	useEffect(() => {
 		if (isActive) {
 			setUserPaused(false);
+
+			// Start the 3-second gate if we haven't already recorded a view.
 			if (!hasRecordedView.current) {
-				onRecordView(reel.id);
-				hasRecordedView.current = true;
+				viewTimerRef.current = setTimeout(() => {
+					if (!hasRecordedView.current) {
+						onRecordView(reel.id);
+						hasRecordedView.current = true;
+					}
+				}, 3000); // 3 seconds
+			}
+		} else {
+			// User scrolled away — cancel the pending timer.
+			if (viewTimerRef.current !== null) {
+				clearTimeout(viewTimerRef.current);
+				viewTimerRef.current = null;
 			}
 		}
+
+		// Cleanup on unmount or when isActive changes
+		return () => {
+			if (viewTimerRef.current !== null) {
+				clearTimeout(viewTimerRef.current);
+				viewTimerRef.current = null;
+			}
+		};
 	}, [isActive]);
 
 	// Handle single/double tap on the screen

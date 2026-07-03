@@ -69,7 +69,10 @@ async function toggleLike(req, res, next) {
 async function recordView(req, res, next) {
 	try {
 		const reelId = req.params.id;
-		await reelsService.recordView(reelId);
+		// userId is null for unauthenticated requests; dedup only applies to
+		// authenticated users (enforced in the service layer).
+		const userId = req.user ? req.user._id : null;
+		await reelsService.recordView(reelId, userId);
 		res.status(200).json({ success: true });
 	} catch (err) {
 		next(err);
