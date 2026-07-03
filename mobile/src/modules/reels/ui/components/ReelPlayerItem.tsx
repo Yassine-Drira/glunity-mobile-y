@@ -633,6 +633,7 @@ function ReelPlayerItemComponent({
 							</View>
 						) : (
 							<FlatList
+								style={{ flex: 1 }}
 								data={comments}
 								keyExtractor={(item) => item.id}
 								renderItem={({ item }) => {
