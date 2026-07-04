@@ -36,7 +36,10 @@ import CreateChannelScreen from '../modules/community/ui/screens/CreateChannelSc
 import CommunityMembersList from '../modules/community/ui/screens/CommunityMembersList';
 import ChannelMembersScreen from '../modules/community/ui/screens/ChannelMembersScreen';
 import ReelsFeedScreen from '../modules/reels/ui/screens/ReelsFeedScreen';
-import ReelCameraScreen from '../modules/reels/ui/screens/ReelCameraScreen';
+import CaptureScreen from '../modules/reels/ui/screens/CaptureScreen';
+import EditScreen from '../modules/reels/ui/screens/EditScreen';
+import ShareScreen from '../modules/reels/ui/screens/ShareScreen';
+import AddCoverScreen from '../modules/reels/ui/screens/AddCoverScreen';
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -190,7 +193,10 @@ export function AppNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="PatientResources" component={PatientResourcesScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ReelsFeed" component={ReelsFeedScreen} options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="ReelCamera" component={ReelCameraScreen} options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="ReelCapture" component={CaptureScreen} options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="ReelEdit" component={EditScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="ReelShare" component={ShareScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="ReelAddCover" component={AddCoverScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }

@@ -76,7 +76,23 @@ async function presenceHandler(io, socket, redisClient) {
   if (!user) return;
   const userId = user._id.toString();
 
-  const redis = redisClient || mockRedis;
+  const hasUsableRedis = () => !!redisClient && redisAvailable() && redisClient.status === 'ready';
+  const redis = new Proxy({}, {
+    get(_, op) {
+      return async (...args) => {
+        const primary = hasUsableRedis() ? redisClient : mockRedis;
+        try {
+          return await primary[op](...args);
+        } catch (err) {
+          logger.warn('[presence:store] Redis op failed; switching to memory fallback', {
+            op: String(op),
+            err: err?.message || 'unknown error',
+          });
+          return mockRedis[op](...args);
+        }
+      };
+    }
+  });
 
   // 1. ON CONNECT
   try {

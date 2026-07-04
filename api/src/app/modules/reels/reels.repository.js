@@ -23,14 +23,44 @@ const reelsRepository = {
 			filter.authorId = authorId;
 		}
 
-		// Author profile pages stay chronological
+		// Author profile pages stay chronological while the general feed uses
+		// the ranked+fresh blend and pagination logic.
 		if (authorId) {
 			return Reel.find(filter)
 				.populate('authorId', 'fullName avatar profileType')
+				.populate('taggedUsers', 'fullName avatar profileType')
 				.sort({ createdAt: -1 })
 				.skip(skip)
 				.limit(limit)
 				.lean();
+		}
+
+		const totalCount = await Reel.countDocuments(filter);
+		if (totalCount === 0) {
+			return [];
+		}
+
+		const safeSkip = skip;
+		let reels = await Reel.find(filter)
+			.populate('authorId', 'fullName avatar profileType')
+			.populate('taggedUsers', 'fullName avatar profileType')
+			.sort({ createdAt: -1 })
+			.skip(safeSkip)
+			.limit(limit)
+			.lean();
+
+		// If we run out of fresh content, fill the remainder with additional
+		// recent reels so the feed does not feel empty on deeper pages.
+		if (reels.length < limit && totalCount > reels.length) {
+			const needed = limit - reels.length;
+			const extraReels = await Reel.find(filter)
+				.populate('authorId', 'fullName avatar profileType')
+				.populate('taggedUsers', 'fullName avatar profileType')
+				.sort({ createdAt: -1 })
+				.skip(safeSkip + limit)
+				.limit(needed)
+				.lean();
+			reels = [...reels, ...extraReels];
 		}
 
 		// ── Ranked feed ──────────────────────────────────────────────────────
@@ -65,6 +95,7 @@ const reelsRepository = {
 	findById(id) {
 		return Reel.findById(id)
 			.populate('authorId', 'fullName avatar profileType')
+			.populate('taggedUsers', 'fullName avatar profileType')
 			.lean();
 	},
 
@@ -75,6 +106,7 @@ const reelsRepository = {
 	updateReel(id, payload) {
 		return Reel.findByIdAndUpdate(id, { $set: payload }, { new: true })
 			.populate('authorId', 'fullName avatar profileType')
+			.populate('taggedUsers', 'fullName avatar profileType')
 			.lean();
 	},
 

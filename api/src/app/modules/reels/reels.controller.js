@@ -82,7 +82,8 @@ async function recordView(req, res, next) {
 async function recordShare(req, res, next) {
 	try {
 		const reelId = req.params.id;
-		const result = await reelsService.recordShare(reelId);
+		const userId = req.user ? req.user._id : null;
+		const result = await reelsService.recordShare(reelId, userId);
 		res.status(200).json({ success: true, data: result });
 	} catch (err) {
 		next(err);

@@ -87,7 +87,7 @@ export default function CommunityJoin({ navigation }: any) {
       try {
         // fetch core channels and messaging discover in parallel (discover may be on msg service port)
         const baseURL = http.defaults.baseURL || '';
-        const msgBaseUrl = baseURL.replace(':5000', ':5001');
+        const msgBaseUrl = baseURL.replace(':5000', ':5002');
 
         const corePromise = http.get('/channels').then(r => r.data?.data || []).catch(async (err) => {
           // fallback: try unauthenticated axios call to the same URL to fetch public channels

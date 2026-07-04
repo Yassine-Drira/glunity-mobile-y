@@ -16,7 +16,7 @@ let BlurView: any = null;
 try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
 
 const CORE_API_URL = API_BASE_URL;
-const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5001');
+const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5002');
 
 // Gets clean 1 or 2 letter initials
 const getInitials = (name: string) => {

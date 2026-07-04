@@ -31,6 +31,9 @@ const messageSchema = new Schema(
       reelId:       { type: Types.ObjectId },
       thumbnailUrl: String,
       title:        String,
+      duration:     Number,
+      ownerName:    String,
+      ownerAvatar:  String,
       isDeleted:    { type: Boolean, default: false },
     },
 

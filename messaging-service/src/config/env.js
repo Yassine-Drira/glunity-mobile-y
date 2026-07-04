@@ -19,7 +19,7 @@ validateEnv();
 const env = {
   node: process.env.NODE_ENV || 'development',
   isDev: process.env.NODE_ENV !== 'production',
-  port: Number(process.env.PORT) || 5001,
+  port: Number(process.env.PORT) || 5002,
 
   mongo: {
     uri: process.env.MONGO_URI,
@@ -57,7 +57,7 @@ const env = {
   media: {
     maxImageSize: Number(process.env.MAX_IMAGE_SIZE) || 10 * 1024 * 1024, // 10 MB
     maxVideoSize: Number(process.env.MAX_VIDEO_SIZE) || 50 * 1024 * 1024, // 50 MB
-    appUrl:       process.env.APP_URL || 'http://localhost:5001',
+    appUrl:       process.env.APP_URL || 'http://localhost:5002',
   },
 };
 

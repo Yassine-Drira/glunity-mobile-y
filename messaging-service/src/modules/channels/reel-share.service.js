@@ -94,11 +94,24 @@ const reelShareService = {
 
     const ReelModel = await getReelModel();
     const reel = await ReelModel.findById(reelId)
-      .select('videoUrl thumbnailUrl caption duration')
+      .select('videoUrl thumbnailUrl caption duration authorId')
       .lean();
 
     if (!reel) {
       throw createError('Reel not found or has been deleted', 404, 'NOT_FOUND');
+    }
+
+    let ownerName = 'Anonymous';
+    let ownerAvatar = null;
+    try {
+      const User = mongoose.model('User');
+      const author = reel.authorId ? await User.findById(reel.authorId).select('fullName avatar').lean() : null;
+      if (author) {
+        ownerName = author.fullName || 'Anonymous';
+        ownerAvatar = author.avatar?.url || null;
+      }
+    } catch (userErr) {
+      console.warn('[validateAndFetchReel] Failed to fetch reel author details:', userErr);
     }
 
     const thumb = reel.thumbnailUrl || (reel.videoUrl ? reel.videoUrl.replace(/\.[a-z0-9]+$/i, '.jpg') : null);
@@ -108,6 +121,8 @@ const reelShareService = {
       thumbnailUrl: thumb,
       title:        reel.caption      ?? '',   // caption is used as the display title
       duration:     reel.duration     ?? 0,
+      ownerName,
+      ownerAvatar,
     };
   },
 
@@ -155,6 +170,9 @@ const reelShareService = {
         reelId:       reelMeta.reelId,
         thumbnailUrl: reelMeta.thumbnailUrl,
         title:        reelMeta.title,
+        duration:     reelMeta.duration,
+        ownerName:    reelMeta.ownerName,
+        ownerAvatar:  reelMeta.ownerAvatar,
       },
     });
 

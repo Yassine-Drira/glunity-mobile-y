@@ -24,9 +24,14 @@ export interface Reel {
 	category: 'all' | 'recipes' | 'tips' | 'products' | 'lifestyle';
 	channelRef?: string;
 	createdAt: string;
-	audioTitle?: string | null;
-	audioArtist?: string | null;
-	audioUrl?: string | null;
+	taggedUsers?: TaggedUserRef[];
+}
+
+export interface TaggedUserRef {
+	id: string;
+	fullName: string;
+	username?: string;
+	avatarUrl?: string;
 }
 
 export interface ReelComment {
@@ -109,9 +114,7 @@ export const ReelsService = {
 		caption: string; 
 		duration: number; 
 		category?: string;
-		audioTitle?: string | null;
-		audioArtist?: string | null;
-		audioUrl?: string | null;
+		taggedUserIds?: string[];
 	}): Promise<{ success: boolean; data: Reel }> {
 		const response = await http.post<{ success: boolean; data: Reel }>('/reels', payload);
 		return response.data;

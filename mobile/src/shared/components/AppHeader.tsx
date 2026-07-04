@@ -13,12 +13,14 @@ import {
   Image,
   Alert,
 } from 'react-native';
-import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';import { useTheme } from '../context/theme.context';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { useTheme } from '../context/theme.context';
 import AnimatedReanimated, { SlideInUp, SlideOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import notificationsApi from '@/modules/notifications/api/notifications.api';
 import { useLanguage } from '../context/language.context';
+import { useSocket } from '../context/socket.context';
 
 const F = {
   regular:  'Poppins_400Regular',
@@ -78,6 +80,13 @@ export function AppHeader({
 
   const [activeToast, setActiveToast] = React.useState<{ title: string; body: string } | null>(null);
   const reducedMotion = useReducedMotion();
+  const { socket } = useSocket();
+
+  const isExpectedAuthError = React.useCallback((err: any) => {
+    const code = err?.code;
+    const status = err?.response?.status;
+    return code === 'NO_ACCESS_TOKEN' || status === 401;
+  }, []);
 
   React.useEffect(() => {
     if (activeToast) {
@@ -124,7 +133,10 @@ export function AppHeader({
           isFirstLoad = false;
         }
       } catch (err) {
-        // Mute api check failures
+        // Ignore expected auth failures to avoid noisy logs on session expiry.
+        if (!isExpectedAuthError(err)) {
+          console.warn('Failed to check unread notifications:', err);
+        }
       }
     };
 
@@ -135,7 +147,45 @@ export function AppHeader({
       mounted = false;
       clearInterval(interval);
     };
-  }, [user, isFocused]);
+  }, [user, isFocused, isExpectedAuthError]);
+
+  // Real-time notification sync (badge + toast), with polling kept as fallback.
+  React.useEffect(() => {
+    if (!socket || !user) return;
+
+    const onBadge = (payload: { unreadCount?: number }) => {
+      const next = Number(payload?.unreadCount);
+      if (Number.isFinite(next) && next >= 0) {
+        prevUnreadCountRef.current = next;
+        setUnreadCount(next);
+      }
+    };
+
+    const onNotification = (notif: { title?: string; body?: string; isRead?: boolean }) => {
+      if (notif?.isRead) return;
+
+      setUnreadCount((prev) => {
+        const next = prev + 1;
+        prevUnreadCountRef.current = next;
+        return next;
+      });
+
+      if (notif?.title || notif?.body) {
+        setActiveToast({
+          title: notif?.title || 'New Notification',
+          body: notif?.body || '',
+        });
+      }
+    };
+
+    socket.on('notification:badge', onBadge);
+    socket.on('notification:new', onNotification);
+
+    return () => {
+      socket.off('notification:badge', onBadge);
+      socket.off('notification:new', onNotification);
+    };
+  }, [socket, user]);
 
   // Extract first name and default fallback avatar
   const firstName = user?.fullName ? user.fullName.split(' ')[0] : 'Yassmine';

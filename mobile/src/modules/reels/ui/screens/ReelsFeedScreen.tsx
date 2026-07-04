@@ -161,9 +161,11 @@ export default function ReelsFeedScreen() {
 				setTimeout(() => {
 					flatListRef.current?.scrollToIndex({ index, animated: true });
 				}, 100);
+				// Clear parameters to prevent re-triggering on layout changes
+				navigation.setParams({ reelId: undefined, commentId: undefined, replyId: undefined });
 			}
 		}
-	}, [route.params?.reelId, reels]);
+	}, [route.params?.reelId, reels, navigation]);
 
 	useEffect(() => {
 		if (route.params?.refresh) {
@@ -171,6 +173,20 @@ export default function ReelsFeedScreen() {
 			navigation.setParams({ refresh: undefined });
 		}
 	}, [route.params?.refresh, refresh, navigation]);
+
+	// Auto-open newly uploaded reel
+	useEffect(() => {
+		if (route.params?.autoOpenReelId && reels.length > 0) {
+			const reelIndex = reels.findIndex(r => r.id === route.params?.autoOpenReelId);
+			if (reelIndex !== -1) {
+				// Scroll to the reel
+				setActiveIndex(reelIndex);
+				flatListRef.current?.scrollToIndex({ index: reelIndex, animated: true });
+				// Clear the param so it doesn't auto-open again
+				navigation.setParams({ autoOpenReelId: undefined });
+			}
+		}
+	}, [route.params?.autoOpenReelId, reels, navigation]);
 
 	useEffect(() => {
 		if (hasMore && reels.length > 0 && activeIndex >= reels.length - 2) {
@@ -443,8 +459,10 @@ export default function ReelsFeedScreen() {
 			onOpenShareSheet={openShareSheet}
 			containerHeight={layoutHeight}
 			containerWidth={layoutWidth}
+			initialCommentId={index === activeIndexRef.current ? route.params?.commentId : undefined}
+			initialReplyId={index === activeIndexRef.current ? route.params?.replyId : undefined}
 		/>
-	), [toggleLike, recordView, recordShare, incrementCommentsCount, openShareSheet, layoutHeight, layoutWidth]);
+	), [toggleLike, recordView, recordShare, incrementCommentsCount, openShareSheet, layoutHeight, layoutWidth, route.params?.commentId, route.params?.replyId]);
 
 	return (
 		<View style={styles.container}>
@@ -534,7 +552,7 @@ export default function ReelsFeedScreen() {
 				<View style={styles.emptyContainer}>
 					<Ionicons name="film-outline" size={60} color="#8A8A8E" />
 					<Text style={styles.emptyText}>No reels available yet</Text>
-					<TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('ReelCamera')}>
+					<TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate('ReelCapture')}>
 						<Text style={styles.createButtonText}>Create a Reel</Text>
 					</TouchableOpacity>
 				</View>

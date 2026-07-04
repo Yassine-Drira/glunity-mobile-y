@@ -8,18 +8,92 @@ const http = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+function decodeJwtPayload(token: string): any | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+
+    if (typeof atob === 'function') {
+      const json = atob(base64);
+      return JSON.parse(json);
+    }
+
+    if (typeof Buffer !== 'undefined') {
+      const json = Buffer.from(base64, 'base64').toString('utf8');
+      return JSON.parse(json);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function isJwtExpired(token: string, skewSeconds = 10): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp || typeof payload.exp !== 'number') return false;
+  const now = Math.floor(Date.now() / 1000);
+  return payload.exp <= now + skewSeconds;
+}
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function refreshAccessTokenIfNeeded(): Promise<string | null> {
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async () => {
+    const refreshToken = await TokenStore.getRefreshToken();
+    if (!refreshToken) return null;
+
+    const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+    const nextAccess = data?.data?.accessToken;
+    const nextRefresh = data?.data?.refreshToken || refreshToken;
+
+    if (!nextAccess) return null;
+    await TokenStore.setTokens(nextAccess, nextRefresh);
+    http.defaults.headers.common['Authorization'] = `Bearer ${nextAccess}`;
+    return nextAccess;
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
+}
+
 // ── Request: attach access token ──────────────────────────────────────────────
 http.interceptors.request.use(async (config) => {
-  const token = await TokenStore.getAccessToken();
+  let token = await TokenStore.getAccessToken();
   // If this request is to auth endpoints or public uploads, allow without token
   const url = (config.url || '').toString();
   const isAuthRoute = url.startsWith('/auth') || url.includes('/auth/');
   const isUploadsRoute = url.startsWith('/uploads') || url.includes('/uploads');
 
+  if (token && !isAuthRoute && isJwtExpired(token)) {
+    try {
+      const refreshed = await refreshAccessTokenIfNeeded();
+      token = refreshed;
+    } catch {
+      token = null;
+    }
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   } else if (!isAuthRoute && !isUploadsRoute) {
     // No token available for a protected route — short-circuit to avoid 401 requests
+    try {
+      await TokenStore.clearTokens();
+    } catch {
+      // best-effort cleanup
+    }
+    if (onUnauthorizedCallback) {
+      onUnauthorizedCallback();
+    }
     const e: any = new Error('No access token available');
     e.code = 'NO_ACCESS_TOKEN';
     throw e;

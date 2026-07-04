@@ -273,9 +273,6 @@ export default function ReelCameraScreen() {
 				caption: caption.trim(),
 				duration: 0,
 				category,
-				audioTitle: selectedMusic?.title,
-				audioArtist: selectedMusic?.artist,
-				audioUrl: selectedMusic?.url,
 			});
 
 			if (createRes.success) {

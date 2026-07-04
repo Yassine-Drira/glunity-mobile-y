@@ -14,13 +14,13 @@ interface SocketContextValue {
 const SocketContext = createContext<SocketContextValue | undefined>(undefined);
 
 const resolveSocketUrl = (apiBaseUrl: string): string => {
-  let resolved = apiBaseUrl.replace(':5000', ':5001');
+  let resolved = apiBaseUrl.replace(':5000', ':5002');
   if (resolved === apiBaseUrl) {
     try {
       const match = apiBaseUrl.match(/^https?:\/\/([^/:]+)/i);
       const host = match ? match[1] : '';
       if (host === 'localhost' || host === '127.0.0.1' || /^192\.168\./.test(host) || /^10\./.test(host)) {
-        resolved = apiBaseUrl.replace(host, `${host}:5001`);
+        resolved = apiBaseUrl.replace(host, `${host}:5002`);
       }
     } catch (e) {
       console.warn('[SocketProvider] Failed parsing host for port replacement:', e);

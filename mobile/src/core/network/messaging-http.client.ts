@@ -1,5 +1,5 @@
 /**
- * Axios client for the messaging microservice (port 5001).
+ * Axios client for the messaging microservice (port 5002).
  * Shares the same token-refresh interceptor logic as the main http client
  * so that expired tokens are automatically renewed without 401s.
  */
@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../config/api.config';
 import { TokenStore } from '../storage/secure-store';
 
 // Derive messaging-service base URL from the main API URL
-const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5001');
+const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5002');
 
 const messagingHttp = axios.create({
   baseURL: MSG_SERVICE_URL,

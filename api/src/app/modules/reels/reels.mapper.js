@@ -14,6 +14,7 @@ const toReelResponse = (reel, isLiked = false) => {
 		},
 		videoUrl: reel.videoUrl,
 		thumbnailUrl: reel.thumbnailUrl,
+		coverUrl: reel.thumbnailUrl, // Single source of truth for both thumbnailUrl and coverUrl
 		caption: reel.caption || '',
 		duration: reel.duration || 0,
 		viewsCount: reel.viewsCount || 0,
@@ -28,6 +29,12 @@ const toReelResponse = (reel, isLiked = false) => {
 		audioArtist: reel.audioArtist || null,
 		audioUrl: reel.audioUrl || null,
 		createdAt: reel.createdAt,
+		taggedUsers: (reel.taggedUsers || []).map(user => ({
+			id: user._id || user.id || null,
+			fullName: user.fullName || 'Anonymous',
+			username: user.fullName ? user.fullName.replace(/\s+/g, '').toLowerCase() : 'anonymous',
+			avatarUrl: user.avatar?.url || null,
+		})),
 	};
 };
 

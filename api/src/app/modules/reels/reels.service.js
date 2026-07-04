@@ -11,6 +11,7 @@ const Message = require('../../../database/models/message.model');
 
 const reelsRepository = require('./reels.repository');
 const reelsMapper = require('./reels.mapper');
+const notificationsService = require('../notifications/notifications.service');
 const AppError = require('../../common/errors/app-error');
 const env = require('../../config/env');
 const { computeTrendingScore } = require('./reels.scoring');
@@ -90,8 +91,10 @@ const reelsService = {
 	},
 
 	async createReel(payload, userId) {
+		const { taggedUserIds, ...rest } = payload;
 		const reel = await reelsRepository.createReel({
-			...payload,
+			...rest,
+			taggedUsers: taggedUserIds || [],
 			authorId: userId,
 			status: 'ready'
 		});
@@ -100,6 +103,32 @@ const reelsService = {
 		// stranded at score=0 in the feed. Fresh videos start with
 		// freshnessBoost ~100 which gives them strong initial visibility.
 		await this.recomputeScore(reel._id);
+
+		// Send notifications to tagged users
+		if (taggedUserIds && taggedUserIds.length > 0) {
+			(async () => {
+				try {
+					const User = mongoose.model('User');
+					const author = await User.findById(userId).select('fullName').lean();
+					for (const taggedId of taggedUserIds) {
+						if (taggedId.toString() !== userId.toString()) {
+							await notificationsService.create({
+								recipientId: taggedId,
+								userId: taggedId,
+								actorId: userId,
+								reelId: reel._id,
+								type: 'REEL_TAG',
+								message: 'tagged you in a reel',
+								title: 'Tagged in a Reel',
+								body: `${author?.fullName || 'Someone'} tagged you in their reel`,
+							});
+						}
+					}
+				} catch (err) {
+					console.error('Failed to trigger tag notifications:', err);
+				}
+			})();
+		}
 
 		const populatedReel = await reelsRepository.findById(reel._id);
 		return reelsMapper.toReelResponse(populatedReel, false);
@@ -115,8 +144,42 @@ const reelsService = {
 		if (authorIdStr !== userId.toString()) {
 			throw AppError.forbidden('You are not authorized to update this reel');
 		}
+
+		const { taggedUserIds, ...rest } = payload;
+		const updateData = { ...rest };
+		if (taggedUserIds !== undefined) {
+			updateData.taggedUsers = taggedUserIds;
+		}
 		
-		const updatedReel = await reelsRepository.updateReel(reelId, payload);
+		const updatedReel = await reelsRepository.updateReel(reelId, updateData);
+
+		// Send notifications to newly tagged users
+		if (taggedUserIds && taggedUserIds.length > 0) {
+			(async () => {
+				try {
+					const User = mongoose.model('User');
+					const author = await User.findById(userId).select('fullName').lean();
+					const oldTaggedIds = new Set((reel.taggedUsers || []).map(u => (u._id || u).toString()));
+					for (const taggedId of taggedUserIds) {
+						if (taggedId.toString() !== userId.toString() && !oldTaggedIds.has(taggedId.toString())) {
+							await notificationsService.create({
+								recipientId: taggedId,
+								userId: taggedId,
+								actorId: userId,
+								reelId: reel._id,
+								type: 'REEL_TAG',
+								message: 'tagged you in a reel',
+								title: 'Tagged in a Reel',
+								body: `${author?.fullName || 'Someone'} tagged you in their reel`,
+							});
+						}
+					}
+				} catch (err) {
+					console.error('Failed to trigger update tag notifications:', err);
+				}
+			})();
+		}
+
 		const liked = await reelsRepository.hasLiked(reelId, userId);
 		return reelsMapper.toReelResponse(updatedReel, liked);
 	},
@@ -215,11 +278,51 @@ const reelsService = {
 		if (existingLike) {
 			await reelsRepository.deleteLike(reelId, userId);
 			const updatedReel = await reelsRepository.incrementLikes(reelId, -1);
+<<<<<<< HEAD
 			result = { liked: false, likesCount: updatedReel.likesCount };
 		} else {
 			await reelsRepository.createLike(reelId, userId);
 			const updatedReel = await reelsRepository.incrementLikes(reelId, 1);
 			result = { liked: true, likesCount: updatedReel.likesCount };
+=======
+
+			// Clean up notification on unlike
+			await Notification.findOneAndDelete({
+				actorId: userId,
+				reelId,
+				type: 'REEL_LIKE'
+			});
+
+			return { liked: false, likesCount: updatedReel.likesCount };
+		} else {
+			await reelsRepository.createLike(reelId, userId);
+			const updatedReel = await reelsRepository.incrementLikes(reelId, 1);
+
+			// Trigger like notification if not self-action
+			const recipientId = reel.authorId._id || reel.authorId;
+			if (recipientId.toString() !== userId.toString()) {
+				const existingNotif = await Notification.findOne({
+					recipientId,
+					actorId: userId,
+					reelId,
+					type: 'REEL_LIKE'
+				});
+				if (!existingNotif) {
+					await notificationsService.create({
+						recipientId,
+						userId: recipientId,
+						actorId: userId,
+						reelId,
+						type: 'REEL_LIKE',
+						message: 'liked your reel',
+						title: 'New Like',
+						body: 'Someone liked your reel',
+					});
+				}
+			}
+
+			return { liked: true, likesCount: updatedReel.likesCount };
+>>>>>>> d59cf1e (Upload updated + notification)
 		}
 
 		// Recompute score asynchronously — fire and forget
@@ -260,15 +363,54 @@ const reelsService = {
 		return { success: true, counted: true };
 	},
 
-	async recordShare(reelId) {
+	async recordShare(reelId, userId = null) {
 		const reel = await reelsRepository.findById(reelId);
 		if (!reel) {
 			throw AppError.notFound('Reel');
 		}
 		const updatedReel = await reelsRepository.incrementShares(reelId);
+<<<<<<< HEAD
 		// Recompute score asynchronously — fire and forget
 		this.recomputeScore(reelId);
 		return { sharesCount: updatedReel.sharesCount || 0 };
+=======
+
+		// Trigger share notification if not self-action.
+		// Notification failures must never fail the share action itself.
+		if (userId) {
+			try {
+				const recipientId = reel?.authorId?._id || reel?.authorId || null;
+				if (recipientId && recipientId.toString() !== userId.toString()) {
+					const existingNotif = await Notification.findOne({
+						recipientId,
+						actorId: userId,
+						reelId,
+						type: 'REEL_SHARE'
+					});
+					if (!existingNotif) {
+						await notificationsService.create({
+							recipientId,
+							userId: recipientId,
+							actorId: userId,
+							reelId,
+							type: 'REEL_SHARE',
+							message: 'shared your reel',
+							title: 'New Share',
+							body: 'Someone shared your reel',
+						});
+					}
+				}
+			} catch (err) {
+				console.warn('[reels:recordShare] Notification skipped:', err?.message || err);
+			}
+		}
+
+		const sharesCount = typeof updatedReel?.sharesCount === 'number'
+			? updatedReel.sharesCount
+			: (typeof reel?.sharesCount === 'number' ? reel.sharesCount + 1 : 1);
+
+		return { sharesCount };
+>>>>>>> d59cf1e (Upload updated + notification)
 	},
 
 	async getComments(reelId, { page = 0, limit = 50 } = {}) {
@@ -305,14 +447,80 @@ const reelsService = {
 			await ReelComment.findByIdAndUpdate(parentCommentId, { $inc: { replyCount: 1 } });
 		}
 
+<<<<<<< HEAD
 		// Recompute score asynchronously — fire and forget
 		this.recomputeScore(reelId);
 		
+=======
+>>>>>>> d59cf1e (Upload updated + notification)
 		// Fetch populated comment to build a complete response
 		const createdComment = await ReelComment.findById(comment._id)
 			.populate('userId', 'fullName avatar')
 			.lean();
-		
+
+		// Trigger notification after db success
+		(async () => {
+			try {
+				const actorId = userId;
+				if (parentCommentId) {
+					// Comment reply
+					const parentComment = await ReelComment.findById(parentCommentId).lean();
+					if (parentComment && parentComment.userId.toString() !== actorId.toString()) {
+						const recipientId = parentComment.userId;
+						const existingNotif = await Notification.findOne({
+							recipientId,
+							actorId,
+							reelId,
+							commentId: parentCommentId,
+							replyId: comment._id,
+							type: 'COMMENT_REPLY'
+						});
+						if (!existingNotif) {
+							await notificationsService.create({
+								recipientId,
+								userId: recipientId,
+								actorId,
+								reelId,
+								commentId: parentCommentId,
+								replyId: comment._id,
+								type: 'COMMENT_REPLY',
+								message: `replied to your comment: "${text}"`,
+								title: 'New Reply',
+								body: `replied to your comment: "${text}"`,
+							});
+						}
+					}
+				} else {
+					// Reel comment
+					const recipientId = reel.authorId._id || reel.authorId;
+					if (recipientId.toString() !== actorId.toString()) {
+						const existingNotif = await Notification.findOne({
+							recipientId,
+							actorId,
+							reelId,
+							commentId: comment._id,
+							type: 'REEL_COMMENT'
+						});
+						if (!existingNotif) {
+							await notificationsService.create({
+								recipientId,
+								userId: recipientId,
+								actorId,
+								reelId,
+								commentId: comment._id,
+								type: 'REEL_COMMENT',
+								message: `commented on your reel: "${text}"`,
+								title: 'New Comment',
+								body: `commented on your reel: "${text}"`,
+							});
+						}
+					}
+				}
+			} catch (err) {
+				console.error('Failed to trigger comment notification:', err);
+			}
+		})();
+
 		return reelsMapper.toCommentResponse(createdComment);
 	},
 
@@ -343,6 +551,13 @@ const reelsService = {
 			throw AppError.forbidden('You are not authorized to delete this comment');
 		}
 
+		// Collect replies if parent comment to remove their notifications too
+		let replyIds = [];
+		if (!comment.parentCommentId) {
+			const replies = await ReelComment.find({ parentCommentId: commentId }, { _id: 1 }).lean();
+			replyIds = replies.map(r => r._id);
+		}
+
 		await ReelComment.findByIdAndDelete(commentId);
 		await reelsRepository.incrementComments(reelId, -1);
 
@@ -351,12 +566,27 @@ const reelsService = {
 			await ReelComment.findByIdAndUpdate(comment.parentCommentId, { $inc: { replyCount: -1 } });
 		} else {
 			// Delete all replies if this is a parent comment
-			const repliesCount = await ReelComment.countDocuments({ parentCommentId: commentId });
+			const repliesCount = replyIds.length;
 			if (repliesCount > 0) {
 				await ReelComment.deleteMany({ parentCommentId: commentId });
 				await reelsRepository.incrementComments(reelId, -repliesCount);
 			}
 		}
+
+		// Cleanup all notifications for deleted comment and its replies
+		(async () => {
+			try {
+				const idsToDelete = [commentId, ...replyIds];
+				await Notification.deleteMany({
+					$or: [
+						{ commentId: { $in: idsToDelete } },
+						{ replyId: { $in: idsToDelete } }
+					]
+				});
+			} catch (err) {
+				console.error('Failed to cleanup comment notifications on delete:', err);
+			}
+		})();
 
 		return { success: true };
 	},
@@ -380,6 +610,19 @@ const reelsService = {
 				},
 				{ new: true }
 			).populate('userId', 'fullName avatar').lean();
+
+			// Clean up notification on unlike
+			(async () => {
+				try {
+					await Notification.findOneAndDelete({
+						actorId: userId,
+						commentId,
+						type: 'COMMENT_LIKE'
+					});
+				} catch (err) {
+					console.error('Failed to delete comment like notification:', err);
+				}
+			})();
 		} else {
 			// Like
 			updatedComment = await ReelComment.findByIdAndUpdate(
@@ -390,6 +633,36 @@ const reelsService = {
 				},
 				{ new: true }
 			).populate('userId', 'fullName avatar').lean();
+
+			// Trigger comment like notification
+			(async () => {
+				try {
+					const recipientId = comment.userId;
+					if (recipientId.toString() !== userId.toString()) {
+						const existingNotif = await Notification.findOne({
+							recipientId,
+							actorId: userId,
+							commentId,
+							type: 'COMMENT_LIKE'
+						});
+						if (!existingNotif) {
+							await notificationsService.create({
+								recipientId,
+								userId: recipientId,
+								actorId: userId,
+								reelId,
+								commentId,
+								type: 'COMMENT_LIKE',
+								message: `liked your comment: "${comment.text}"`,
+								title: 'New Comment Like',
+								body: `liked your comment: "${comment.text}"`,
+							});
+						}
+					}
+				} catch (err) {
+					console.error('Failed to create comment like notification:', err);
+				}
+			})();
 		}
 
 		return reelsMapper.toCommentResponse(updatedComment);

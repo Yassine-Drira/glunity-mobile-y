@@ -12,6 +12,7 @@ import { usePresence } from '../../../../shared/hooks/usePresence';
 import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, SlideInRight, useReducedMotion } from 'react-native-reanimated';
 import http from '../../../../core/network/http.client';
+import { Image as ExpoImage } from 'expo-image';
 
 // Decoupled sub-components
 import { OptionsActionMenu } from '../components/OptionsActionMenu';
@@ -31,8 +32,10 @@ const ReelMessagePreview = ({
   thumb,
   isDeleted,
   isMe,
-  avatarUrl,
-  username,
+  ownerName,
+  ownerAvatar,
+  caption,
+  duration,
   onPress,
   onLongPress,
   windowWidth,
@@ -42,8 +45,10 @@ const ReelMessagePreview = ({
   thumb: string | null;
   isDeleted: boolean;
   isMe: boolean;
-  avatarUrl?: string | null;
-  username?: string | null;
+  ownerName?: string | null;
+  ownerAvatar?: string | null;
+  caption?: string | null;
+  duration?: number | null;
   onPress: () => void;
   onLongPress: () => void;
   windowWidth: number;
@@ -65,7 +70,14 @@ const ReelMessagePreview = ({
     }).start();
   };
 
-  const displayName = username || 'Reel';
+  const displayName = ownerName || 'Anonymous';
+
+  const formatSecs = (secs: number) => {
+    if (!secs || isNaN(secs)) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   return (
     <TouchableOpacity
@@ -79,40 +91,86 @@ const ReelMessagePreview = ({
     >
       <Animated.View style={[styles.reelCard, { width: cardWidth, backgroundColor: theme.surfaceAlt, transform: [{ scale }] }]}> 
         <View style={{ width: cardWidth, height: cardHeight, overflow: 'hidden' }}>
-          {thumb ? (
-            <Image
-              source={{ uri: thumb }}
-              style={[styles.reelImage, { opacity: 1 }]}
-              resizeMode="cover"
-            />
+          {isDeleted ? (
+            <View style={[styles.reelFallback, { backgroundColor: theme.surfaceAlt, padding: 16, flex: 1 }]}> 
+              <Ionicons name="videocam-off-outline" size={36} color={theme.textMuted || '#999999'} style={{ marginBottom: 8, alignSelf: 'center' }} />
+              <Text style={{ color: theme.textMuted || '#999999', fontSize: 13, textAlign: 'center', fontWeight: '500' }}>
+                This reel is no longer available.
+              </Text>
+            </View>
           ) : (
-            <View style={[styles.reelFallback, { backgroundColor: theme.surfaceAlt }]}> 
-              <Text style={[styles.reelUnavailableText, { color: theme.textMuted }]}>This content is not available</Text>
-            </View>
-          )}
+            <>
+              {thumb ? (
+                <ExpoImage
+                  source={{ uri: thumb }}
+                  style={styles.reelImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              ) : (
+                <View style={[styles.reelFallback, { backgroundColor: '#333333' }]}> 
+                  <Ionicons name="film-outline" size={32} color="#FFFFFF" />
+                </View>
+              )}
 
-          <View style={styles.reelTopOverlay}>
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.reelAvatar} />
-            ) : (
-              <View style={[styles.reelAvatar, { backgroundColor: 'rgba(255,255,255,0.20)', justifyContent: 'center', alignItems: 'center' }]}> 
-                <Text style={styles.reelAvatarInitial}>{String(displayName).charAt(0).toUpperCase()}</Text>
+              {/* Dark Overlay for readability */}
+              <View style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.25)'
+              }} />
+
+              {/* Owner Info */}
+              <View style={[styles.reelTopOverlay, { backgroundColor: 'rgba(0, 0, 0, 0.35)', borderRadius: 12, top: 8, left: 8, right: 8 }]}>
+                {ownerAvatar ? (
+                  <ExpoImage source={{ uri: ownerAvatar }} style={styles.reelAvatar} cachePolicy="memory-disk" />
+                ) : (
+                  <View style={[styles.reelAvatar, { backgroundColor: 'rgba(255,255,255,0.25)', justifyContent: 'center', alignItems: 'center' }]}> 
+                    <Text style={styles.reelAvatarInitial}>{String(displayName).charAt(0).toUpperCase()}</Text>
+                  </View>
+                )}
+                <Text numberOfLines={1} style={styles.reelUsername}>{displayName}</Text>
               </View>
-            )}
-            <Text numberOfLines={1} style={styles.reelUsername}>{displayName}</Text>
-          </View>
 
-          <View style={styles.reelCenterIcon}>
-            <View style={styles.reelPlayButton}>
-              <Ionicons name="play" size={26} color="#fff" />
-            </View>
-          </View>
+              {/* Play icon overlay */}
+              <View style={styles.reelCenterIcon}>
+                <View style={[styles.reelPlayButton, { width: 48, height: 48, borderRadius: 24 }]}>
+                  <Ionicons name="play" size={22} color="#fff" />
+                </View>
+              </View>
 
-          <View style={styles.reelBottomBadge}>
-            <Text style={styles.reelBadgeText}>Reel</Text>
-          </View>
+              {/* Bottom Badge Info */}
+              <View style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: 8,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+              }}>
+                {!!caption && (
+                  <Text numberOfLines={2} style={{ color: '#FFFFFF', fontSize: 11, marginBottom: 4, fontWeight: '500' }}>
+                    {caption}
+                  </Text>
+                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Ionicons name="film" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#FFFFFF', fontSize: 9, fontWeight: '700' }}>Reel</Text>
+                  </View>
+                  {!!duration && (
+                    <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '600' }}>
+                      {formatSecs(duration)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </>
+          )}
         </View>
-
       </Animated.View>
     </TouchableOpacity>
   );
@@ -881,11 +939,13 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
               thumb={thumb}
               isDeleted={isDeleted}
               isMe={isMe}
-              avatarUrl={avatarUrl}
-              username={item.senderName || 'Reel'}
-                onPress={() => {
+              ownerName={item.reelRef?.ownerName || item.senderName || 'Anonymous'}
+              ownerAvatar={item.reelRef?.ownerAvatar || avatarUrl || null}
+              caption={item.reelRef?.title || ''}
+              duration={item.reelRef?.duration || 0}
+              onPress={() => {
                 if (isDeleted) {
-                  Alert.alert('Not Available', 'This reel has been deleted by the owner.');
+                  Alert.alert('Not Available', 'This reel is no longer available.');
                 } else {
                   navigation.navigate('ReelsFeed', { reelId: item.reelRef?.reelId });
                 }

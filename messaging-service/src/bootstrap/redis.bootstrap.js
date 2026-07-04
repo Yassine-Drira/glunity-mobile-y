@@ -40,10 +40,19 @@ function createClient(label) {
 
   client.on('connect',      () => { isAvailable = true; logger.info(`[redis:${label}] Connected`); });
   client.on('ready',        () => logger.info(`[redis:${label}] Ready`));
-  client.on('error',        (err) => logger.error(`[redis:${label}] Error: ${err.message}`));
-  client.on('close',        () => logger.warn(`[redis:${label}] Connection closed`));
+  client.on('error',        (err) => {
+    isAvailable = false;
+    logger.error(`[redis:${label}] Error: ${err?.message || ''}`);
+  });
+  client.on('close',        () => {
+    isAvailable = false;
+    logger.warn(`[redis:${label}] Connection closed`);
+  });
   client.on('reconnecting', () => logger.warn(`[redis:${label}] Reconnecting…`));
-  client.on('end',          () => logger.warn(`[redis:${label}] Connection ended`));
+  client.on('end',          () => {
+    isAvailable = false;
+    logger.warn(`[redis:${label}] Connection ended`);
+  });
 
   return client;
 }

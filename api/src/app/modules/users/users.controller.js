@@ -15,8 +15,9 @@ const usersController = {
   list: asyncHandler(async (req, res) => {
     const limit = req.query.limit !== undefined ? Number(req.query.limit) : 50;
     const skip = req.query.skip !== undefined ? Number(req.query.skip) : 0;
+    const q = req.query.q !== undefined ? String(req.query.q).trim() : undefined;
 
-    const { items } = await require('./users.service').list({ limit, skip });
+    const { items } = await require('./users.service').list({ limit, skip, q });
 
     // Map to public representation
     const mapped = items.map((u) => (u && u.toPublic ? u.toPublic() : u));

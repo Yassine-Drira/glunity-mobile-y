@@ -28,7 +28,8 @@ import Animated, {
 	useAnimatedStyle,
 	withSpring,
 	withSequence,
-	withTiming
+	withTiming,
+	withDelay
 } from 'react-native-reanimated';
 import { Reel, ReelComment, ReelsService } from '../../services/reels.service';
 import { useReelComments } from '../../hooks/useReelComments';
@@ -73,6 +74,8 @@ export interface ReelPlayerItemProps {
 	onOpenShareSheet?: (reel: Reel) => void;
 	containerHeight: number;
 	containerWidth: number;
+	initialCommentId?: string;
+	initialReplyId?: string;
 }
 
 /**
@@ -90,7 +93,9 @@ function arePropsEqual(prev: ReelPlayerItemProps, next: ReelPlayerItemProps): bo
 		prev.isActive === next.isActive &&
 		prev.isPreloading === next.isPreloading &&
 		prev.containerHeight === next.containerHeight &&
-		prev.containerWidth === next.containerWidth
+		prev.containerWidth === next.containerWidth &&
+		prev.initialCommentId === next.initialCommentId &&
+		prev.initialReplyId === next.initialReplyId
 	);
 }
 
@@ -104,7 +109,9 @@ function ReelPlayerItemComponent({
 	onIncrementCommentsCount,
 	onOpenShareSheet,
 	containerHeight,
-	containerWidth
+	containerWidth,
+	initialCommentId,
+	initialReplyId,
 }: ReelPlayerItemProps) {
 	const videoRef = useRef<Video>(null);
 	const isFocused = useIsFocused();
@@ -202,10 +209,15 @@ function ReelPlayerItemComponent({
 	// Comments state
 	const [commentsVisible, setCommentsVisible] = useState(false);
 	const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
+	const [highlightedCommentId, setHighlightedCommentId] = useState<string | null>(null);
+	const [highlightedReplyId, setHighlightedReplyId] = useState<string | null>(null);
 	const [actionSheetVisible, setActionSheetVisible] = useState(false);
 	const [selectedCommentForActions, setSelectedCommentForActions] = useState<ReelComment | null>(null);
 	const [text, setText] = useState('');
 	const inputRef = useRef<TextInput>(null);
+  const activeDeepLinkKeyRef = useRef<string | null>(null);
+  const clearCommentHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearReplyHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const { user } = useAuth();
 	const { theme: T, isDark } = useTheme();
@@ -232,11 +244,127 @@ function ReelPlayerItemComponent({
 		showToast,
 	} = useReelComments(reel.id);
 
+	const commentHighlightOpacity = useSharedValue(0);
+	const replyHighlightOpacity = useSharedValue(0);
+
+	const commentHighlightStyle = useAnimatedStyle(() => ({
+		backgroundColor: `rgba(109,174,63,${0.22 * commentHighlightOpacity.value})`,
+	}));
+
+	const replyHighlightStyle = useAnimatedStyle(() => ({
+		backgroundColor: `rgba(109,174,63,${0.22 * replyHighlightOpacity.value})`,
+	}));
+
 	useEffect(() => {
 		if (commentsVisible) {
 			loadComments(true);
 		}
 	}, [commentsVisible, loadComments]);
+
+	useEffect(() => {
+		return () => {
+			if (clearCommentHighlightTimerRef.current) {
+				clearTimeout(clearCommentHighlightTimerRef.current);
+			}
+			if (clearReplyHighlightTimerRef.current) {
+				clearTimeout(clearReplyHighlightTimerRef.current);
+			}
+		};
+	}, []);
+
+	const triggerCommentHighlight = useCallback((commentId: string) => {
+		if (!commentId) return;
+		setHighlightedCommentId(commentId);
+		commentHighlightOpacity.value = 1;
+		commentHighlightOpacity.value = withDelay(4000, withTiming(0, { duration: 700 }));
+		if (clearCommentHighlightTimerRef.current) clearTimeout(clearCommentHighlightTimerRef.current);
+		clearCommentHighlightTimerRef.current = setTimeout(() => {
+			setHighlightedCommentId((prev) => (prev === commentId ? null : prev));
+		}, 4700);
+	}, [commentHighlightOpacity]);
+
+	const triggerReplyHighlight = useCallback((replyId: string) => {
+		if (!replyId) return;
+		setHighlightedReplyId(replyId);
+		replyHighlightOpacity.value = 1;
+		replyHighlightOpacity.value = withDelay(4000, withTiming(0, { duration: 700 }));
+		if (clearReplyHighlightTimerRef.current) clearTimeout(clearReplyHighlightTimerRef.current);
+		clearReplyHighlightTimerRef.current = setTimeout(() => {
+			setHighlightedReplyId((prev) => (prev === replyId ? null : prev));
+		}, 4700);
+	}, [replyHighlightOpacity]);
+
+	useEffect(() => {
+		const targetKey = `${initialCommentId || ''}:${initialReplyId || ''}`;
+		if (!isActive || targetKey === ':' || activeDeepLinkKeyRef.current === targetKey) {
+			return;
+		}
+		if (!commentsVisible) {
+			setCommentsVisible(true);
+		}
+	}, [isActive, commentsVisible, initialCommentId, initialReplyId]);
+
+	useEffect(() => {
+		const targetKey = `${initialCommentId || ''}:${initialReplyId || ''}`;
+		if (!isActive || !commentsVisible || targetKey === ':' || activeDeepLinkKeyRef.current === targetKey) {
+			return;
+		}
+
+		let cancelled = false;
+
+		const runDeepLinkFocus = async () => {
+			if (initialReplyId) {
+				const parentId =
+					initialCommentId ||
+					Object.keys(replies).find((parent) => (replies[parent] || []).some((r) => r.id === initialReplyId));
+
+				if (!parentId) return;
+
+				const hasLoadedReply = (replies[parentId] || []).some((r) => r.id === initialReplyId);
+				if (!expandedComments[parentId]) {
+					setExpandedComments((prev) => ({ ...prev, [parentId]: true }));
+				}
+				if (!hasLoadedReply) {
+					await loadReplies(parentId, true);
+				}
+
+				if (!cancelled) {
+					triggerReplyHighlight(initialReplyId);
+					activeDeepLinkKeyRef.current = targetKey;
+				}
+				return;
+			}
+
+			if (initialCommentId) {
+				const exists = comments.some((c) => c.id === initialCommentId);
+				if (!exists) {
+					return;
+				}
+
+				if (!cancelled) {
+					triggerCommentHighlight(initialCommentId);
+					activeDeepLinkKeyRef.current = targetKey;
+				}
+			}
+		};
+
+		runDeepLinkFocus().catch(() => {});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		isActive,
+		commentsVisible,
+		comments,
+		replies,
+		expandedComments,
+		loadReplies,
+		initialCommentId,
+		initialReplyId,
+		triggerCommentHighlight,
+		triggerReplyHighlight,
+	]);
 
 	// Sync editingComment text into input
 	useEffect(() => {
@@ -589,7 +717,7 @@ function ReelPlayerItemComponent({
 				</TouchableOpacity>
 
 				{/* Plus Camera button */}
-				<TouchableOpacity style={styles.plusButtonCircle} onPress={() => navigation.navigate('ReelCamera')}>
+				<TouchableOpacity style={styles.plusButtonCircle} onPress={() => navigation.navigate('ReelCapture')}>
 					<Ionicons name="add" size={24} color="#FFF" />
 				</TouchableOpacity>
 			</View>
@@ -647,11 +775,17 @@ function ReelPlayerItemComponent({
 									return (
 										<View style={styles.commentRowContainer}>
 											{/* Parent Comment */}
-											<TouchableOpacity
-												activeOpacity={0.9}
-												onPress={() => handleCommentPress(item)}
-												style={styles.commentItem}
+											<Animated.View
+												style={[
+													highlightedCommentId === item.id && styles.highlightedItemBase,
+													highlightedCommentId === item.id ? commentHighlightStyle : null,
+												]}
 											>
+												<TouchableOpacity
+													activeOpacity={0.9}
+													onPress={() => handleCommentPress(item)}
+													style={styles.commentItem}
+												>
 												<Image
 													source={{ uri: item.authorAvatar || item.author.avatarUrl || DEFAULT_AVATAR_URL }}
 													style={styles.commentAvatar}
@@ -705,6 +839,7 @@ function ReelPlayerItemComponent({
 													)}
 												</View>
 											</TouchableOpacity>
+										</Animated.View>
 
 											{/* Collapsible Nested Replies */}
 											{(item.replyCount > 0 || commentReplies.length > 0) && (
@@ -730,12 +865,18 @@ function ReelPlayerItemComponent({
 																	const replyRelativeTime = formatRelativeTime(reply.createdAt);
 
 																	return (
-																		<TouchableOpacity
+																		<Animated.View
 																			key={reply.id}
-																			activeOpacity={0.9}
-																			onPress={() => handleCommentPress(reply)}
-																			style={styles.replyItem}
+																			style={[
+																				highlightedReplyId === reply.id && styles.highlightedItemBase,
+																				highlightedReplyId === reply.id ? replyHighlightStyle : null,
+																			]}
 																		>
+																			<TouchableOpacity
+																				activeOpacity={0.9}
+																				onPress={() => handleCommentPress(reply)}
+																				style={styles.replyItem}
+																			>
 																			<Image
 																				source={{ uri: reply.authorAvatar || reply.author.avatarUrl || DEFAULT_AVATAR_URL }}
 																				style={styles.replyAvatar}
@@ -789,6 +930,7 @@ function ReelPlayerItemComponent({
 																				)}
 																			</View>
 																		</TouchableOpacity>
+																	</Animated.View>
 																	);
 																})
 															)}
@@ -1135,6 +1277,9 @@ const styles = StyleSheet.create({
 	commentItem: {
 		flexDirection: 'row',
 		alignItems: 'flex-start',
+		borderRadius: 12,
+		paddingHorizontal: 6,
+		paddingVertical: 4,
 	},
 	commentAvatar: {
 		width: 38,
@@ -1218,6 +1363,13 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'flex-start',
 		marginBottom: 12,
+		borderRadius: 10,
+		paddingHorizontal: 6,
+		paddingVertical: 4,
+	},
+	highlightedItemBase: {
+		borderWidth: 1,
+		borderColor: 'rgba(109,174,63,0.45)',
 	},
 	replyAvatar: {
 		width: 24,

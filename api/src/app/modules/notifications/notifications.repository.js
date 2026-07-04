@@ -4,7 +4,11 @@ const Notification = require('../../../database/models/notification.model');
 
 const notificationsRepository = {
 	findManyByUser(userId, { limit = 50, skip = 0 } = {}) {
-		return Notification.find({ userId })
+		return Notification.find({ $or: [{ userId }, { recipientId: userId }] })
+			.populate('actorId', 'fullName avatar')
+			.populate('reelId', 'thumbnailUrl')
+			.populate('commentId', 'text')
+			.populate('replyId', 'text')
 			.sort({ createdAt: -1 })
 			.limit(limit)
 			.skip(skip)
@@ -12,7 +16,12 @@ const notificationsRepository = {
 	},
 
 	findById(id) {
-		return Notification.findById(id).lean();
+		return Notification.findById(id)
+			.populate('actorId', 'fullName avatar')
+			.populate('reelId', 'thumbnailUrl')
+			.populate('commentId', 'text')
+			.populate('replyId', 'text')
+			.lean();
 	},
 
 	create(payload) {
@@ -21,10 +30,15 @@ const notificationsRepository = {
 
 	markAsRead(id, userId) {
 		return Notification.findOneAndUpdate(
-			{ _id: id, userId },
-			{ $set: { isRead: true } },
+			{ _id: id, $or: [{ userId }, { recipientId: userId }] },
+			{ $set: { isRead: true, readAt: new Date() } },
 			{ returnDocument: 'after' }
-		).lean();
+		)
+		.populate('actorId', 'fullName avatar')
+		.populate('reelId', 'thumbnailUrl')
+		.populate('commentId', 'text')
+		.populate('replyId', 'text')
+		.lean();
 	},
 
 	markAllAsRead(userId) {
@@ -39,8 +53,16 @@ const notificationsRepository = {
 	},
 
 	deleteAll(userId) {
-		return Notification.deleteMany({ userId });
+		return Notification.deleteMany({ $or: [{ userId }, { recipientId: userId }] });
+	},
+
+	countUnread(recipientId) {
+		return Notification.countDocuments({
+			$or: [{ userId: recipientId }, { recipientId }],
+			isRead: false
+		});
 	},
 };
 
 module.exports = notificationsRepository;
+

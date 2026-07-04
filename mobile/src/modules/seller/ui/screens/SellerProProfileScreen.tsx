@@ -1052,7 +1052,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
               </Text>
               <TouchableOpacity
                 style={s.uploadReelBtn}
-                onPress={() => navigation.navigate('ReelCamera')}
+                onPress={() => navigation.navigate('ReelCapture')}
               >
                 <Feather name="plus" size={16} color="#FFFFFF" />
                 <Text style={s.uploadReelText}>{t('Upload')}</Text>
@@ -1070,7 +1070,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
                 </Text>
                 <TouchableOpacity
                   style={s.createReelBtnLarge}
-                  onPress={() => navigation.navigate('ReelCamera')}
+                  onPress={() => navigation.navigate('ReelCapture')}
                 >
                   <Text style={s.createReelBtnLargeText}>{t('Create First Reel')}</Text>
                 </TouchableOpacity>

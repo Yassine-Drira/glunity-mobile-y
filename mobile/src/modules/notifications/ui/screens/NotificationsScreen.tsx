@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
   ScrollView,
+  Image,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,6 +18,7 @@ import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useLanguage } from '@/shared/context/language.context';
 import { useAuth } from '@/modules/auth/state/auth.context';
+import { useSocket } from '@/shared/context/socket.context';
 import notificationsApi, { Notification } from '../../api/notifications.api';
 import AnimatedReanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 
@@ -74,6 +76,12 @@ export default function NotificationsScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
 
+  const isExpectedAuthError = (err: any) => {
+    const code = err?.code;
+    const status = err?.response?.status;
+    return code === 'NO_ACCESS_TOKEN' || status === 401;
+  };
+
   const seenIds = React.useRef<Set<string>>(new Set());
   const hasPopulated = React.useRef(false);
   const reducedMotion = useReducedMotion();
@@ -91,6 +99,13 @@ export default function NotificationsScreen({ navigation }: Props) {
   };
 
   const fetchNotifications = useCallback(async (currentSkip = 0, isRefresh = false) => {
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+      return;
+    }
+
     if (currentSkip === 0) {
       if (!isRefresh) setLoading(true);
     } else {
@@ -111,40 +126,76 @@ export default function NotificationsScreen({ navigation }: Props) {
         }
       }
     } catch (err) {
-      console.warn('Failed to fetch notifications:', err);
+      if (!isExpectedAuthError(err)) {
+        console.warn('Failed to fetch notifications:', err);
+      }
+      if (currentSkip === 0) {
+        setNotifications([]);
+        setHasMore(false);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
       setLoadingMore(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    fetchNotifications(0);
-  }, [fetchNotifications]);
+    if (user) {
+      fetchNotifications(0);
+    }
+  }, [fetchNotifications, user]);
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const handleNewNotification = (notif: Notification) => {
+      setNotifications(prev => {
+        const exists = prev.some(n => n.id === notif.id);
+        if (exists) return prev;
+        return [notif, ...prev];
+      });
+    };
+
+    socket.on('notification:new', handleNewNotification);
+
+    return () => {
+      socket.off('notification:new', handleNewNotification);
+    };
+  }, [socket, user]);
 
   const handleMarkAsRead = async (item: Notification) => {
-    setSelectedNotif(item);
+    if (!item.isRead) {
+      // Optimistic UI update
+      setNotifications(prev =>
+        prev.map(n => (n.id === item.id ? { ...n, isRead: true } : n))
+      );
 
-    if (item.isRead) {
-      return;
+      try {
+        await notificationsApi.markAsRead(item.id);
+      } catch (err) {
+        console.warn('Failed to mark notification as read:', err);
+      }
     }
-    
-    // Optimistic UI update
-    setNotifications(prev =>
-      prev.map(n => (n.id === item.id ? { ...n, isRead: true } : n))
-    );
 
-    try {
-      await notificationsApi.markAsRead(item.id);
-    } catch (err) {
-      console.warn('Failed to mark notification as read:', err);
+    const isReelInteraction = ['REEL_LIKE', 'REEL_COMMENT', 'REEL_SHARE', 'COMMENT_LIKE', 'COMMENT_REPLY'].includes(item.type);
+    if (isReelInteraction) {
+      handleNavigation(item);
+    } else {
+      setSelectedNotif(item);
     }
   };
 
   const handleNavigation = (item: Notification) => {
     const meta = item.metadata || {};
-    if (meta.eventId && meta.kind === 'removed') {
+    const isReelInteraction = ['REEL_LIKE', 'REEL_COMMENT', 'REEL_SHARE', 'COMMENT_LIKE', 'COMMENT_REPLY'].includes(item.type);
+
+    if (isReelInteraction) {
+      const reelId = item.reelId || meta.reelId;
+      navigation.navigate('ReelsFeed', { refresh: true, autoOpenReelId: reelId });
+    } else if (meta.eventId && meta.kind === 'removed') {
       // Removed events: send user to the Events list (event no longer exists)
       navigation.navigate('Events');
     } else if (meta.eventId) {
@@ -349,6 +400,21 @@ export default function NotificationsScreen({ navigation }: Props) {
           justifyContent: 'center',
           marginRight: isRTL ? 0 : 14,
           marginLeft: isRTL ? 14 : 0,
+        },
+        actorAvatar: {
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          marginRight: isRTL ? 0 : 14,
+          marginLeft: isRTL ? 14 : 0,
+        },
+        reelThumbnail: {
+          width: 36,
+          height: 48,
+          borderRadius: 6,
+          marginLeft: isRTL ? 0 : 12,
+          marginRight: isRTL ? 12 : 0,
+          backgroundColor: T.border || '#ccc',
         },
         textBlock: {
           flex: 1,
@@ -598,6 +664,7 @@ export default function NotificationsScreen({ navigation }: Props) {
             </View>
           }
           renderItem={({ item, index }) => {
+            const isReelInteraction = ['REEL_LIKE', 'REEL_COMMENT', 'REEL_SHARE', 'COMMENT_LIKE', 'COMMENT_REPLY'].includes(item.type);
             const iconConfig = getIconConfig(item.type);
             
             const itemId = String(item.id || item._id);
@@ -619,24 +686,42 @@ export default function NotificationsScreen({ navigation }: Props) {
                   onPress={() => handleMarkAsRead(item)}
                   activeOpacity={0.8}
                 >
-                  <View style={[s.iconBox, { backgroundColor: iconConfig.bg }]}>
-                    {iconConfig.lib === 'mci' ? (
-                      <MaterialCommunityIcons name={iconConfig.name as any} size={22} color={iconConfig.color} />
-                    ) : (
-                      <Feather name={iconConfig.name as any} size={20} color={iconConfig.color} />
-                    )}
-                  </View>
+                  {isReelInteraction ? (
+                    <Image
+                      source={{ uri: item.actor?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.actor?.fullName || 'User')}&background=fff&color=8A8A8E` }}
+                      style={s.actorAvatar}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={[s.iconBox, { backgroundColor: iconConfig.bg }]}>
+                      {iconConfig.lib === 'mci' ? (
+                        <MaterialCommunityIcons name={iconConfig.name as any} size={22} color={iconConfig.color} />
+                      ) : (
+                        <Feather name={iconConfig.name as any} size={20} color={iconConfig.color} />
+                      )}
+                    </View>
+                  )}
+                  
                   <View style={s.textBlock}>
                     <View style={s.rowTop}>
                       <Text style={[s.title, !item.isRead && s.titleUnread]} numberOfLines={1}>
-                        {t(item.title)}
+                        {isReelInteraction ? (item.actor?.fullName || 'Someone') : t(item.title)}
                       </Text>
                       <Text style={s.time}>{getRelativeTime(item.createdAt, language)}</Text>
                     </View>
                     <Text style={s.body} numberOfLines={2}>
-                      {t(item.body)}
+                      {isReelInteraction ? (item.message || item.body) : t(item.body)}
                     </Text>
                   </View>
+                  
+                  {isReelInteraction && item.reel?.thumbnailUrl && (
+                    <Image
+                      source={{ uri: item.reel.thumbnailUrl }}
+                      style={s.reelThumbnail}
+                      resizeMode="cover"
+                    />
+                  )}
+                  
                   {!item.isRead && <View style={s.dot} />}
                 </TouchableOpacity>
 

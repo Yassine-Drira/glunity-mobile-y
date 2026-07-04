@@ -20,6 +20,10 @@ async function boot() {
   // Create HTTP server
   const server = http.createServer(app);
 
+  // Bootstrap Socket.IO
+  const socketBootstrap = require('./bootstrap/socket.bootstrap');
+  socketBootstrap.init(server);
+
   server.listen(env.port, () => {
     logger.info(`🚀 GlUnity API running`, {
       port: env.port,

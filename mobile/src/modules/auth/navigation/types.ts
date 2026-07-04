@@ -41,7 +41,10 @@ export type AppStackParamList = {
   CommunityChat:   { channelId?: string; initialChannel?: any } | undefined;
   CreateGroup:     undefined;
   CreateChannel:   undefined;
-  ReelsFeed:       undefined;
-  ReelCamera:      undefined;
+  ReelsFeed:       { refresh?: boolean; autoOpenReelId?: string } | undefined;
+  ReelCapture:     undefined;
+  ReelEdit:        undefined;
+  ReelShare:       undefined;
+  ReelAddCover:    undefined;
 };
 

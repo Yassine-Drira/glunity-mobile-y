@@ -1,15 +1,49 @@
 import http from '../../../core/network/http.client';
 
-export type NotificationType = 'system' | 'event' | 'product' | 'community' | 'achievement';
+export type NotificationType =
+  | 'system'
+  | 'event'
+  | 'product'
+  | 'community'
+  | 'achievement'
+  | 'REEL_LIKE'
+  | 'REEL_COMMENT'
+  | 'REEL_SHARE'
+  | 'COMMENT_LIKE'
+  | 'COMMENT_REPLY';
 
 export interface Notification {
   id: string;
   _id?: string;
   userId: string;
+  recipientId?: string;
+  actorId?: string;
+  actor?: {
+    id: string;
+    fullName: string;
+    avatarUrl?: string | null;
+  } | null;
+  reelId?: string;
+  reel?: {
+    id: string;
+    thumbnailUrl?: string | null;
+  } | null;
+  commentId?: string;
+  comment?: {
+    id: string;
+    text?: string | null;
+  } | null;
+  replyId?: string;
+  reply?: {
+    id: string;
+    text?: string | null;
+  } | null;
   title: string;
   body: string;
+  message?: string;
   type: NotificationType;
   isRead: boolean;
+  readAt?: string | null;
   metadata: any;
   createdAt: string;
   updatedAt: string;

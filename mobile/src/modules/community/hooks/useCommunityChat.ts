@@ -14,7 +14,7 @@ import { ChatCacheService } from '../services/chat-cache.service';
 
 // Keep for legacy usages that don't go through the intercepted clients
 const CORE_API_URL = API_BASE_URL;
-const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5001');
+const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5002');
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
