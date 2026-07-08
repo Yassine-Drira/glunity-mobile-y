@@ -29,6 +29,116 @@ function formatTime(iso?: string) {
   return d.toLocaleDateString();
 }
 
+const ChannelRowItem = React.memo(({
+  item,
+  index,
+  user,
+  isOnline,
+  getChannelDisplay,
+  findOtherParticipant,
+  handleLongPressChannel,
+  formatTime,
+  setChannels,
+  navigation,
+  T,
+  reducedMotion,
+  isRTL,
+  styles
+}: any) => {
+  const disp = getChannelDisplay(item);
+  const avatarUri = disp.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(disp.name || 'C')}&background=8BC34A&color=fff`;
+  const unread: number = item.unreadCount || 0;
+  const rawSubtitle = item.lastMessage?.content || item.description || '';
+  const subtitle = unread > 0 && !disp.isDM
+    ? `${unread > 4 ? '4+' : unread} unread · ${rawSubtitle}`.slice(0, 80)
+    : disp.isDM
+      ? (rawSubtitle || `Direct message`)
+      : rawSubtitle;
+
+  let showOnlineDot = false;
+  if (disp.isDM) {
+    const other = findOtherParticipant(item);
+    if (other) showOnlineDot = isOnline(other._id || other.id);
+  }
+
+  const enteringAnimation = reducedMotion
+    ? undefined
+    : FadeInDown.duration(250).delay(index * 40);
+
+  return (
+    <AnimatedReanimated.View entering={enteringAnimation}>
+      <TouchableOpacity
+        style={styles.row}
+        onPress={() => {
+          setChannels((prev: any) => prev.map((c: any) => (String(c._id || c.id) === String(item._id || item.id) ? { ...c, unreadCount: 0 } : c)));
+          navigation.navigate('CommunityChat', {
+            initialChannel: item,
+            channelId: String(item._id || item.id || ''),
+          });
+        }}
+        onLongPress={() => handleLongPressChannel(item)}
+      >
+        <View style={{ position: 'relative' }}>
+          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          <OnlineDot isOnline={showOnlineDot} size={13} />
+        </View>
+        <View style={styles.rowContent}>
+          <View style={styles.rowTop}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.rowName, item.unreadCount > 0 && { fontWeight: '900', color: T.text }]} numberOfLines={1}>{disp.name}</Text>
+              {!!item.isPinned && (
+                <Ionicons name="pin" size={13} color={T.green || '#8BC34A'} style={{ marginLeft: 6 }} />
+              )}
+            </View>
+            <Text style={styles.rowTime}>{formatTime(item.lastMessage?.createdAt)}</Text>
+          </View>
+          <Text style={[styles.rowSnippet, item.unreadCount > 0 && { fontWeight: '700', color: T.text }]} numberOfLines={1}>{subtitle}</Text>
+        </View>
+        {unread > 0 ? (
+          <View style={styles.unreadWrap}>
+            <View style={styles.unreadBadge}>
+              <Text style={styles.unreadText}>{unread > 4 ? '4+' : unread}</Text>
+            </View>
+          </View>
+        ) : null}
+        {item.myMuted ? (
+          <View style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name="notifications-off" size={16} color={T.textMuted} />
+          </View>
+        ) : null}
+      </TouchableOpacity>
+    </AnimatedReanimated.View>
+  );
+}, (prevProps, nextProps) => {
+  const pItem = prevProps.item;
+  const nItem = nextProps.item;
+  
+  if (pItem._id !== nItem._id || pItem.id !== nItem.id) return false;
+  if (pItem.name !== nItem.name) return false;
+  if (pItem.unreadCount !== nItem.unreadCount) return false;
+  if (pItem.isPinned !== nItem.isPinned) return false;
+  if (pItem.myMuted !== nItem.myMuted) return false;
+  if (pItem.lastMessage?.content !== nItem.lastMessage?.content) return false;
+  if (pItem.lastMessage?.createdAt !== nItem.lastMessage?.createdAt) return false;
+  if (pItem.description !== nItem.description) return false;
+
+  const pOther = prevProps.findOtherParticipant(pItem);
+  const nOther = nextProps.findOtherParticipant(nItem);
+  if (String(pOther?._id || pOther?.id) !== String(nOther?._id || nOther?.id)) return false;
+  if (pOther && nOther) {
+    const pOnline = prevProps.isOnline(pOther._id || pOther.id);
+    const nOnline = nextProps.isOnline(nOther._id || nOther.id);
+    if (pOnline !== nOnline) return false;
+
+    if (pOther.fullName !== nOther.fullName) return false;
+    if (pOther.avatarUrl !== nOther.avatarUrl) return false;
+  }
+
+  if (prevProps.T !== nextProps.T) return false;
+
+  return true;
+});
+
 export default function MessagingHome({ navigation }: any) {
   const { theme: T, isDark } = useTheme();
   const { t, isRTL } = useLanguage();
@@ -37,6 +147,17 @@ export default function MessagingHome({ navigation }: any) {
   const { isOnline, fetchStatuses } = usePresence();
 
   const seenIds = useRef<Set<string>>(new Set());
+  const activeFetchesRef = useRef<Set<string>>(new Set());
+  const perfStats = useRef({
+    startTime: Date.now(),
+    conversationsCount: 0,
+    profilesFromCache: 0,
+    profilesFromApi: 0,
+    failedRequests: 0,
+    apiResponseTimes: [] as number[],
+    batchRequestsExecuted: 0,
+    duplicateRequestsPrevented: 0,
+  });
   const hasPopulatedChannels = useRef(false);
   const hasPopulatedContacts = useRef(false);
   const reducedMotion = useReducedMotion();
@@ -93,17 +214,237 @@ export default function MessagingHome({ navigation }: any) {
   const [tabsWidth, setTabsWidth] = useState(0);
   const anim = useRef(new Animated.Value(0)).current; // 0,1,2
 
-  const fetchChannels = useCallback(async () => {
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const printPerformanceReport = useCallback(() => {
+    const duration = Date.now() - perfStats.current.startTime;
+    const avgResponse = perfStats.current.apiResponseTimes.length > 0
+      ? Math.round(perfStats.current.apiResponseTimes.reduce((a, b) => a + b, 0) / perfStats.current.apiResponseTimes.length)
+      : 0;
+
+    console.log(`[MessagingHome Performance Report]
+--------------------------------------------------
+MessagingHome loaded in: ${duration} ms
+Conversations loaded: ${perfStats.current.conversationsCount}
+Profiles loaded from cache: ${perfStats.current.profilesFromCache}
+Profiles fetched from API: ${perfStats.current.profilesFromApi}
+Failed requests: ${perfStats.current.failedRequests}
+Average API response time: ${avgResponse} ms
+Batch requests executed: ${perfStats.current.batchRequestsExecuted}
+Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
+--------------------------------------------------`);
+  }, []);
+
+  const mergeUserProfiles = useCallback((profilesList: any[]) => {
+    // 1. Merge profiles into users cache
+    setUsers(prev => {
+      const map = new Map(prev.map((u: any) => [String(u._id || u.id), u]));
+      profilesList.forEach((fu: any) => {
+        if (fu) map.set(String(fu._id || fu.id), fu);
+      });
+      return Array.from(map.values());
+    });
+
+    // 2. Dynamically enrich channel participants without causing full conversation list flashes
+    setChannels(prev => prev.map((c: any) => {
+      const parts = c.participants || c.members || c.userIds || c.participantIds || [];
+      if (Array.isArray(parts) && parts.length > 0) {
+        const enriched = parts.map((p: any) => {
+          const pid = typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId);
+          const found = profilesList.find((fu: any) => String(fu._id || fu.id) === String(pid));
+          return found ? { ...p, ...found } : p;
+        });
+        return { ...c, participants: enriched };
+      }
+      return c;
+    }));
+  }, []);
+
+  const fetchMissingUserProfiles = useCallback(async (channelsList: any[], abortSignal: AbortSignal) => {
+    try {
+      // 1. Gather all unique other DM participant user IDs
+      const dmOtherIds: string[] = [];
+      channelsList.forEach((c: any) => {
+        const parts = c.participants || c.members || c.userIds || c.participantIds || [];
+        if (Array.isArray(parts) && parts.length === 2) {
+          const ids = parts.map((p: any) => (typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId)));
+          const other = ids.find((id: any) => id && String(id) !== String(user?._id));
+          if (other) {
+            dmOtherIds.push(String(other));
+          }
+        }
+      });
+
+      const uniqueIds = Array.from(new Set(dmOtherIds));
+      if (uniqueIds.length === 0) return;
+
+      perfStats.current.conversationsCount = channelsList.length;
+
+      // 2. Load cached profiles to check what is missing or expired (e.g. older than 12 hours)
+      const cachedProfiles = await ChatCacheService.getUserProfiles();
+      perfStats.current.profilesFromCache = cachedProfiles.length;
+      
+      const cachedMap = new Map(cachedProfiles.map((u: any) => [String(u._id || u.id), u]));
+      
+      const EXPIRE_TIME = 12 * 60 * 60 * 1000; // 12 hours
+      const now = Date.now();
+      
+      // Determine what is missing or expired
+      const missingIds = uniqueIds.filter(id => {
+        const cached = cachedMap.get(id);
+        if (!cached) return true;
+        if (!cached.cachedAt || now - cached.cachedAt > EXPIRE_TIME) return true;
+        return false;
+      });
+
+      // Filter out what is already being fetched actively to prevent duplicates
+      const idsToFetch = missingIds.filter(id => {
+        if (activeFetchesRef.current.has(id)) {
+          perfStats.current.duplicateRequestsPrevented += 1;
+          return false;
+        }
+        return true;
+      });
+
+      if (idsToFetch.length === 0) {
+        // Enforce progressive update from cached profiles if we found some
+        const foundFromCache = uniqueIds.map(id => cachedMap.get(id)).filter(Boolean);
+        if (foundFromCache.length > 0) {
+          mergeUserProfiles(foundFromCache);
+        }
+        printPerformanceReport();
+        return;
+      }
+
+      // Add to active fetches
+      idsToFetch.forEach(id => activeFetchesRef.current.add(id));
+
+      // 3. Batch the requests in chunks of 25
+      const batchSize = 25;
+      const chunks: string[][] = [];
+      for (let i = 0; i < idsToFetch.length; i += batchSize) {
+        chunks.push(idsToFetch.slice(i, i + batchSize));
+      }
+
+      const fetchedAll: any[] = [];
+
+      for (const chunk of chunks) {
+        if (abortSignal.aborted) break;
+        let attempt = 0;
+        let success = false;
+        while (attempt < 3 && !success) {
+          if (abortSignal.aborted) break;
+          const apiStart = Date.now();
+          perfStats.current.batchRequestsExecuted += 1;
+          try {
+            // Prefer the optimized POST /users/batch endpoint
+            const res = await http.post('/users/batch', { ids: chunk }, { 
+              timeout: 6000,
+              signal: abortSignal 
+            });
+            const duration = Date.now() - apiStart;
+            perfStats.current.apiResponseTimes.push(duration);
+
+            const fetched = res.data?.data || res.data || [];
+            if (Array.isArray(fetched)) {
+              fetchedAll.push(...fetched);
+              perfStats.current.profilesFromApi += fetched.length;
+            }
+            success = true;
+          } catch (err: any) {
+            // Fallback to GET /users?ids=... if POST /batch is not supported
+            try {
+              const idsParam = encodeURIComponent(chunk.join(','));
+              const res = await http.get(`/users?ids=${idsParam}`, { 
+                timeout: 6000,
+                signal: abortSignal 
+              });
+              const duration = Date.now() - apiStart;
+              perfStats.current.apiResponseTimes.push(duration);
+
+              const fetched = res.data?.data || res.data || [];
+              if (Array.isArray(fetched)) {
+                fetchedAll.push(...fetched);
+                perfStats.current.profilesFromApi += fetched.length;
+              }
+              success = true;
+            } catch (err2: any) {
+              attempt += 1;
+              perfStats.current.failedRequests += 1;
+              const waitMs = 300 * Math.pow(2, attempt);
+              console.warn(`[MessagingHome] fetch user batch attempt ${attempt} failed, retrying in ${waitMs}ms`, err2);
+              await new Promise((r) => setTimeout(r, waitMs));
+            }
+          }
+        }
+      }
+
+      // Remove from active fetches registry
+      idsToFetch.forEach(id => activeFetchesRef.current.delete(id));
+
+      if (fetchedAll.length > 0) {
+        // Save to cache
+        await ChatCacheService.saveUserProfiles(fetchedAll);
+
+        // Merge into local states
+        mergeUserProfiles(fetchedAll);
+      }
+
+      printPerformanceReport();
+    } catch (e) {
+      console.warn('[MessagingHome] fetchMissingUserProfiles background fetch failed', e);
+    }
+  }, [user?._id, mergeUserProfiles, printPerformanceReport]);
+
+  const fetchChannels = useCallback(async (isBackground = false) => {
+    // Cancel any previous pending requests before starting a new one
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    // Reset perf timer if not loading in background
+    if (!isBackground) {
+      perfStats.current.startTime = Date.now();
+      perfStats.current.profilesFromApi = 0;
+      perfStats.current.duplicateRequestsPrevented = 0;
+      perfStats.current.failedRequests = 0;
+      perfStats.current.batchRequestsExecuted = 0;
+      perfStats.current.apiResponseTimes = [];
+    }
+
+    // 1. Immediately load cache to render conversations optimistically
     try {
       const cached = await ChatCacheService.getChannels();
+      const cachedProfiles = await ChatCacheService.getUserProfiles();
+      
+      if (cachedProfiles.length > 0) {
+        setUsers(cachedProfiles);
+      }
+      
       if (cached && cached.length > 0) {
-        console.debug('[MessagingHome] loaded cached channels:', cached.map((c: any) => ({ id: String(c._id || c.id), name: c.name, avatar: c.avatarUrl || c.photoUrl || c.image })));
-        setChannels(cached);
-        // Build initial sort order from cached channels
-        const cachedIds = cached.map((c: any) => String(c._id || c.id));
+        // Map cached profiles to cached channels
+        const enriched = cached.map((c: any) => {
+          const parts = c.participants || c.members || c.userIds || c.participantIds || [];
+          if (Array.isArray(parts) && parts.length > 0) {
+            const mappedParts = parts.map((p: any) => {
+              const pid = typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId);
+              const found = cachedProfiles.find((fu: any) => String(fu._id || fu.id) === String(pid));
+              return found ? { ...p, ...found } : p;
+            });
+            return { ...c, participants: mappedParts };
+          }
+          return c;
+        });
+
+        setChannels(enriched);
+        const cachedIds = enriched.map((c: any) => String(c._id || c.id));
         setSortOrder(cachedIds);
         setLoading(false);
-        const userIds = cached
+
+        // Fetch presence statuses for participants
+        const userIds = enriched
           .filter(isDMChannel)
           .map((c: any) => findOtherParticipant(c))
           .filter(Boolean)
@@ -111,101 +452,46 @@ export default function MessagingHome({ navigation }: any) {
         if (userIds.length > 0) {
           fetchStatuses(userIds);
         }
+
+        // Kick off background user fetching immediately
+        fetchMissingUserProfiles(enriched, signal);
       }
     } catch (err) {
       console.warn('Failed to load cached channels list', err);
     }
 
+    // 2. Fetch fresh channels from network in the background (timeout 8 seconds)
     try {
-      const res = await http.get('/channels');
+      const res = await http.get('/channels', { 
+        timeout: 8000, 
+        signal 
+      });
       const fresh = res.data?.data || [];
-      console.debug('[MessagingHome] fetched fresh channels:', fresh.map((c: any) => ({ id: String(c._id || c.id), name: c.name, avatar: c.avatarUrl || c.photoUrl || c.image })));
-      // Build initial sort order from server response (already sorted by lastMessage)
       const ids = fresh.map((c: any) => String(c._id || c.id));
       setSortOrder(ids);
-      setChannels(fresh);
+
+      // Save channels to cache
       await ChatCacheService.saveChannels(fresh);
 
-      // Enrich DM channels with user profiles if participants are only ids so list can show names/avatars
-      try {
-        const dmOtherIds: string[] = [];
-        fresh.forEach((c: any) => {
-          const parts = c.participants || c.members || c.userIds || c.participantIds || [];
-          if (Array.isArray(parts) && parts.length === 2) {
-            const ids = parts.map((p: any) => (typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId)));
-            const other = ids.find((id: any) => id && String(id) !== String(user?._id));
-            if (other && !users.find(u => String(u._id || u.id) === String(other))) dmOtherIds.push(String(other));
-          }
-        });
-
-        if (dmOtherIds.length > 0) {
-          // Fetch missing user profiles from core API in batches with retries to avoid hitting timeouts
-          const uniqueIds = Array.from(new Set(dmOtherIds));
-          const batchSize = 25;
-          const chunks: string[][] = [];
-          for (let i = 0; i < uniqueIds.length; i += batchSize) {
-            chunks.push(uniqueIds.slice(i, i + batchSize));
-          }
-
-          const fetchedAll: any[] = [];
-
-          for (const chunk of chunks) {
-            let attempt = 0;
-            let success = false;
-            while (attempt < 3 && !success) {
-              try {
-                const idsParam = encodeURIComponent(chunk.join(','));
-                const res = await http.get(`/users?ids=${idsParam}`, { timeout: 20000 });
-                const fetched = res.data?.data || res.data || [];
-                if (fetched && fetched.length) fetchedAll.push(...fetched);
-                success = true;
-              } catch (err) {
-                attempt += 1;
-                const waitMs = 300 * Math.pow(2, attempt);
-                console.warn(`[MessagingHome] fetch users chunk attempt ${attempt} failed, retrying in ${waitMs}ms`, err);
-                await new Promise((r) => setTimeout(r, waitMs));
-                if (attempt >= 3) {
-                  console.warn('[MessagingHome] failed to fetch user chunk after retries', chunk, err);
-                }
-              }
-            }
-          }
-
-          // Deduplicate fetched results by id
-          const uniqueMap = new Map<string, any>();
-          fetchedAll.forEach((fu: any) => uniqueMap.set(String(fu._id || fu.id), fu));
-          const fetched = Array.from(uniqueMap.values());
-
-          if (fetched.length > 0) {
-            // merge into users cache and enrich channels
-            setUsers(prev => {
-              const map = new Map(prev.map((u: any) => [String(u._id || u.id), u]));
-              fetched.forEach((fu: any) => map.set(String(fu._id || fu.id), fu));
-              return Array.from(map.values());
-            });
-
-            // Attach found user objects into channel.participants where possible
-            setChannels(prev => prev.map((c: any) => {
-              const parts = c.participants || c.members || c.userIds || c.participantIds || [];
-              if (Array.isArray(parts) && parts.length > 0) {
-                const enriched = parts.map((p: any) => {
-                  const pid = typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId);
-                  const found = fetched.find((fu: any) => String(fu._id || fu.id) === String(pid));
-                  return found ? { ...found } : p;
-                });
-                return { ...c, participants: enriched };
-              }
-              return c;
-            }));
-          } else {
-            console.warn('[MessagingHome] no user profiles fetched for DM enrichment');
-          }
+      // Merge cached profiles into fresh channels to prevent name/avatar flashing
+      const cachedProfiles = await ChatCacheService.getUserProfiles();
+      const enrichedFresh = fresh.map((c: any) => {
+        const parts = c.participants || c.members || c.userIds || c.participantIds || [];
+        if (Array.isArray(parts) && parts.length > 0) {
+          const mappedParts = parts.map((p: any) => {
+            const pid = typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId);
+            const found = cachedProfiles.find((fu: any) => String(fu._id || fu.id) === String(pid));
+            return found ? { ...p, ...found } : p;
+          });
+          return { ...c, participants: mappedParts };
         }
-      } catch (e) {
-        // Non-fatal: if users fetch fails, leave channels as-is
-        console.warn('[MessagingHome] failed to enrich DM participant profiles', e);
-      }
-      const userIds = fresh
+        return c;
+      });
+
+      setChannels(enrichedFresh);
+
+      // Fetch statuses
+      const userIds = enrichedFresh
         .filter(isDMChannel)
         .map((c: any) => findOtherParticipant(c))
         .filter(Boolean)
@@ -213,15 +499,24 @@ export default function MessagingHome({ navigation }: any) {
       if (userIds.length > 0) {
         fetchStatuses(userIds);
       }
-    } catch (err) {
+
+      // Fetch missing user profiles in background
+      fetchMissingUserProfiles(enrichedFresh, signal);
+    } catch (err: any) {
+      if (err?.name === 'CanceledError' || err?.message === 'canceled') return;
       console.warn('Failed to fetch fresh channels, using cached data if available', err);
     } finally {
       setLoading(false);
     }
-  }, [fetchStatuses]);
+  }, [fetchStatuses, fetchMissingUserProfiles]);
 
   useEffect(() => {
     fetchChannels();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   // Synchronize channel mutations (unread counts, snippets) to local database cache
@@ -255,7 +550,12 @@ export default function MessagingHome({ navigation }: any) {
   // Refresh channels when screen is focused so recently-active chats jump to top
   useFocusEffect(
     useCallback(() => {
-      fetchChannels();
+      fetchChannels(true);
+      return () => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+      };
     }, [fetchChannels])
   );
 
@@ -934,77 +1234,23 @@ export default function MessagingHome({ navigation }: any) {
               );
             }
 
-            const disp = getChannelDisplay(item);
-            const avatarUri = disp.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(disp.name || 'C')}&background=8BC34A&color=fff`;
-            const unread: number = item.unreadCount || 0;
-            const rawSubtitle = item.lastMessage?.content || item.description || '';
-            // For unread messages: show count prefix or truncate to avoid overflow
-            const subtitle = unread > 0 && !disp.isDM
-              ? `${unread > 4 ? '4+' : unread} unread · ${rawSubtitle}`.slice(0, 80)
-              : disp.isDM
-                ? (rawSubtitle || `Direct message`)
-                : rawSubtitle;
-
-            // ── Online dot ────────────────────────────────────────────────────
-            let showOnlineDot = false;
-            if (disp.isDM) {
-              const other = findOtherParticipant(item);
-              if (other) showOnlineDot = isOnline(other._id || other.id);
-            }
-            
-            const itemId = String(item._id || item.id);
-            const shouldAnimate = !seenIds.current.has(itemId);
-            if (shouldAnimate) {
-              seenIds.current.add(itemId);
-            }
-            const enteringAnimation = !shouldAnimate || reducedMotion
-              ? undefined
-              : FadeInDown.duration(250).delay(index * 40);
-
             return (
-              <AnimatedReanimated.View entering={enteringAnimation}>
-                <TouchableOpacity
-                  style={styles.row}
-                  onPress={() => {
-                    // clear unread locally immediately, then open chat
-                    setChannels(prev => prev.map(c => (String(c._id || c.id) === String(item._id || item.id) ? { ...c, unreadCount: 0 } : c)));
-                    navigation.navigate('CommunityChat', {
-                      initialChannel: item,
-                      channelId: String(item._id || item.id || ''),
-                    });
-                  }}
-                  onLongPress={() => handleLongPressChannel(item)}
-                >
-                  <View style={{ position: 'relative' }}>
-                      <Image source={{ uri: avatarUri }} style={styles.avatar} />
-                      <OnlineDot isOnline={showOnlineDot} size={13} />
-                    </View>
-                  <View style={styles.rowContent}>
-                    <View style={styles.rowTop}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={[styles.rowName, item.unreadCount > 0 && { fontWeight: '900', color: T.text }]} numberOfLines={1}>{disp.name}</Text>
-                        {!!item.isPinned && (
-                          <Ionicons name="pin" size={13} color={T.green || '#8BC34A'} style={{ marginLeft: 6 }} />
-                        )}
-                      </View>
-                      <Text style={styles.rowTime}>{formatTime(item.lastMessage?.createdAt)}</Text>
-                    </View>
-                    <Text style={[styles.rowSnippet, item.unreadCount > 0 && { fontWeight: '700', color: T.text }]} numberOfLines={1}>{subtitle}</Text>
-                  </View>
-                  {unread > 0 ? (
-                    <View style={styles.unreadWrap}>
-                      <View style={styles.unreadBadge}>
-                        <Text style={styles.unreadText}>{unread > 4 ? '4+' : unread}</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                  {item.myMuted ? (
-                    <View style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="notifications-off" size={16} color={T.textMuted} />
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-              </AnimatedReanimated.View>
+              <ChannelRowItem
+                item={item}
+                index={index}
+                user={user}
+                isOnline={isOnline}
+                getChannelDisplay={getChannelDisplay}
+                findOtherParticipant={findOtherParticipant}
+                handleLongPressChannel={handleLongPressChannel}
+                formatTime={formatTime}
+                setChannels={setChannels}
+                navigation={navigation}
+                T={T}
+                reducedMotion={reducedMotion}
+                isRTL={isRTL}
+                styles={styles}
+              />
             );
           }}
         />

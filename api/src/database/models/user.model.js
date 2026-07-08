@@ -206,6 +206,7 @@ const userSchema = new Schema(
 // ─── Indexes ──────────────────────────────────────────────────────────────────
 // Note: email unique index is defined inline above (unique: true)
 userSchema.index({ profileType: 1, isActive: 1 });
+userSchema.index({ isActive: 1, points: -1 });
 userSchema.index({ pushToken: 1 }, { sparse: true });
 
 // ─── Virtuals ─────────────────────────────────────────────────────────────────

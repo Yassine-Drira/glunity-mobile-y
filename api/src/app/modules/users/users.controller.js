@@ -16,10 +16,34 @@ const usersController = {
     const limit = req.query.limit !== undefined ? Number(req.query.limit) : 50;
     const skip = req.query.skip !== undefined ? Number(req.query.skip) : 0;
     const q = req.query.q !== undefined ? String(req.query.q).trim() : undefined;
+    const ids = req.query.ids !== undefined ? String(req.query.ids).split(',') : undefined;
 
-    const { items } = await require('./users.service').list({ limit, skip, q });
+    const { items } = await require('./users.service').list({ limit, skip, q, ids });
 
     // Map to public representation
+    const mapped = items.map((u) => (u && u.toPublic ? u.toPublic() : u));
+
+    res.status(200).json({ success: true, data: mapped });
+  }),
+
+  // POST /api/users/batch
+  batch: asyncHandler(async (req, res) => {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids)) {
+      throw AppError.badRequest('An array of user ids is required', 'MISSING_IDS');
+    }
+
+    const mongoose = require('mongoose');
+    const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(String(id)));
+
+    if (validIds.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const items = await User.find({ _id: { $in: validIds } })
+      .select('fullName avatar profileType points badges isActive')
+      .populate('badges');
+
     const mapped = items.map((u) => (u && u.toPublic ? u.toPublic() : u));
 
     res.status(200).json({ success: true, data: mapped });

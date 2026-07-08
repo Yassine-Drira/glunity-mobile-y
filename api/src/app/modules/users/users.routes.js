@@ -12,6 +12,9 @@ router.use(authMiddleware);
 /** GET /api/users — list active users (paginated) */
 router.get('/', usersController.list);
 
+/** POST /api/users/batch — fetch batch of user profiles */
+router.post('/batch', usersController.batch);
+
 /** PATCH /api/users/me — update authenticated user's profile */
 router.patch('/me', usersController.updateMe);
 

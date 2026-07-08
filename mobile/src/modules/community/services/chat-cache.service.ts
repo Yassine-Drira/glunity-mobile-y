@@ -178,6 +178,46 @@ export class ChatCacheService {
   }
 
   /**
+   * Caches user profiles
+   */
+  static async saveUserProfiles(users: any[]): Promise<void> {
+    try {
+      const key = 'CHAT_CACHE:user_profiles';
+      const existing = await this.getUserProfiles();
+      const map = new Map(existing.map((u: any) => [String(u._id || u.id), u]));
+      users.forEach((u) => {
+        if (u) {
+          map.set(String(u._id || u.id), {
+            _id: u._id || u.id,
+            id: u.id || u._id,
+            fullName: u.fullName || u.name,
+            avatarUrl: u.avatarUrl || u.avatar?.url || null,
+            profileType: u.profileType,
+            cachedAt: Date.now()
+          });
+        }
+      });
+      await AsyncStorage.setItem(key, JSON.stringify(Array.from(map.values())));
+    } catch (err) {
+      console.warn('[ChatCacheService] saveUserProfiles failed', err);
+    }
+  }
+
+  /**
+   * Retrieves cached user profiles
+   */
+  static async getUserProfiles(): Promise<any[]> {
+    try {
+      const key = 'CHAT_CACHE:user_profiles';
+      const data = await AsyncStorage.getItem(key);
+      return data ? JSON.parse(data) : [];
+    } catch (err) {
+      console.warn('[ChatCacheService] getUserProfiles failed', err);
+      return [];
+    }
+  }
+
+  /**
    * Clears all cached chat keys on user logout
    */
   static async clearCache(): Promise<void> {

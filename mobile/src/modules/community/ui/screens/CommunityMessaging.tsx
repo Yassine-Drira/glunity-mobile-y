@@ -189,6 +189,9 @@ const MessageItem = React.memo(({
   windowWidth,
   playingId,
   audioProgress,
+  audioBuffering,
+  audioErrors,
+  onSeek,
   onPress,
   onLongPress,
   onRetrySend,
@@ -217,6 +220,8 @@ const MessageItem = React.memo(({
 
   const highlighted = itemId === highlightedMsgId;
   const isPlaying = playingId === itemId;
+  const [barWidth, setBarWidth] = useState(0);
+  const hasAudioError = !!(audioErrors && audioErrors[itemId]);
 
   const bubbleStyle = isMe
     ? [
@@ -373,52 +378,83 @@ const MessageItem = React.memo(({
       );
     }
 
-    if (item.status === 'sending') {
-      if (isImage || isVideo) {
-        return (
-          <View style={{
-            width: Math.min(windowWidth * 0.68, 250),
-            height: Math.min(windowWidth * 0.51, 188),
-            backgroundColor: T.surfaceAlt,
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <ActivityIndicator size="small" color={isMe ? '#fff' : T.textMuted} />
-          </View>
-        );
-      }
-      return (
-        <View style={{ paddingVertical: 8, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', minWidth: 100 }}>
-          <ActivityIndicator size="small" color={isMe ? '#fff' : T.textMuted} />
-        </View>
-      );
-    }
 
     if (isAudio) {
       return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', minWidth: 180 }}>
-          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: isMe ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.04)', justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color={isMe ? '#fff' : T.text} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', minWidth: 200, paddingVertical: 4 }}>
+          {/* Play/Pause/Buffer/Error Button */}
+          <TouchableOpacity 
+            onPress={() => onPress(item)} 
+            style={{ 
+              width: 36, 
+              height: 36, 
+              borderRadius: 18, 
+              backgroundColor: isMe ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.06)', 
+              justifyContent: 'center', 
+              alignItems: 'center' 
+            }}
+          >
+            {hasAudioError ? (
+              <Ionicons name="refresh" size={18} color={isMe ? '#fff' : T.text} />
+            ) : isPlaying && audioBuffering ? (
+              <ActivityIndicator size="small" color={isMe ? '#fff' : T.text} />
+            ) : (
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={18} color={isMe ? '#fff' : T.text} />
+            )}
+          </TouchableOpacity>
+
+          {/* Seekable Progress Bar */}
+          <View style={{ flex: 1, marginLeft: 10, marginRight: 10, justifyContent: 'center' }}>
+            <Pressable
+              onPress={(e) => {
+                const clickX = e.nativeEvent.locationX;
+                if (barWidth > 0) {
+                  const progress = Math.max(0, Math.min(1, clickX / barWidth));
+                  onSeek?.(progress);
+                }
+              }}
+              onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
+              style={{ height: 20, justifyContent: 'center', width: '100%' }}
+            >
+              {/* Progress Line Track */}
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: isMe ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)', width: '100%' }}>
+                <View 
+                  style={{ 
+                    height: '100%', 
+                    borderRadius: 2, 
+                    backgroundColor: isMe ? '#fff' : T.green || '#2ECC71', 
+                    width: `${(isPlaying ? audioProgress : 0) * 100}%` 
+                  }} 
+                />
+              </View>
+              {/* Seek handle */}
+              {isPlaying && (
+                <View 
+                  style={{ 
+                    position: 'absolute', 
+                    left: `${audioProgress * 100}%`, 
+                    marginLeft: -6, 
+                    width: 12, 
+                    height: 12, 
+                    borderRadius: 6, 
+                    backgroundColor: isMe ? '#fff' : T.green || '#2ECC71',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 1,
+                    elevation: 2
+                  }} 
+                />
+              )}
+            </Pressable>
           </View>
-          <View style={{ width: 60, marginLeft: 8, marginRight: 6, justifyContent: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 26 }}>
-              {[6, 10, 14, 20, 14, 10, 8, 12].map((h, idx) => {
-                const isPlayed = isPlaying && audioProgress >= (idx / 8);
-                return (
-                  <Animated.View key={idx} style={{ width: 3.5, marginHorizontal: 1.5, backgroundColor: isMe ? '#fff' : T.text, height: h - 2, borderRadius: 1.5, opacity: isPlayed ? 1 : 0.4 }} />
-                );
-              })}
-            </View>
+
+          {/* Time display */}
+          <View style={{ minWidth: 32, alignItems: 'flex-end' }}>
+            <Text style={{ color: isMe ? '#fff' : T.text, fontSize: 11, fontWeight: '500' }}>
+              {hasAudioError ? t('Failed') : formatDuration(isPlaying ? audioProgress * (firstAtt?.duration || item.duration || 0) : (firstAtt?.duration || item.duration || 0))}
+            </Text>
           </View>
-          {isPlaying ? (
-            <Text style={{ color: isMe ? '#fff' : T.text, fontSize: 11, minWidth: 35, textAlign: 'right' }}>
-              {formatDuration(audioProgress * (firstAtt?.duration || item.duration || 0))}
-            </Text>
-          ) : (
-            <Text style={{ color: isMe ? '#fff' : T.text, fontSize: 11 }}>
-              {formatDuration(firstAtt?.duration || item.duration)}
-            </Text>
-          )}
         </View>
       );
     }
@@ -554,6 +590,10 @@ const MessageItem = React.memo(({
   };
 
   const pressHandler = () => {
+    if (item.status === 'failed') {
+      onRetrySend(item);
+      return;
+    }
     if (isTemp || item.deletedAt) return;
     onPress(item);
   };
@@ -600,11 +640,7 @@ const MessageItem = React.memo(({
             <Ionicons name="alert-circle" size={20} color="#E74C3C" />
           </TouchableOpacity>
         )}
-        {isMe && item.status === 'sending' && (
-          <View style={{ marginRight: 6, alignSelf: 'center', padding: 4 }}>
-            <ActivityIndicator size="small" color={T.textMuted} />
-          </View>
-        )}
+
 
         <View style={[styles.messageBlock, isMe ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }]}>
           {!isMe && !dmPartnerId && !isContinuation && (
@@ -652,7 +688,17 @@ const MessageItem = React.memo(({
             <Text style={{ fontSize: 10, color: T.textMuted }}>
               {formatMessageTime(item.createdAt || item.created_at)}
             </Text>
-            {isMe && !isTemp && !isDeleted && (() => {
+            {isMe && !isDeleted && (() => {
+              if (item.status === 'sending' || (isTemp && item.status !== 'failed')) {
+                return (
+                  <Ionicons name="time-outline" size={12} color={T.textMuted || '#888'} style={{ marginLeft: 3 }} />
+                );
+              }
+              if (item.status === 'failed') {
+                return (
+                  <Ionicons name="alert-circle" size={12} color="#E74C3C" style={{ marginLeft: 3 }} />
+                );
+              }
               const isRead = (() => {
                 const parts = channelParticipants || [];
                 const msgTime = new Date(item.createdAt || item.created_at).getTime();
@@ -674,7 +720,7 @@ const MessageItem = React.memo(({
 
               if (isRead) {
                 return (
-                  <Ionicons name="checkmark-done" size={13} color={T.green || '#2ECC71'} style={{ marginLeft: 3 }} />
+                  <Ionicons name="checkmark-done" size={13} color="#3498DB" style={{ marginLeft: 3 }} />
                 );
               } else {
                 return (
@@ -1255,6 +1301,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     const isPrevCloseInTime = prevMsgDate && !isNaN(prevMsgDate.getTime()) && !isNaN(currentMsgDate.getTime()) && (currentMsgDate.getTime() - prevMsgDate.getTime() < 60000);
     const isContinuation = isPrevFromSameSender && isPrevCloseInTime;
 
+    const firstAtt = item.attachments && item.attachments.length > 0 ? item.attachments[0] : null;
+    const isAudio = firstAtt?.type === 'audio';
+
     return (
       <MessageItem
         item={item}
@@ -1274,7 +1323,10 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         windowWidth={windowWidth}
         playingId={chat.playingId}
         audioProgress={chat.audioProgress}
-        onPress={chat.playingId === (item.id || item._id) ? chat.playAudio : chat.handlePressMessage}
+        audioBuffering={chat.audioBuffering}
+        audioErrors={chat.audioErrors}
+        onSeek={chat.seekAudio}
+        onPress={isAudio ? chat.playAudio : chat.handlePressMessage}
         onLongPress={chat.setReactionMsgId}
         onRetrySend={chat.handleRetrySend}
         onToggleReaction={chat.handleToggleReaction}
@@ -1292,8 +1344,8 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       />
     );
   }, [
-    filteredMessages, chat.playingId, chat.audioProgress,
-    chat.playAudio, chat.handlePressMessage, chat.setReactionMsgId,
+    filteredMessages, chat.playingId, chat.audioProgress, chat.audioBuffering, chat.audioErrors,
+    chat.seekAudio, chat.playAudio, chat.handlePressMessage, chat.setReactionMsgId,
     chat.handleRetrySend, chat.handleToggleReaction, chat.openUserProfile,
     chat.handleTogglePin, chat.channel?.participants, chat.channel?.members,
     user, T, isDark, isRTL, dmPartnerId, isDMChannel,
