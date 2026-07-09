@@ -18,7 +18,7 @@ import {
 	AppState
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
@@ -391,6 +391,9 @@ export interface ReelPlayerItemProps {
 	onRecordShare: (reelId: string) => void;
 	onIncrementCommentsCount: (reelId: string) => void;
 	onOpenShareSheet?: (reel: Reel) => void;
+	/** Called whenever the comments sheet opens or closes so the parent
+	 *  feed FlatList can disable its own scroll and avoid gesture conflicts. */
+	onCommentsVisibilityChange?: (visible: boolean) => void;
 	containerHeight: number;
 	containerWidth: number;
 	initialCommentId?: string;
@@ -427,6 +430,7 @@ function ReelPlayerItemComponent({
 	onRecordShare,
 	onIncrementCommentsCount,
 	onOpenShareSheet,
+	onCommentsVisibilityChange,
 	containerHeight,
 	containerWidth,
 	initialCommentId,
@@ -585,6 +589,12 @@ function ReelPlayerItemComponent({
 	const backdropOpacity = useSharedValue(0);
 	const [keyboardHeight, setKeyboardHeight] = useState(0);
 
+	// Notify parent when comments open/close so the feed FlatList
+	// can disable its own scroll and avoid gesture conflicts.
+	useEffect(() => {
+		onCommentsVisibilityChange?.(commentsVisible);
+	}, [commentsVisible, onCommentsVisibilityChange]);
+
 	useEffect(() => {
 		const showSub = Keyboard.addListener(
 			Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
@@ -604,6 +614,14 @@ function ReelPlayerItemComponent({
 		};
 	}, []);
 
+	// ── Sheet animation spring config (TikTok-quality 60fps) ─────────────
+	const SHEET_SPRING = { damping: 28, stiffness: 300, mass: 0.8, overshootClamping: false, restDisplacementThreshold: 0.5, restSpeedThreshold: 0.5 };
+	// Sheet is 75% of screen height, anchored at bottom.
+	// translateY = 0 means fully open (visible), translateY = sheetHeight means fully closed (off-screen below).
+	const SHEET_HEIGHT = containerHeight * 0.75;
+	const SHEET_OPEN_Y = 0;
+	const SHEET_CLOSED_Y = SHEET_HEIGHT;
+
 	const sheetAnimatedStyle = useAnimatedStyle(() => ({
 		transform: [{ translateY: sheetTranslateY.value }],
 	}));
@@ -617,20 +635,21 @@ function ReelPlayerItemComponent({
 	}, []);
 
 	const closeComments = useCallback(() => {
-		sheetTranslateY.value = withSpring(containerHeight, { damping: 15, stiffness: 120 }, (finished) => {
+		Keyboard.dismiss();
+		sheetTranslateY.value = withSpring(SHEET_CLOSED_Y, SHEET_SPRING, (finished) => {
 			if (finished) {
 				runOnJS(setCommentsVisible)(false);
 			}
 		});
-		backdropOpacity.value = withTiming(0, { duration: 200 });
+		backdropOpacity.value = withTiming(0, { duration: 250 });
 	}, [containerHeight]);
 
-	// Open animation trigger
+	// Open animation trigger — starts off-screen, springs up to 0
 	useEffect(() => {
 		if (commentsVisible) {
-			sheetTranslateY.value = containerHeight;
-			sheetTranslateY.value = withSpring(containerHeight * (1 - 0.75), { damping: 15, stiffness: 120 });
-			backdropOpacity.value = withTiming(1, { duration: 250 });
+			sheetTranslateY.value = SHEET_CLOSED_Y;
+			sheetTranslateY.value = withSpring(SHEET_OPEN_Y, SHEET_SPRING);
+			backdropOpacity.value = withTiming(1, { duration: 300 });
 		}
 	}, [commentsVisible, containerHeight]);
 
@@ -640,49 +659,35 @@ function ReelPlayerItemComponent({
 			dragStartY.value = sheetTranslateY.value;
 		})
 		.onUpdate((event) => {
+			// Allow dragging down freely but resist dragging above fully-open
 			const targetY = dragStartY.value + event.translationY;
-			const maxUp = containerHeight * (1 - 0.95);
-			const maxDown = containerHeight;
-			sheetTranslateY.value = Math.max(maxUp, Math.min(maxDown, targetY));
+			const clamped = Math.max(-20, Math.min(SHEET_CLOSED_Y, targetY));
+			sheetTranslateY.value = clamped;
+			// Fade backdrop proportionally while dragging
+			const progress = 1 - (clamped / SHEET_CLOSED_Y);
+			backdropOpacity.value = Math.max(0, Math.min(1, progress));
 		})
 		.onEnd((event) => {
 			const y = sheetTranslateY.value;
-			const snapPoints = [
-				containerHeight * (1 - 0.95), // 95%
-				containerHeight * (1 - 0.75), // 75%
-				containerHeight * (1 - 0.45), // 45%
-				containerHeight,              // closed
-			];
-			let closest = snapPoints[0];
-			let minDist = Math.abs(y - closest);
-			for (let i = 1; i < snapPoints.length; i++) {
-				const dist = Math.abs(y - snapPoints[i]);
-				if (dist < minDist) {
-					minDist = dist;
-					closest = snapPoints[i];
-				}
+			const midpoint = SHEET_CLOSED_Y / 2;
+
+			// Velocity-based dismiss: fast swipe down → close
+			if (event.velocityY > 800) {
+				sheetTranslateY.value = withSpring(SHEET_CLOSED_Y, SHEET_SPRING, (finished) => {
+					if (finished) runOnJS(setCommentsVisible)(false);
+				});
+				backdropOpacity.value = withTiming(0, { duration: 200 });
+				return;
 			}
 
-			if (event.velocityY > 500) {
-				const currentIndex = snapPoints.indexOf(closest);
-				const nextIndex = Math.min(snapPoints.length - 1, currentIndex + 1);
-				closest = snapPoints[nextIndex];
-			} else if (event.velocityY < -500) {
-				const currentIndex = snapPoints.indexOf(closest);
-				const nextIndex = Math.max(0, currentIndex - 1);
-				closest = snapPoints[nextIndex];
-			}
-
-			sheetTranslateY.value = withSpring(closest, { damping: 15, stiffness: 120 }, (finished) => {
-				if (finished && closest === containerHeight) {
+			// Position-based snap: past midpoint → close, else → open
+			const snapTo = y > midpoint ? SHEET_CLOSED_Y : SHEET_OPEN_Y;
+			sheetTranslateY.value = withSpring(snapTo, SHEET_SPRING, (finished) => {
+				if (finished && snapTo === SHEET_CLOSED_Y) {
 					runOnJS(setCommentsVisible)(false);
 				}
 			});
-			if (closest === containerHeight) {
-				backdropOpacity.value = withTiming(0, { duration: 200 });
-			} else {
-				backdropOpacity.value = withTiming(1, { duration: 200 });
-			}
+			backdropOpacity.value = withTiming(snapTo === SHEET_CLOSED_Y ? 0 : 1, { duration: 200 });
 		});
 
 	const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
@@ -737,7 +742,7 @@ function ReelPlayerItemComponent({
 		if (commentsVisible) {
 			loadComments(true);
 		}
-	}, [commentsVisible, loadComments]);
+	}, [commentsVisible]);
 
 	useEffect(() => {
 		return () => {
@@ -1276,10 +1281,10 @@ function ReelPlayerItemComponent({
 				</TouchableOpacity>
 			</View>
 
-			{/* Custom Bottom Sheet for Comments */}
+			{/* ── TikTok/Instagram-quality Comments Bottom Sheet ─────────────── */}
 			{commentsVisible && (
-				<View style={[StyleSheet.absoluteFillObject, { zIndex: 1000 }]}>
-					{/* Backdrop */}
+				<View style={[StyleSheet.absoluteFillObject, { zIndex: 1000 }]} pointerEvents="box-none">
+					{/* Backdrop — smooth fade */}
 					<Animated.View style={[styles.sheetBackdrop, backdropAnimatedStyle]}>
 						<TouchableOpacity
 							activeOpacity={1}
@@ -1288,142 +1293,164 @@ function ReelPlayerItemComponent({
 						/>
 					</Animated.View>
 
-					{/* Sheet container */}
+					{/* Sheet — position:absolute, fixed height, flex column children */}
 					<Animated.View
 						style={[
 							styles.sheetContainer,
 							sheetAnimatedStyle,
 							{
-								backgroundColor: T.surface,
-								borderColor: T.border,
-								// Adjust bottom padding when keyboard is open:
-								paddingBottom: keyboardHeight > 0 ? keyboardHeight : Math.max(insets.bottom, 12),
+								backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+								height: SHEET_HEIGHT,
 							},
 						]}
 					>
-						{/* Header handle - wrapped with gesture detector for dragging */}
+						{/* ── Drag handle + header ───────────────────────── */}
 						<GestureDetector gesture={panGesture}>
-							<View style={[styles.commentsHeader, { borderBottomColor: T.divider }]}>
-								<View style={[styles.commentsHeaderIndicator, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }]} />
+							<View style={styles.commentsHeader}>
+								<View style={[styles.commentsHeaderIndicator, { backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }]} />
 								<View style={styles.commentsHeaderTitleRow}>
 									<Text style={[styles.commentsTitle, { color: T.text }]}>Comments</Text>
-									<TouchableOpacity onPress={closeComments} style={styles.commentsCloseBtn}>
-										<Ionicons name="close" size={24} color={T.text} />
+									<TouchableOpacity onPress={closeComments} style={styles.commentsCloseBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+										<Ionicons name="close" size={22} color={T.textMuted} />
 									</TouchableOpacity>
 								</View>
 							</View>
 						</GestureDetector>
 
-						{/* Toast notification for failures */}
+						{/* Toast */}
 						{toastMessage && (
 							<View style={styles.toastContainer}>
 								<Text style={styles.toastText}>{toastMessage}</Text>
 							</View>
 						)}
 
-						{loadingComments && comments.length === 0 ? (
-							<View style={styles.centerSpinner}>
-								<ActivityIndicator size="large" color={T.green} />
-							</View>
-						) : (
-							<FlatList
-								style={{ flex: 1 }}
-								nestedScrollEnabled={true}
-								data={comments}
-								keyExtractor={(item) => item.id}
-								keyboardShouldPersistTaps="handled"
-								contentContainerStyle={{ paddingBottom: 16 }}
-								renderItem={({ item }) => {
-									const isLikedByMe = user?._id ? item.likedBy.includes(user._id) : false;
-									const isExpanded = !!expandedComments[item.id];
-									const commentReplies = replies[item.id] || [];
-									const loadingRepliesForComment = !!loadingReplies[item.id];
-									const relativeTime = formatRelativeTime(item.createdAt);
+						{/* ── Comments list — RNGH ScrollView avoids gesture conflicts ── */}
+						<View style={{ flex: 1 }}>
+							{loadingComments && comments.length === 0 ? (
+								<View style={styles.centerSpinner}>
+									<Ionicons name="chatbubble-ellipses-outline" size={40} color={isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'} />
+									<ActivityIndicator size="small" color={T.green || '#6DAE3F'} style={{ marginTop: 16 }} />
+								</View>
+							) : comments.length === 0 ? (
+								<View style={styles.centerSpinner}>
+									<Ionicons name="chatbubble-outline" size={44} color={isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'} />
+									<Text style={[styles.emptyComments, { color: T.textMuted }]}>No comments yet</Text>
+									<Text style={{ color: T.textMuted, fontSize: 13, marginTop: 4, opacity: 0.6 }}>Be the first to comment</Text>
+								</View>
+							) : (
+								<GHScrollView
+									style={{ flex: 1 }}
+									showsVerticalScrollIndicator={false}
+									keyboardShouldPersistTaps="handled"
+									contentContainerStyle={{ paddingTop: 4, paddingBottom: 32 }}
+									bounces={Platform.OS === 'ios'}
+									scrollEventThrottle={16}
+									onScroll={(e) => {
+										const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+										const nearBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
+										if (nearBottom && hasMore && !loadingMore) {
+											loadComments();
+										}
+									}}
+								>
+									{comments.map((item) => {
+										const isLikedByMe = user?._id ? item.likedBy.includes(user._id) : false;
+										const isExpanded = !!expandedComments[item.id];
+										const commentReplies = replies[item.id] || [];
+										const loadingRepliesForComment = !!loadingReplies[item.id];
+										const relativeTime = formatRelativeTime(item.createdAt);
+										return (
+											<CommentItem
+												key={item.id}
+												item={item}
+												user={user}
+												T={T}
+												isDark={isDark}
+												relativeTime={relativeTime}
+												isLikedByMe={isLikedByMe}
+												isExpanded={isExpanded}
+												commentReplies={commentReplies}
+												loadingRepliesForComment={loadingRepliesForComment}
+												highlightedCommentId={highlightedCommentId}
+												highlightedReplyId={highlightedReplyId}
+												commentHighlightStyle={commentHighlightStyle}
+												replyHighlightStyle={replyHighlightStyle}
+												onCommentPress={handleCommentPress}
+												onToggleReplies={toggleReplies}
+												onStartEdit={handleStartEdit}
+												onDeleteComment={deleteComment}
+												onToggleCommentLike={toggleCommentLike}
+												onReplyPress={(parent) => {
+													setReplyingTo(parent);
+													setTimeout(() => inputRef.current?.focus(), 100);
+												}}
+											/>
+										);
+									})}
+									{loadingMore && (
+										<ActivityIndicator size="small" color={T.green || '#6DAE3F'} style={{ marginVertical: 16 }} />
+									)}
+								</GHScrollView>
+							)}
+						</View>
 
-									return (
-										<CommentItem
-											item={item}
-											user={user}
-											T={T}
-											isDark={isDark}
-											relativeTime={relativeTime}
-											isLikedByMe={isLikedByMe}
-											isExpanded={isExpanded}
-											commentReplies={commentReplies}
-											loadingRepliesForComment={loadingRepliesForComment}
-											highlightedCommentId={highlightedCommentId}
-											highlightedReplyId={highlightedReplyId}
-											commentHighlightStyle={commentHighlightStyle}
-											replyHighlightStyle={replyHighlightStyle}
-											onCommentPress={handleCommentPress}
-											onToggleReplies={toggleReplies}
-											onStartEdit={handleStartEdit}
-											onDeleteComment={deleteComment}
-											onToggleCommentLike={toggleCommentLike}
-											onReplyPress={(parent) => {
-												setReplyingTo(parent);
-												inputRef.current?.focus();
-											}}
-										/>
-									);
-								}}
-							/>
-						)}
-
-						{/* Input section */}
-						<View style={{ borderTopWidth: 1, borderTopColor: T.divider, backgroundColor: T.surface }}>
+						{/* ── Composer (fixed at bottom, clears nav bar) ── */}
+						<View style={[
+							styles.composerWrapper,
+							{
+								backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
+								borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+								paddingBottom: keyboardHeight > 0 ? keyboardHeight : navBarHeight,
+							},
+						]}>
 							{replyingTo && (
-								<View style={[styles.inputBanner, { backgroundColor: T.surfaceAlt, borderTopWidth: 0 }]}>
+								<View style={[styles.inputBanner, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
 									<Text style={[styles.inputBannerText, { color: T.textMuted }]}>
-										Replying to @{replyingTo.authorUsername}
+										Replying to <Text style={{ fontWeight: '700', color: T.text }}>@{replyingTo.authorUsername}</Text>
 									</Text>
-									<TouchableOpacity onPress={() => setReplyingTo(null)}>
-										<Ionicons name="close-circle" size={16} color={T.textMuted} />
+									<TouchableOpacity onPress={() => setReplyingTo(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+										<Ionicons name="close-circle" size={18} color={T.textMuted} />
 									</TouchableOpacity>
 								</View>
 							)}
 							{editingComment && (
-								<View style={[styles.inputBanner, { backgroundColor: T.surfaceAlt, borderTopWidth: 0 }]}>
-									<Text style={[styles.inputBannerText, { color: T.textMuted }]}>
-										Editing comment
-									</Text>
-									<TouchableOpacity onPress={() => setEditingComment(null)}>
-										<Ionicons name="close-circle" size={16} color={T.textMuted} />
+								<View style={[styles.inputBanner, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+									<View style={{ flexDirection: 'row', alignItems: 'center' }}>
+										<Ionicons name="pencil" size={14} color="#6DAE3F" style={{ marginRight: 6 }} />
+										<Text style={[styles.inputBannerText, { color: T.textMuted }]}>Editing comment</Text>
+									</View>
+									<TouchableOpacity onPress={() => setEditingComment(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+										<Ionicons name="close-circle" size={18} color={T.textMuted} />
 									</TouchableOpacity>
 								</View>
 							)}
-							<View style={[styles.commentInputRow, { borderTopWidth: 0, backgroundColor: T.surface, paddingBottom: Platform.OS === 'ios' ? 16 : 12 }]}>
+							<View style={styles.commentInputRow}>
 								<Image
 									source={{ uri: user?.avatarUrl || DEFAULT_AVATAR_URL }}
 									style={styles.inputAvatar}
 								/>
-								<View style={[styles.commentInputContainer, { backgroundColor: T.surfaceAlt }]}>
+								<View style={[styles.commentInputContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
 									<TextInput
 										ref={inputRef}
 										value={text}
 										onChangeText={setText}
-										placeholder={replyingTo ? `Reply to @${replyingTo.authorUsername}...` : "Join the conversation..."}
-										placeholderTextColor={T.textMuted}
+										placeholder={replyingTo ? `Reply to @${replyingTo.authorUsername}...` : 'Write a comment...'}
+										placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'}
 										style={[styles.commentInput, { color: T.text }]}
 										multiline
+										maxLength={500}
 									/>
-									<TouchableOpacity style={styles.inputIconButton} onPress={() => showToast("Image comments are coming soon!")}>
-										<Ionicons name="image-outline" size={20} color={T.textMuted} />
-									</TouchableOpacity>
-									<TouchableOpacity style={[styles.gifButton, { borderColor: T.textMuted }]} onPress={() => showToast("GIF comments are coming soon!")}>
-										<Text style={[styles.gifButtonText, { color: T.textMuted }]}>GIF</Text>
+									<TouchableOpacity style={styles.inputIconButton} onPress={() => showToast('Emoji picker coming soon!')}>
+										<Ionicons name="happy-outline" size={22} color={isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.35)'} />
 									</TouchableOpacity>
 								</View>
-								
 								{text.trim() ? (
-									<TouchableOpacity onPress={handleSubmitComment} style={styles.postButton}>
-										<Ionicons name="send" size={22} color="#6DAE3F" />
+									<TouchableOpacity onPress={handleSubmitComment} style={styles.postButton} activeOpacity={0.7}>
+										<View style={styles.sendButtonCircle}>
+											<Ionicons name="arrow-up" size={18} color="#FFF" />
+										</View>
 									</TouchableOpacity>
-								) : (
-									<TouchableOpacity style={styles.giftButtonIcon} onPress={() => showToast("Reels Gifts are not available in this region.")}>
-										<Ionicons name="gift-outline" size={22} color={T.textMuted} />
-									</TouchableOpacity>
-								)}
+								) : null}
 							</View>
 						</View>
 					</Animated.View>
@@ -1619,9 +1646,10 @@ const styles = StyleSheet.create({
 		color: '#FFF',
 		fontSize: 12,
 	},
+	// ── Comments Bottom Sheet (TikTok / Instagram quality) ───────────────
 	sheetBackdrop: {
 		...StyleSheet.absoluteFillObject,
-		backgroundColor: 'rgba(0,0,0,0.6)',
+		backgroundColor: 'rgba(0,0,0,0.55)',
 		zIndex: 999,
 	},
 	sheetContainer: {
@@ -1629,43 +1657,30 @@ const styles = StyleSheet.create({
 		left: 0,
 		right: 0,
 		bottom: 0,
-		height: '100%',
-		borderTopLeftRadius: 24,
-		borderTopRightRadius: 24,
-		borderWidth: 1,
-		borderColor: 'rgba(255,255,255,0.08)',
-		overflow: 'hidden',
-		zIndex: 1000,
-	},
-	commentsOverlay: {
-		flex: 1,
-		backgroundColor: 'rgba(0,0,0,0.6)',
-		justifyContent: 'flex-end',
-	},
-	commentsCloseArea: {
-		flex: 1,
-	},
-	commentsContainer: {
-		backgroundColor: '#1C1C1E',
+		// height set via inline style using the computed SHEET_HEIGHT number
 		borderTopLeftRadius: 20,
 		borderTopRightRadius: 20,
-		height: '75%',
-		paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-		borderWidth: 1,
-		borderColor: 'rgba(255,255,255,0.08)',
+		overflow: 'hidden',
+		zIndex: 1000,
+		flexDirection: 'column', // children stack vertically within the fixed height
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: -4 },
+		shadowOpacity: 0.15,
+		shadowRadius: 12,
+		elevation: 20,
 	},
 	commentsHeader: {
 		alignItems: 'center',
-		paddingVertical: 10,
-		borderBottomWidth: 1,
-		borderBottomColor: 'rgba(255,255,255,0.08)',
+		paddingTop: 10,
+		paddingBottom: 12,
+		borderBottomWidth: StyleSheet.hairlineWidth,
+		borderBottomColor: 'rgba(128,128,128,0.2)',
 	},
 	commentsHeaderIndicator: {
-		width: 40,
+		width: 36,
 		height: 4,
-		backgroundColor: 'rgba(255,255,255,0.2)',
 		borderRadius: 2,
-		marginBottom: 8,
+		marginBottom: 10,
 	},
 	commentsHeaderTitleRow: {
 		flexDirection: 'row',
@@ -1676,93 +1691,98 @@ const styles = StyleSheet.create({
 		position: 'relative',
 	},
 	commentsTitle: {
-		fontSize: 16,
+		fontSize: 15,
 		fontWeight: '700',
-		color: '#FFF',
+		letterSpacing: 0.2,
 		textAlign: 'center',
 	},
 	commentsCloseBtn: {
 		position: 'absolute',
 		right: 16,
-		padding: 4,
+		width: 28,
+		height: 28,
+		borderRadius: 14,
+		backgroundColor: 'rgba(128,128,128,0.15)',
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 	centerSpinner: {
-		height: 250,
+		flex: 1,
+		minHeight: 200,
 		justifyContent: 'center',
 		alignItems: 'center',
 	},
 	commentList: {
 		paddingHorizontal: 16,
-		paddingTop: 16,
+		paddingTop: 12,
 	},
 	commentRowContainer: {
-		marginBottom: 16,
+		marginBottom: 18,
+		paddingHorizontal: 16,
 	},
 	commentItem: {
 		flexDirection: 'row',
 		alignItems: 'flex-start',
-		borderRadius: 12,
-		paddingHorizontal: 6,
-		paddingVertical: 4,
+		borderRadius: 14,
+		paddingVertical: 2,
 	},
 	commentAvatar: {
-		width: 38,
-		height: 38,
-		borderRadius: 19,
+		width: 36,
+		height: 36,
+		borderRadius: 18,
 		marginRight: 12,
 	},
 	commentTextContainer: {
 		flex: 1,
-		paddingRight: 10,
+		paddingRight: 8,
 	},
 	commentAuthorHeader: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		marginBottom: 4,
+		marginBottom: 3,
 	},
 	commentAuthor: {
 		fontSize: 13,
-		fontWeight: '600',
-		color: '#FFF',
+		fontWeight: '700',
+		letterSpacing: 0.1,
 	},
 	commentTime: {
 		fontSize: 11,
-		color: '#8A8A8E',
 		marginLeft: 8,
+		opacity: 0.6,
 	},
 	commentText: {
 		fontSize: 14,
-		color: '#FFF',
-		lineHeight: 18,
+		lineHeight: 20,
 	},
 	commentActionsRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		marginTop: 6,
+		gap: 16,
 	},
 	commentActionButton: {
-		marginRight: 16,
 		paddingVertical: 2,
 	},
 	commentActionText: {
 		fontSize: 12,
 		fontWeight: '600',
-		color: '#8A8A8E',
+		opacity: 0.65,
 	},
 	likeIconContainer: {
 		alignItems: 'center',
 		justifyContent: 'center',
-		minWidth: 30,
-		marginTop: 4,
-	},
-	commentLikeCount: {
-		color: '#8A8A8E',
-		fontSize: 11,
+		minWidth: 28,
 		marginTop: 2,
 	},
+	commentLikeCount: {
+		fontSize: 11,
+		marginTop: 2,
+		opacity: 0.5,
+	},
 	repliesWrapper: {
-		paddingLeft: 50,
-		marginTop: 10,
+		paddingLeft: 48,
+		marginTop: 8,
 	},
 	viewRepliesButton: {
 		flexDirection: 'row',
@@ -1772,13 +1792,13 @@ const styles = StyleSheet.create({
 	viewRepliesLine: {
 		width: 24,
 		height: 1,
-		backgroundColor: '#8A8A8E',
-		marginRight: 12,
+		marginRight: 10,
+		opacity: 0.4,
 	},
 	viewRepliesText: {
 		fontSize: 12,
 		fontWeight: '600',
-		color: '#8A8A8E',
+		opacity: 0.55,
 	},
 	repliesList: {
 		marginTop: 8,
@@ -1786,14 +1806,14 @@ const styles = StyleSheet.create({
 	replyItem: {
 		flexDirection: 'row',
 		alignItems: 'flex-start',
-		marginBottom: 12,
-		borderRadius: 10,
-		paddingHorizontal: 6,
-		paddingVertical: 4,
+		marginBottom: 14,
+		borderRadius: 12,
+		paddingVertical: 2,
 	},
 	highlightedItemBase: {
 		borderWidth: 1,
-		borderColor: 'rgba(109,174,63,0.45)',
+		borderColor: 'rgba(109,174,63,0.4)',
+		borderRadius: 12,
 	},
 	replyAvatar: {
 		width: 24,
@@ -1802,115 +1822,103 @@ const styles = StyleSheet.create({
 		marginRight: 10,
 	},
 	replyLikeCount: {
-		color: '#8A8A8E',
 		fontSize: 9,
 		marginTop: 2,
+		opacity: 0.5,
 	},
-	emojiBar: {
-		flexDirection: 'row',
-		justifyContent: 'space-around',
-		alignItems: 'center',
-		paddingVertical: 12,
-		borderTopWidth: 1,
-		borderTopColor: 'rgba(255,255,255,0.08)',
-		backgroundColor: '#1C1C1E',
-	},
-	emojiText: {
-		fontSize: 22,
+	// ── Composer ─────────────────────────────────────────────────────────
+	composerWrapper: {
+		borderTopWidth: StyleSheet.hairlineWidth,
 	},
 	inputBanner: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		backgroundColor: '#2C2C2E',
 		paddingHorizontal: 16,
 		paddingVertical: 8,
-		borderTopWidth: 1,
-		borderTopColor: 'rgba(255,255,255,0.05)',
 	},
 	inputBannerText: {
-		color: '#8A8A8E',
-		fontSize: 12,
+		fontSize: 13,
 	},
 	commentInputRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		borderTopWidth: 1,
-		borderTopColor: 'rgba(255,255,255,0.08)',
-		paddingHorizontal: 16,
+		paddingHorizontal: 14,
 		paddingTop: 10,
-		backgroundColor: '#1C1C1E',
+		paddingBottom: Platform.OS === 'ios' ? 6 : 8,
 	},
 	inputAvatar: {
-		width: 34,
-		height: 34,
-		borderRadius: 17,
-		marginRight: 12,
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		marginRight: 10,
 	},
 	commentInputContainer: {
 		flex: 1,
 		flexDirection: 'row',
 		alignItems: 'center',
-		backgroundColor: '#2C2C2E',
-		borderRadius: 20,
-		paddingHorizontal: 12,
+		borderRadius: 22,
+		paddingHorizontal: 14,
 		minHeight: 40,
 		maxHeight: 100,
 	},
 	commentInput: {
 		flex: 1,
-		color: '#FFF',
 		fontSize: 14,
 		paddingVertical: 8,
-		marginRight: 8,
+		marginRight: 6,
 	},
 	inputIconButton: {
 		padding: 4,
-		marginRight: 6,
 	},
 	gifButton: {
 		borderWidth: 1.5,
-		borderColor: '#FFF',
 		borderRadius: 4,
 		paddingHorizontal: 4,
 		paddingVertical: 1,
 		marginRight: 4,
 	},
 	gifButtonText: {
-		color: '#FFF',
 		fontSize: 9,
 		fontWeight: '800',
 	},
 	postButton: {
-		paddingHorizontal: 12,
-		paddingVertical: 8,
+		marginLeft: 8,
+	},
+	sendButtonCircle: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		backgroundColor: '#6DAE3F',
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 	giftButtonIcon: {
-		paddingHorizontal: 12,
+		paddingHorizontal: 10,
 		paddingVertical: 8,
 	},
 	emptyComments: {
 		textAlign: 'center',
-		color: '#8A8A8E',
-		marginTop: 40,
-		fontSize: 14,
+		marginTop: 14,
+		fontSize: 15,
+		fontWeight: '600',
 	},
 	toastContainer: {
 		position: 'absolute',
 		top: 10,
-		left: 20,
-		right: 20,
-		backgroundColor: 'rgba(255, 45, 85, 0.9)',
-		borderRadius: 8,
-		paddingVertical: 8,
+		left: 16,
+		right: 16,
+		backgroundColor: 'rgba(255, 45, 85, 0.92)',
+		borderRadius: 12,
+		paddingVertical: 10,
 		paddingHorizontal: 16,
 		alignItems: 'center',
 		zIndex: 9999,
 		elevation: 5,
 		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.3,
-		shadowRadius: 4,
+		shadowOffset: { width: 0, height: 3 },
+		shadowOpacity: 0.25,
+		shadowRadius: 6,
 	},
 	toastText: {
 		color: '#FFF',

@@ -9,12 +9,13 @@ export function useReelComments(reelId: string, onCommentsCountChanged?: (reelId
 	const [loading, setLoading] = useState(false);
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [hasMore, setHasMore] = useState(true);
-	const [page, setPage] = useState(0);
+	// Pagination refs instead of state to keep loadComments/loadReplies callbacks stable
+	const pageRef = useRef(0);
+	const repliesPageRef = useRef<Record<string, number>>({});
 
 	// Nested replies mapping: parentCommentId -> ReelComment[]
 	const [replies, setReplies] = useState<Record<string, ReelComment[]>>({});
 	const [loadingReplies, setLoadingReplies] = useState<Record<string, boolean>>({});
-	const [repliesPage, setRepliesPage] = useState<Record<string, number>>({});
 	const [repliesHasMore, setRepliesHasMore] = useState<Record<string, boolean>>({});
 
 	// Edit & Reply context
@@ -38,7 +39,7 @@ export function useReelComments(reelId: string, onCommentsCountChanged?: (reelId
 
 	// Load top-level comments
 	const loadComments = useCallback(async (reset = false) => {
-		const targetPage = reset ? 0 : page;
+		const targetPage = reset ? 0 : pageRef.current;
 		if (reset) {
 			setLoading(true);
 		} else {
@@ -56,7 +57,7 @@ export function useReelComments(reelId: string, onCommentsCountChanged?: (reelId
 					return [...prev, ...fetched.filter((c) => !existingIds.has(c.id))];
 				});
 				setHasMore(fetched.length === 15);
-				setPage(targetPage + 1);
+				pageRef.current = targetPage + 1;
 			} else {
 				showToast('Failed to load comments.');
 			}
@@ -67,14 +68,14 @@ export function useReelComments(reelId: string, onCommentsCountChanged?: (reelId
 			setLoading(false);
 			setLoadingMore(false);
 		}
-	}, [reelId, page, showToast]);
+	}, [reelId, showToast]);
 
 	// Load replies of a comment (lazy load)
 	const loadReplies = useCallback(async (parentCommentId: string, reset = false) => {
 		if (loadingRepliesLocks.current.has(parentCommentId)) return;
 		loadingRepliesLocks.current.add(parentCommentId);
 
-		const currentPage = repliesPage[parentCommentId] || 0;
+		const currentPage = repliesPageRef.current[parentCommentId] || 0;
 		const targetPage = reset ? 0 : currentPage;
 
 		setLoadingReplies((prev) => ({ ...prev, [parentCommentId]: true }));
@@ -93,7 +94,7 @@ export function useReelComments(reelId: string, onCommentsCountChanged?: (reelId
 					};
 				});
 				setRepliesHasMore((prev) => ({ ...prev, [parentCommentId]: fetched.length === 10 }));
-				setRepliesPage((prev) => ({ ...prev, [parentCommentId]: targetPage + 1 }));
+				repliesPageRef.current[parentCommentId] = targetPage + 1;
 			} else {
 				showToast('Failed to load replies.');
 			}
@@ -104,7 +105,7 @@ export function useReelComments(reelId: string, onCommentsCountChanged?: (reelId
 			setLoadingReplies((prev) => ({ ...prev, [parentCommentId]: false }));
 			loadingRepliesLocks.current.delete(parentCommentId);
 		}
-	}, [reelId, repliesPage, showToast]);
+	}, [reelId, showToast]);
 
 	// Add new comment or reply
 	const postComment = useCallback(async (text: string) => {

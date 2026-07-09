@@ -117,6 +117,9 @@ export default function ReelsFeedScreen() {
 	const flatListRef = useRef<FlatList>(null);
 	const insets = useSafeAreaInsets();
 	const { user } = useAuth();
+	// When the comments sheet is open in any item, we disable the feed
+	// FlatList scroll so vertical swipes go to the comments list, not the video.
+	const [commentsOpen, setCommentsOpen] = useState(false);
 
 	// Transition Opacity
 	const feedOpacity = useSharedValue(1);
@@ -449,6 +452,7 @@ export default function ReelsFeedScreen() {
 			onRecordShare={recordShare}
 			onIncrementCommentsCount={incrementCommentsCount}
 			onOpenShareSheet={openShareSheet}
+			onCommentsVisibilityChange={setCommentsOpen}
 			containerHeight={layoutHeight}
 			containerWidth={layoutWidth}
 			initialCommentId={index === activeIndexRef.current ? route.params?.commentId : undefined}
@@ -479,6 +483,7 @@ export default function ReelsFeedScreen() {
 						bounces={false}
 						overScrollMode="never"
 						showsVerticalScrollIndicator={false}
+						scrollEnabled={!commentsOpen}
 						onViewableItemsChanged={onViewableItemsChanged}
 						viewabilityConfig={viewabilityConfig}
 						scrollEventThrottle={16}
