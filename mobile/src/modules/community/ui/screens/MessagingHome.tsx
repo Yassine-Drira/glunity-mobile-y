@@ -16,6 +16,7 @@ import { usePresence } from '../../../../shared/hooks/usePresence';
 import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { UserProfileBottomSheet } from '../components/UserProfileBottomSheet';
+import ActiveNowSection from '../components/ActiveNowSection';
 
 let BlurView: any = null;
 try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
@@ -145,7 +146,7 @@ export default function MessagingHome({ navigation }: any) {
   const { t, isRTL } = useLanguage();
   const { user } = useAuth();
   const { socket } = useSocket();
-  const { isOnline, fetchStatuses } = usePresence();
+  const { isOnline, getLastSeen, fetchStatuses } = usePresence();
 
   const seenIds = useRef<Set<string>>(new Set());
   const activeFetchesRef = useRef<Set<string>>(new Set());
@@ -524,7 +525,15 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     (async () => {
       try {
         const res = await http.get('/users');
-        setUsers(res.data?.data || []);
+        const allUsers = res.data?.data || [];
+        setUsers(allUsers);
+        // Fetch presence statuses for all users so the Active Now section works
+        const allUserIds = allUsers
+          .map((u: any) => String(u._id || u.id))
+          .filter((id: string) => id && id !== String(user?._id));
+        if (allUserIds.length > 0) {
+          fetchStatuses(allUserIds);
+        }
       } catch (err) {
         setUsers([]);
       }
@@ -1171,6 +1180,37 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ── Active Now Section (between tabs and chat list) ── */}
+      {activeTab !== 'contacts' && (
+        <ActiveNowSection
+          users={users}
+          currentUserId={String(user?._id || user?.id || '')}
+          isOnline={isOnline}
+          getLastSeen={getLastSeen}
+          onUserPress={(u: any) => {
+            const uid = String(u._id || u.id);
+            contactUser(uid);
+          }}
+          onUserLongPress={(u: any) => {
+            const uid = String(u._id || u.id);
+            const name = u.fullName || u.name || u.displayName || 'User';
+            Alert.alert(
+              name,
+              '',
+              [
+                { text: t('View Profile'), onPress: () => openUserProfile(uid) },
+                { text: t('Start Chat'), onPress: () => contactUser(uid) },
+                { text: t('Cancel'), style: 'cancel' },
+              ],
+              { cancelable: true }
+            );
+          }}
+          loading={loadingUsers}
+          theme={T}
+          isDark={isDark}
+        />
+      )}
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 30 }} />
