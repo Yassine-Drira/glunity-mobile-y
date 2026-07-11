@@ -35,6 +35,8 @@ export interface GlunityEvent {
   maxCapacity?: number;
   price?: number;
   currency?: string;
+  isCancelled?: boolean;
+  status?: string;
 }
 
 export interface HomeScreenProps {

@@ -120,7 +120,7 @@ export default function EventDetailScreen({ navigation, route }: Props) {
   };
 
   const [showCancelConfirm, setShowCancelConfirm] = React.useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [showCancelEventConfirm, setShowCancelEventConfirm] = React.useState(false);
 
   const handleCancel = () => setShowCancelConfirm(true);
   const closeCancel = () => setShowCancelConfirm(false);
@@ -135,10 +135,10 @@ export default function EventDetailScreen({ navigation, route }: Props) {
     return ownerId && String(ownerId) === String(user._id);
   }, [event, user]);
 
-  const handleDelete = () => setShowDeleteConfirm(true);
-  const closeDelete = () => setShowDeleteConfirm(false);
-  const confirmDelete = async () => {
-    closeDelete();
+  const handleCancelEventPress = () => setShowCancelEventConfirm(true);
+  const closeCancelEvent = () => setShowCancelEventConfirm(false);
+  const confirmCancelEvent = async () => {
+    closeCancelEvent();
     try {
       // If the current user is a pro/commercial profile or admin, call the remove endpoint.
       if (user?.profileType === 'pro_commerce' || user?.profileType === 'admin') {
@@ -150,8 +150,8 @@ export default function EventDetailScreen({ navigation, route }: Props) {
       navigation.navigate('Events');
     } catch (err: any) {
       // Surface error to the user
-      console.warn('Failed to delete event', err && err.message);
-      Alert.alert(t('Error'), err?.response?.data?.message || err?.message || t('Failed to delete event'));
+      console.warn('Failed to cancel event', err && err.message);
+      Alert.alert(t('Error'), err?.response?.data?.message || err?.message || t('Failed to cancel event'));
     }
   };
 
@@ -224,6 +224,12 @@ export default function EventDetailScreen({ navigation, route }: Props) {
     <AppScaffold
       title={t('Event')}
       activeTab="events"
+      onBack={() => navigation.goBack()}
+      rightElement={isOwner ? (
+        <TouchableOpacity onPress={handleCancelEventPress} style={{ padding: 8 }} activeOpacity={0.7}>
+          <Ionicons name="trash-outline" size={20} color={T.text} />
+        </TouchableOpacity>
+      ) : undefined}
       onPressHome={() => navigation.navigate('Home')}
       onPressEvents={() => navigation.navigate('Events')}
       onPressCenter={() => {}}
@@ -272,8 +278,23 @@ export default function EventDetailScreen({ navigation, route }: Props) {
                   <Ionicons name="location-outline" size={18} color={T.red} />
                   <View style={styles.infoCol}>
                     <Text style={[styles.infoTitle, { color: T.text }]}>{event.location}</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Map') } activeOpacity={0.7}>
-                      <Text style={[styles.infoSub, { color: T.textSub }]}>{t('View on Map')}</Text>
+                    <TouchableOpacity 
+                      onPress={() => {
+                        if (event.locationLat && event.locationLng) {
+                          navigation.navigate('Map', { 
+                            latitude: event.locationLat, 
+                            longitude: event.locationLng,
+                            title: event.title,
+                            address: event.location,
+                            fromViewOnMap: true
+                          });
+                        } else {
+                          navigation.navigate('Map');
+                        }
+                      }} 
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.infoSub, { color: T.green, textDecorationLine: 'underline' }]}>{t('View on Map')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -311,44 +332,42 @@ export default function EventDetailScreen({ navigation, route }: Props) {
                   <Text style={[styles.priceValue, { color: T.green }]}>{event.price ? `${event.price} ${event.currency || 'TND'}` : t('Free')}</Text>
                 </View>
 
-                {isFinished ? (
-                  <View style={[styles.joinBtnLargeCancel, { justifyContent: 'center', backgroundColor: '#F3F4F6' }] }>
-                    <Text style={[styles.joinBtnTextLarge, { color: '#6B7280' }]}>{t('Finished')}</Text>
-                  </View>
-                ) : !isJoined ? (
-                  <TouchableOpacity
-                    onPress={handleJoin}
-                    activeOpacity={0.8}
-                    style={[styles.joinBtnLarge, { backgroundColor: T.green }]}
-                    disabled={joining}
-                  >
-                    {joining ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.joinBtnTextLarge}>{t('Join Event')}</Text>
-                    )}
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    onPress={handleCancel}
-                    activeOpacity={0.8}
-                    style={[styles.joinBtnLargeCancel]}
-                    disabled={joining}
-                  >
-                    {joining ? (
-                      <ActivityIndicator color="#111827" />
-                    ) : (
-                      <Text style={[styles.joinBtnTextLarge, { color: '#111827' }]}>{t('Cancel')}</Text>
-                    )}
-                  </TouchableOpacity>
+                {!isOwner && (
+                  isFinished ? (
+                    <View style={[styles.joinBtnLargeCancel, { justifyContent: 'center', backgroundColor: '#F3F4F6' }] }>
+                      <Text style={[styles.joinBtnTextLarge, { color: '#6B7280' }]}>{t('Finished')}</Text>
+                    </View>
+                  ) : !isJoined ? (
+                    <TouchableOpacity
+                      onPress={handleJoin}
+                      activeOpacity={0.8}
+                      style={[styles.joinBtnLarge, { backgroundColor: T.green }]}
+                      disabled={joining}
+                    >
+                      {joining ? (
+                        <ActivityIndicator color="#fff" />
+                      ) : (
+                        <Text style={styles.joinBtnTextLarge}>{t('Join Event')}</Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={handleCancel}
+                      activeOpacity={0.8}
+                      style={[styles.joinBtnLargeCancel]}
+                      disabled={joining}
+                    >
+                      {joining ? (
+                        <ActivityIndicator color="#111827" />
+                      ) : (
+                        <Text style={[styles.joinBtnTextLarge, { color: '#111827' }]}>{t('Cancel')}</Text>
+                      )}
+                    </TouchableOpacity>
+                  )
                 )}
               </View>
 
-              {isOwner && (
-                <TouchableOpacity onPress={handleDelete} activeOpacity={0.85} style={styles.deleteBtnCentered}>
-                  <Text style={styles.deleteBtnText}>{t('Delete Event')}</Text>
-                </TouchableOpacity>
-              )}
+
             </View>
           </View>
         ) : (
@@ -382,27 +401,27 @@ export default function EventDetailScreen({ navigation, route }: Props) {
             </View>
           </View>
         </Modal>
-        {/** Delete event confirmation modal */}
+        {/** Cancel event confirmation modal */}
         <Modal
-          visible={showDeleteConfirm}
+          visible={showCancelEventConfirm}
           transparent
           animationType="fade"
-          onRequestClose={closeDelete}
+          onRequestClose={closeCancelEvent}
         >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 }}>
             <View style={{ backgroundColor: T.surface, borderRadius: 14, padding: 18 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: T.text, marginBottom: 8 }}>{t('Delete event')}</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: T.text, marginBottom: 8 }}>{t('Cancel Event')}</Text>
               <Text style={{ fontSize: 14, color: T.textSub, lineHeight: 20, marginBottom: 18 }}>
-                {t('Are you sure you want to delete this event? This will notify all attendees that the event was cancelled.')}
+                {t('Are you sure you want to cancel this event?')}
               </Text>
 
               <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'flex-end', gap: 10 }}>
-                <Pressable onPress={closeDelete} style={({ pressed }) => ({ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: T.border, backgroundColor: pressed ? T.surfaceAlt : 'transparent' })}>
+                <Pressable onPress={closeCancelEvent} style={({ pressed }) => ({ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: T.border, backgroundColor: pressed ? T.surfaceAlt : 'transparent' })}>
                   <Text style={{ color: T.text, fontWeight: '600' }}>{t('Keep')}</Text>
                 </Pressable>
 
-                <Pressable onPress={confirmDelete} style={({ pressed }) => ({ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: pressed ? '#DC2626' : '#EF4444' })}>
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{t('Delete event')}</Text>
+                <Pressable onPress={confirmCancelEvent} style={({ pressed }) => ({ paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: pressed ? '#DC2626' : '#EF4444' })}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{t('Cancel Event')}</Text>
                 </Pressable>
               </View>
             </View>

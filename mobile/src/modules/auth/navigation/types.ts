@@ -13,7 +13,7 @@ export type AuthStackParamList = {
 // ── App (authenticated) stack ─────────────────────────────────────────────────
 export type AppStackParamList = {
   Home:            undefined;
-  Map:             undefined;
+  Map:             { latitude?: number; longitude?: number; title?: string; address?: string; fromViewOnMap?: boolean } | undefined;
   Recipes:         undefined;
   RecipeDetail:    { recipeId?: string; initialRecipe?: any };
   Profile:         { userId?: string } | undefined;

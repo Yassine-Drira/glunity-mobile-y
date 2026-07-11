@@ -38,6 +38,8 @@ const eventSchema = new Schema(
 			},
 		],
 		isPublished: { type: Boolean, default: true, index: true },
+		isCancelled: { type: Boolean, default: false, index: true },
+		status: { type: String, enum: ['active', 'cancelled'], default: 'active', index: true },
 		createdBy: { type: Types.ObjectId, ref: 'User' },
 		// Finished state: event has already happened but kept for a short retention window
 		isFinished: { type: Boolean, default: false, index: true },

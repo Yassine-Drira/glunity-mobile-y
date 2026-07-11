@@ -122,7 +122,7 @@ const eventsService = {
 		}
 
 		// Soft-remove: set isPublished false and record remover
-		const updated = await repo.findByIdAndUpdateRemoved(eventId, { removedBy: userId, removedAt: new Date(), isPublished: false });
+		const updated = await repo.findByIdAndUpdateRemoved(eventId, { removedBy: userId, removedAt: new Date(), isPublished: false, isCancelled: true, status: 'cancelled' });
 		if (!updated) throw AppError.notFound('Event');
 
 		// Notify all attendees about removal

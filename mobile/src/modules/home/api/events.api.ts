@@ -4,6 +4,7 @@ import type { GlunityEvent } from '../domain/home.types';
 interface RawEvent {
   id: string;
   title: string;
+  description?: string;
   imageUrl?: string;
   location?: string;
   date?: string;
@@ -16,6 +17,8 @@ interface RawEvent {
   attendees?: string[];
   locationLat?: number;
   locationLng?: number;
+  isCancelled?: boolean;
+  status?: string;
 }
 
 interface ListResponse {
@@ -28,6 +31,7 @@ function mapEvent(it: RawEvent): GlunityEvent {
   return {
     id: it.id,
     title: it.title,
+    description: it.description || '',
     imageUrl: it.imageUrl || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=400',
     location: it.location || '',
     date: it.date || it.startsAt || '',
@@ -40,6 +44,8 @@ function mapEvent(it: RawEvent): GlunityEvent {
     maxCapacity: it.maxCapacity || 0,
     locationLat: it.locationLat,
     locationLng: it.locationLng,
+    isCancelled: it.isCancelled || false,
+    status: it.status || 'active',
     onPress: () => {},
   } as any;
 }
@@ -68,6 +74,7 @@ export const eventsApi = {
     return {
       id: it.id,
       title: it.title,
+      description: it.description || '',
       imageUrl: it.imageUrl || '',
       createdBy: it.createdBy || it.created_by || undefined,
       location: it.location || '',
@@ -81,6 +88,8 @@ export const eventsApi = {
       locationLat: it.locationLat,
       locationLng: it.locationLng,
       maxCapacity: it.maxCapacity || 0,
+      isCancelled: it.isCancelled || false,
+      status: it.status || 'active',
       onPress: () => {},
     } as any;
   },
@@ -90,6 +99,7 @@ export const eventsApi = {
     return {
       id: it.id,
       title: it.title,
+      description: it.description || '',
       createdBy: it.createdBy || it.created_by || undefined,
       imageUrl: it.imageUrl || '',
       location: it.location || '',
@@ -103,6 +113,8 @@ export const eventsApi = {
       locationLat: it.locationLat,
       locationLng: it.locationLng,
       maxCapacity: it.maxCapacity || 0,
+      isCancelled: it.isCancelled || false,
+      status: it.status || 'active',
       onPress: () => {},
     } as any;
   },
@@ -112,6 +124,7 @@ export const eventsApi = {
     return {
       id: it.id,
       title: it.title,
+      description: it.description || '',
       createdBy: it.createdBy || it.created_by || undefined,
       imageUrl: it.imageUrl || '',
       location: it.location || '',
@@ -123,6 +136,8 @@ export const eventsApi = {
       locationLat: it.locationLat,
       locationLng: it.locationLng,
       maxCapacity: it.maxCapacity || 0,
+      isCancelled: it.isCancelled || false,
+      status: it.status || 'active',
       onPress: () => {},
     } as any;
   },
@@ -132,6 +147,7 @@ export const eventsApi = {
     return {
       id: it.id,
       title: it.title,
+      description: it.description || '',
       createdBy: it.createdBy || it.created_by || undefined,
       imageUrl: it.imageUrl || '',
       location: it.location || '',
@@ -143,6 +159,8 @@ export const eventsApi = {
       locationLat: it.locationLat,
       locationLng: it.locationLng,
       maxCapacity: it.maxCapacity || 0,
+      isCancelled: it.isCancelled || false,
+      status: it.status || 'active',
       onPress: () => {},
     } as any;
   },
@@ -152,6 +170,7 @@ export const eventsApi = {
     return {
       id: it.id,
       title: it.title,
+      description: it.description || '',
       createdBy: it.createdBy || it.created_by || undefined,
       imageUrl: it.imageUrl || '',
       location: it.location || '',
@@ -163,6 +182,8 @@ export const eventsApi = {
       locationLat: it.locationLat,
       locationLng: it.locationLng,
       maxCapacity: it.maxCapacity || 0,
+      isCancelled: it.isCancelled || false,
+      status: it.status || 'active',
       onPress: () => {},
     } as any;
   },
@@ -187,6 +208,7 @@ export const eventsApi = {
       id: it.id,
       createdBy: it.createdBy || it.created_by || undefined,
       title: it.title,
+      description: it.description || '',
       imageUrl: it.imageUrl || '',
       location: it.location?.name || '',
       date: it.startsAt || '',
@@ -199,6 +221,8 @@ export const eventsApi = {
       locationLat: it.location?.lat,
       locationLng: it.location?.lng,
       maxCapacity: it.maxCapacity || 0,
+      isCancelled: it.isCancelled || false,
+      status: it.status || 'active',
       onPress: () => {},
     } as any;
   },

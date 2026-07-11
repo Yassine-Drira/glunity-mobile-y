@@ -43,6 +43,8 @@ const createEventSchema = [
 	body('location.address').optional().isString().isLength({ max: 300 }),
 	body('location.city').optional().isString().isLength({ max: 80 }),
 	body('location.country').optional().isString().isLength({ max: 80 }),
+	body('location.lat').optional().isFloat().toFloat(),
+	body('location.lng').optional().isFloat().toFloat(),
 	body('maxCapacity').optional().isInt({ min: 0 }).toInt(),
 	body('price').optional().isFloat({ min: 0 }).toFloat(),
 ];
