@@ -15,12 +15,15 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useTheme } from '../context/theme.context';
-import AnimatedReanimated, { SlideInUp, SlideOutUp, useReducedMotion } from 'react-native-reanimated';
+import AnimatedReanimated, { SlideInDown, SlideOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import notificationsApi from '@/modules/notifications/api/notifications.api';
 import { useLanguage } from '../context/language.context';
 import { useSocket } from '../context/socket.context';
+
+let BlurView: any = null;
+try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
 
 const F = {
   regular:  'Poppins_400Regular',
@@ -60,7 +63,7 @@ export function AppHeader({
   searchIcon,
   subtitle,
 }: AppHeaderProps) {
-  const { theme: C } = useTheme();
+  const { theme: C, isDark } = useTheme();
   const { user } = useAuth();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
@@ -84,9 +87,10 @@ export function AppHeader({
 
   const [unreadCount, setUnreadCount] = React.useState(0);
   const prevUnreadCountRef = React.useRef(0);
+  const notifiedIdsRef = React.useRef(new Set<string>());
   const navigationRef = React.useRef(navigation);
 
-  const [activeToast, setActiveToast] = React.useState<{ title: string; body: string } | null>(null);
+  const [activeToast, setActiveToast] = React.useState<{ title: string; body: string; type?: string } | null>(null);
   const reducedMotion = useReducedMotion();
   const { socket } = useSocket();
 
@@ -132,7 +136,10 @@ export function AppHeader({
             const newNotifications = res.data.filter((n: any) => !n.isRead);
             if (newNotifications.length > 0) {
               const latestNotif = newNotifications[0];
-              setActiveToast({ title: latestNotif.title, body: latestNotif.body });
+              if (latestNotif.id && !notifiedIdsRef.current.has(latestNotif.id)) {
+                notifiedIdsRef.current.add(latestNotif.id);
+                setActiveToast({ title: latestNotif.title, body: latestNotif.body, type: latestNotif.type });
+              }
             }
           }
 
@@ -169,8 +176,9 @@ export function AppHeader({
       }
     };
 
-    const onNotification = (notif: { title?: string; body?: string; isRead?: boolean }) => {
+    const onNotification = (notif: { id?: string; title?: string; body?: string; isRead?: boolean; type?: string }) => {
       if (notif?.isRead) return;
+      if (notif?.id) notifiedIdsRef.current.add(notif.id);
 
       setUnreadCount((prev) => {
         const next = prev + 1;
@@ -182,6 +190,7 @@ export function AppHeader({
         setActiveToast({
           title: notif?.title || 'New Notification',
           body: notif?.body || '',
+          type: notif?.type || 'info',
         });
       }
     };
@@ -222,7 +231,7 @@ export function AppHeader({
         },
         // ── Main Tab Headers (Avatar + First Name left, Search + Bell right) ──
         mainLeft: {
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           alignItems: 'center',
         },
         avatarWrap: {
@@ -258,8 +267,7 @@ export function AppHeader({
           borderColor: C.bg,
         },
         profileInfo: {
-          marginLeft: isRTL ? 0 : 12,
-          marginRight: isRTL ? 12 : 0,
+          marginLeft: 12,
           justifyContent: 'center',
         },
         greetingText: {
@@ -280,7 +288,7 @@ export function AppHeader({
           textAlign: isRTL ? 'right' : 'left',
         },
         mainRight: {
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           alignItems: 'center',
           gap: 10,
         },
@@ -306,7 +314,7 @@ export function AppHeader({
         // ── Detail Screen Headers (Back Button + Title) ──
         detailRow: {
           flex: 1,
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           alignItems: 'center',
         },
         backBtn: {
@@ -318,8 +326,7 @@ export function AppHeader({
           justifyContent: 'center',
           borderWidth: 1,
           borderColor: C.border,
-          marginRight: isRTL ? 0 : 14,
-          marginLeft: isRTL ? 14 : 0,
+          marginRight: 14,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.04,
@@ -346,7 +353,7 @@ export function AppHeader({
         },
         detailRightSlot: {
           minWidth: 40,
-          alignItems: isRTL ? 'flex-start' : 'flex-end',
+          alignItems: 'flex-end',
           justifyContent: 'center',
         },
         detailRightBtn: {
@@ -366,86 +373,109 @@ export function AppHeader({
         },
         toastContainer: {
           position: 'absolute',
-          top: Platform.OS === 'ios' ? 50 : 20,
+          top: Platform.OS === 'ios' ? 55 : 20,
           left: 16,
           right: 16,
           zIndex: 9999,
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 6 },
-          shadowOpacity: 0.15,
-          shadowRadius: 10,
-          elevation: 8,
+          shadowOffset: { width: 0, height: 12 },
+          shadowOpacity: isDark ? 0.4 : 0.15,
+          shadowRadius: 16,
+          elevation: 10,
+        },
+        toastContentWrapper: {
+          borderRadius: 20,
+          overflow: 'hidden',
+          backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.95)',
+          borderWidth: 1,
+          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
         },
         toastContent: {
-          flexDirection: isRTL ? 'row-reverse' : 'row',
+          flexDirection: 'row',
           alignItems: 'center',
-          backgroundColor: C.surface || C.bg || '#FFFFFF',
-          borderRadius: 16,
-          padding: 12,
-          borderWidth: 1,
-          borderColor: C.border || C.divider || '#E0E0E0',
+          padding: 14,
         },
         toastIconBox: {
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: '#8BC34A',
+          width: 44,
+          height: 44,
+          borderRadius: 22,
           alignItems: 'center',
           justifyContent: 'center',
         },
         toastTitle: {
-          fontSize: 14,
+          fontSize: 15,
           fontFamily: F.bold,
           fontWeight: '700',
           color: C.text,
           textAlign: isRTL ? 'right' : 'left',
         },
         toastBody: {
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: F.regular,
           color: C.textMuted,
           marginTop: 2,
           textAlign: isRTL ? 'right' : 'left',
         },
       }),
-    [C, isRTL, roleColor]
+    [C, isRTL, roleColor, isDark]
   );
+
+  const getToastStyle = (type?: string) => {
+    switch (type) {
+      case 'achievement': return { color: '#F39C12', icon: 'award' };
+      case 'message':
+      case 'chat': return { color: '#3498DB', icon: 'message-circle' };
+      case 'event': return { color: '#9B59B6', icon: 'calendar' };
+      case 'social':
+      case 'like':
+      case 'comment': return { color: '#E74C3C', icon: 'heart' };
+      default: return { color: '#8BC34A', icon: 'bell' };
+    }
+  };
 
   return (
     <View style={s.wrap}>
-      {activeToast && (
-        <AnimatedReanimated.View
-          entering={reducedMotion ? undefined : SlideInUp.duration(300)}
-          exiting={reducedMotion ? undefined : SlideOutUp.duration(250)}
-          style={s.toastContainer}
-        >
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => {
-              setActiveToast(null);
-              navigationRef.current.navigate('Notifications');
-            }}
-            style={s.toastContent}
+      {activeToast && (() => {
+        const tStyle = getToastStyle(activeToast.type);
+        return (
+          <AnimatedReanimated.View
+            entering={reducedMotion ? undefined : SlideInDown.duration(400).springify().damping(18).stiffness(150)}
+            exiting={reducedMotion ? undefined : SlideOutUp.duration(300)}
+            style={s.toastContainer}
           >
-            <View style={s.toastIconBox}>
-              <Feather name="bell" size={18} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={s.toastTitle} numberOfLines={1}>{t(activeToast.title)}</Text>
-              <Text style={s.toastBody} numberOfLines={2}>{t(activeToast.body)}</Text>
-            </View>
-            <TouchableOpacity onPress={() => setActiveToast(null)} style={{ padding: 4 }}>
-              <Feather name="x" size={16} color={C.textMuted} />
+            <TouchableOpacity
+              activeOpacity={0.9}
+              onPress={() => {
+                setActiveToast(null);
+                navigationRef.current.navigate('Notifications');
+              }}
+              style={s.toastContentWrapper}
+            >
+              {BlurView && (
+                 <BlurView intensity={isDark ? 30 : 60} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+              )}
+              <View style={s.toastContent}>
+                <View style={[s.toastIconBox, { backgroundColor: tStyle.color + (isDark ? '25' : '15') }]}>
+                  <Feather name={tStyle.icon as any} size={20} color={tStyle.color} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={s.toastTitle} numberOfLines={1}>{t(activeToast.title)}</Text>
+                  <Text style={s.toastBody} numberOfLines={2}>{t(activeToast.body)}</Text>
+                </View>
+                <TouchableOpacity onPress={() => setActiveToast(null)} style={{ padding: 6, paddingLeft: 12 }}>
+                  <Feather name="x" size={18} color={C.textMuted} />
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </AnimatedReanimated.View>
-      )}
+          </AnimatedReanimated.View>
+        );
+      })()}
       <View style={s.row}>
         {onBack ? (
           // Detail screen header flow
           <View style={s.detailRow}>
             <TouchableOpacity style={s.backBtn} onPress={onBack} activeOpacity={0.7}>
-              <MaterialCommunityIcons name={isRTL ? "arrow-right" : "arrow-left"} size={20} color={C.text} />
+              <MaterialCommunityIcons name="arrow-left" size={20} color={C.text} />
             </TouchableOpacity>
 
             <View style={s.detailTitleWrap}>

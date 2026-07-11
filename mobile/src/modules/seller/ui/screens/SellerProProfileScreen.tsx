@@ -840,7 +840,7 @@ export default function SellerProProfileScreen({ navigation }: Props) {
             </View>
           </View>
 
-          <Text style={s.name}>{user?.fullName || 'Pro User'}</Text>
+          <Text style={s.name}>{user?.fullName || t('Pro User')}</Text>
 
           <View style={s.statsRow}>
             <View style={s.roleBadgePill}>

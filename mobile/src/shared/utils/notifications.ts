@@ -8,14 +8,11 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
     shouldSetBadge: false,
   }),
 });
 
-export async function registerForPushNotificationsAsync() {
+export async function registerForPushNotificationsAsync(pushEnabledStatus?: boolean) {
   if (Platform.OS === 'web') return null;
 
   if (!Device.isDevice) {
@@ -35,11 +32,15 @@ export async function registerForPushNotificationsAsync() {
       return null;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const Constants = require('expo-constants').default;
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants?.expoConfig?.extra?.eas?.projectId,
+    });
     const token = tokenData.data;
 
     // Save token to backend user profile (PATCH /api/users/me)
-    await http.patch('/users/me', { pushToken: token, pushEnabled: true });
+    const enabled = pushEnabledStatus !== undefined ? pushEnabledStatus : true;
+    await http.patch('/users/me', { pushToken: token, pushEnabled: enabled });
     console.log('[Push] Registered push token:', token);
     return token;
   } catch (error) {

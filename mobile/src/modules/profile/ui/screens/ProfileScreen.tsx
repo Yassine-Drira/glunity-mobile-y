@@ -880,7 +880,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
       width: '100%',
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       paddingHorizontal: 0,
     },
     stepItem: {
@@ -1341,7 +1341,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          <Text style={s.name}>{profileUser?.fullName || 'Anonymous'}</Text>
+          <Text style={s.name}>{profileUser?.fullName || t('Anonymous')}</Text>
           <View style={s.statsRow}>
             <View style={[s.roleBadgePill, isPro && { backgroundColor: T.redLight }]}>
               <Text style={[s.roleBadgeText, isPro && { color: T.red }]}>{roleName}</Text>

@@ -18,6 +18,9 @@ const messagingHttp = axios.create({
 
 // ── Request: attach access token ──────────────────────────────────────────────
 messagingHttp.interceptors.request.use(async (config) => {
+  if (config.url && !config.url.startsWith('/api')) {
+    config.url = `/api${config.url.startsWith('/') ? '' : '/'}${config.url}`;
+  }
   const token = await TokenStore.getAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
