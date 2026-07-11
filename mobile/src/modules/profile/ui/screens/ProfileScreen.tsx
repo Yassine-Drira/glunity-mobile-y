@@ -1298,7 +1298,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
           navigation.navigate('Profile');
         }
       }}
-      contentStyle={{ backgroundColor: T.bg }}
+      contentStyle={{ backgroundColor: T.bg, paddingBottom: 0 }}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}

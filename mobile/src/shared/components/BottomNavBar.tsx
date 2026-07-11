@@ -5,6 +5,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../context/theme.context';
 import { ScanFrameIcon } from './icons/ScanFrameIcon';
+import { InstaHomeIcon } from './icons/InstaHomeIcon';
+import { InstaReelsIcon } from './icons/InstaReelsIcon';
+import { InstaEventsIcon } from './icons/InstaEventsIcon';
+import { InstaProfileIcon } from './icons/InstaProfileIcon';
 
 type TabKey = 'home' | 'events' | 'reels' | 'community' | 'profile';
 
@@ -36,23 +40,19 @@ export function BottomNavBar({
   const styles = useMemo(() => StyleSheet.create({
     container: {
       position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
+      left: 16,
+      right: 16,
+      bottom: Math.max(insets.bottom, 16),
       backgroundColor: C.surface,
-      borderTopWidth: 0,
-      borderTopColor: 'transparent',
-      borderTopLeftRadius: 0,
-      borderTopRightRadius: 0,
-      paddingBottom: Math.max(insets.bottom, 12),
-      shadowColor: 'transparent',
-      shadowOpacity: 0,
-      shadowOffset: { width: 0, height: 0 },
-      shadowRadius: 0,
-      elevation: 0,
+      borderRadius: 32, // Smooth radius for both sides
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowOffset: { width: 0, height: 6 },
+      shadowRadius: 16,
+      elevation: 8,
     },
     bottomBar: {
-      height: 60,
+      height: 64,
       flexDirection: isRTL ? 'row-reverse' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
@@ -86,7 +86,7 @@ export function BottomNavBar({
     fabButton: {
       position: 'absolute',
       alignSelf: 'center',
-      top: -12,
+      top: -16,
       width: 60,
       height: 60,
       borderRadius: 30,
@@ -145,7 +145,7 @@ export function BottomNavBar({
           accessibilityState={{ selected: activeTab === 'home' }}
         >
           <View style={getIconFrameStyle('home')}>
-            <Feather name="home" size={22} color={getIconColor('home')} />
+            <InstaHomeIcon size={24} strokeWidth={2.4} color={getIconColor('home')} />
           </View>
           <Text style={getLabelStyle('home')} numberOfLines={1} allowFontScaling={false}>{t('Home')}</Text>
         </TouchableOpacity>
@@ -160,7 +160,7 @@ export function BottomNavBar({
           accessibilityState={{ selected: activeTab === 'events' }}
         >
           <View style={getIconFrameStyle('events')}>
-            <Feather name="calendar" size={22} color={getIconColor('events')} />
+            <InstaEventsIcon size={24} strokeWidth={2.4} color={getIconColor('events')} />
           </View>
           <Text style={getLabelStyle('events')} numberOfLines={1} allowFontScaling={false}>{t('Events')}</Text>
         </TouchableOpacity>
@@ -177,7 +177,7 @@ export function BottomNavBar({
           accessibilityState={{ selected: activeTab === 'reels' }}
         >
           <View style={[styles.iconFrame, activeTab === 'reels' ? styles.iconFrameActive : null]}>
-            <MaterialCommunityIcons name="movie-play-outline" size={24} color={activeTab === 'reels' ? C.green : C.textMuted} />
+            <InstaReelsIcon size={24} strokeWidth={2.4} color={activeTab === 'reels' ? C.green : C.textMuted} />
           </View>
           <Text style={[styles.navLabel, activeTab === 'reels' ? styles.navLabelActive : null]} numberOfLines={1} allowFontScaling={false}>{t('Reels')}</Text>
         </TouchableOpacity>
@@ -192,7 +192,7 @@ export function BottomNavBar({
           accessibilityState={{ selected: activeTab === 'profile' }}
         >
           <View style={getIconFrameStyle('profile')}>
-            <Feather name="user" size={22} color={getIconColor('profile')} />
+            <InstaProfileIcon size={24} strokeWidth={2.4} color={getIconColor('profile')} />
           </View>
           <Text style={getLabelStyle('profile')} numberOfLines={1} allowFontScaling={false}>{t('Profile')}</Text>
         </TouchableOpacity>

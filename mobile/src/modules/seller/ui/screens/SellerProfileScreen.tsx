@@ -326,10 +326,11 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
       paddingHorizontal: 4,
     },
     actionButton: {
-      width: (screenWidth - 72) / 3,
-      height: 91.78,
+      width: (screenWidth - 80) / 3,
+      height: 92,
       borderRadius: 16,
-      padding: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 10,
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: T.surface,
@@ -364,6 +365,44 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
     },
     actionMultiLineText: {
       alignItems: 'center',
+    },
+    dashboardBanner: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      alignItems: 'center',
+      backgroundColor: T.greenLight,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      marginBottom: 20,
+      marginHorizontal: 4,
+      borderWidth: 1.5,
+      borderColor: `${T.green}40`,
+    },
+    dashboardBannerIconBox: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      backgroundColor: T.green,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: isRTL ? 0 : 12,
+      marginLeft: isRTL ? 12 : 0,
+    },
+    dashboardBannerTexts: {
+      flex: 1,
+      alignItems: isRTL ? 'flex-end' : 'flex-start',
+    },
+    dashboardBannerTitle: {
+      fontSize: 12.5,
+      fontWeight: '700',
+      fontFamily: 'Poppins_700Bold',
+      color: T.text,
+    },
+    dashboardBannerSub: {
+      fontSize: 10.2,
+      fontFamily: 'Poppins_400Regular',
+      color: T.textMuted,
+      marginTop: 2,
     },
 
     // Customer Actions Row (Follow/Message)
@@ -841,7 +880,26 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
                <Text style={s.detailsText}>{currentSeller?.storeInfo?.phone || currentSeller?.phone || '+216 12 345 678'}</Text>
              </View>
            </View>
-         </View>
+          </View>
+ 
+        {/* ── Store Analytics Dashboard Banner ─────────────────────────────────── */}
+        {isOwnProfile && (
+          <TouchableOpacity
+            style={s.dashboardBanner}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('SellerStats')}
+            id="action-view-dashboard-banner"
+          >
+            <View style={s.dashboardBannerIconBox}>
+              <Feather name="bar-chart-2" size={20} color="#FFFFFF" />
+            </View>
+            <View style={s.dashboardBannerTexts}>
+              <Text style={s.dashboardBannerTitle}>{t('Store Analytics Dashboard')}</Text>
+              <Text style={s.dashboardBannerSub}>{t('Track profile views, menu statistics, and reviews')}</Text>
+            </View>
+            <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.green} />
+          </TouchableOpacity>
+        )}
 
         {/* ── Quick Action Grid or Follow/Message Buttons ────────────────────── */}
         {!isOwnProfile ? (
@@ -902,17 +960,20 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
               </View>
             </TouchableOpacity>
 
-            {/* Dashboard Stats Button */}
+            {/* Add Recipe Button */}
             <TouchableOpacity
-              style={[s.actionButton, s.whiteButton]}
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate('SellerStats')}
-              id="action-view-dashboard"
+              style={[s.actionButton, { backgroundColor: `${T.green}18` }]}
+              activeOpacity={0.75}
+              onPress={() => navigation.navigate('AddRecipe')}
+              id="action-add-recipe"
             >
               <View style={s.actionIconContainer}>
-                <Feather name="bar-chart-2" size={20} color={T.text} />
+                <MaterialCommunityIcons name="food-fork-drink" size={20} color={T.green} />
               </View>
-              <Text style={[s.actionText, { color: T.text }]}>{t('Dashboard')}</Text>
+              <View style={s.actionMultiLineText}>
+                <Text style={[s.actionText, { color: T.green, fontSize: 10.2 }]}>{t('Add')}</Text>
+                <Text style={[s.actionText, { color: T.green, fontSize: 10.2 }]}>{t('Recipe')}</Text>
+              </View>
             </TouchableOpacity>
           </View>
         )}

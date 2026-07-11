@@ -581,7 +581,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           });
           if (bestIdx !== -1) {
             const next = [...prev];
-            next[bestIdx] = { ...message, status: 'sent' };
+            next[bestIdx] = { ...message, status: 'sent', localId: next[bestIdx].id };
             return next;
           }
         }
@@ -875,7 +875,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
           }
           // Mark as confirmed so the subsequent message:new socket event skips it
           if (realId) confirmedIdsRef.current.add(realId);
-          return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent' } : m));
+          return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent', localId: tempId } : m));
         });
         try { messagingEvents.emit('message:new', serverMsg); } catch (e) { }
       } else {
@@ -934,7 +934,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
             return prev.filter((m) => m.id !== tempId);
           }
           if (realId) confirmedIdsRef.current.add(realId);
-          return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent' } : m));
+          return prev.map((m) => (m.id === tempId ? { ...serverMsg, status: 'sent', localId: tempId } : m));
         });
         try { messagingEvents.emit('message:new', serverMsg); } catch (e) { }
       } else {
@@ -979,6 +979,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
 
     const optimisticMsg = {
       id: tempId,
+      localId: tempId,
       content: textToSend,
       senderId: user?._id,
       senderName: user?.fullName,
@@ -1069,8 +1070,33 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       });
     };
 
-    // Trigger initial send
-    performSendEmit(textToSend, tempId);
+    socket.emit('message:send', payload, (res: any) => {
+      clearTimeout(timeout);
+      if (resolved) return;
+      resolved = true;
+
+      if (Platform.OS !== 'web') {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      }
+      if (res?.ok) {
+        const realId = String(res.data?.id || res.data?._id || '');
+        // Clear reply context now that the message was sent successfully
+        setReplyingTo(null);
+        setMessages((prev) => {
+          // handleNewMessage already swapped temp- with the real message — just remove the ghost temp
+          if (realId && prev.some(m => (m.id || m._id) === realId)) {
+            return prev.filter(m => m.id !== tempId);
+          }
+          // Socket event hasn't arrived yet — do the swap ourselves AND mark the ID
+          // as confirmed so that when message:new fires, it won't re-insert it.
+          if (realId) confirmedIdsRef.current.add(realId);
+          return prev.map(m => m.id === tempId ? { ...res.data, status: 'sent', localId: tempId } : m);
+        });
+        try { messagingEvents.emit('message:new', res.data); } catch (e) { }
+      } else {
+        setMessages((prev) => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
+      }
+    });
   }, [input, editingMsgId, socket, channel, user, t, scrollToEnd]);
 
   const handleRetrySend = useCallback((message: any) => {

@@ -11,6 +11,7 @@ import {
   Switch,
   Modal,
   Alert,
+  Platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -615,26 +616,41 @@ export default function AddProductScreen({ navigation, route }: Props) {
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      const isDirty = productName.trim() || category.trim() || price.trim() || description.trim();
+      const isDirty = isEditing
+        ? productName.trim() !== (productToEdit.name || '').trim() ||
+          category !== (productToEdit.category || '') ||
+          price !== (productToEdit.price?.toString() || '') ||
+          description.trim() !== (productToEdit.description || '').trim()
+        : productName.trim() || category.trim() || price.trim() || description.trim();
+
       if (!isDirty || isSubmitting || successModalVisible) {
         return;
       }
+
       e.preventDefault();
-      Alert.alert(
-        t('Discard draft?'),
-        t('You have unsaved changes. Are you sure you want to discard them and leave?'),
-        [
-          { text: t('Keep Editing'), style: 'cancel', onPress: () => {} },
-          {
-            text: t('Discard'),
-            style: 'destructive',
-            onPress: () => navigation.dispatch(e.data.action),
-          },
-        ]
-      );
+
+      if (Platform.OS === 'web') {
+        const leave = window.confirm(t('You have unsaved changes. Are you sure you want to discard them and leave?'));
+        if (leave) {
+          navigation.dispatch(e.data.action);
+        }
+      } else {
+        Alert.alert(
+          t('Discard draft?'),
+          t('You have unsaved changes. Are you sure you want to discard them and leave?'),
+          [
+            { text: t('Keep Editing'), style: 'cancel', onPress: () => {} },
+            {
+              text: t('Discard'),
+              style: 'destructive',
+              onPress: () => navigation.dispatch(e.data.action),
+            },
+          ]
+        );
+      }
     });
     return unsubscribe;
-  }, [navigation, productName, category, price, description, isSubmitting, successModalVisible]);
+  }, [navigation, productName, category, price, description, isSubmitting, successModalVisible, isEditing, productToEdit]);
 
   const handleDelete = () => {
     const performDelete = async () => {

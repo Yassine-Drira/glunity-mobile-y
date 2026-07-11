@@ -244,7 +244,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
     badgeText: { color: '#047857', fontWeight: '700', marginLeft: isRTL ? 0 : 6, marginRight: isRTL ? 6 : 0 },
     fab: {
       position: 'absolute',
-      bottom: 24,
+      bottom: 100 + insets.bottom,
       right: isRTL ? undefined : 20,
       left: isRTL ? 20 : undefined,
       height: 46,
@@ -324,7 +324,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
       showSearch
       onSearchPress={toggleSearch}
       searchIcon={searchOpen ? 'x' : 'search'}
-      contentStyle={{ backgroundColor: T.bg }}
+      contentStyle={{ backgroundColor: T.bg, paddingBottom: 0 }}
     >
       <View style={[styles.root, { backgroundColor: T.bg }] }>
         {/* FlatList header will render filter and will be sticky */}

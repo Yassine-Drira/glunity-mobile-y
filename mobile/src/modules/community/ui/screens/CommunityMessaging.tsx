@@ -1888,8 +1888,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
           <FlatList
             ref={chat.listRef}
             data={reversedMessages}
-            extraData={chat.playingId + '_' + chat.audioProgress + '_' + chat.audioBuffering + '_' + highlightedMsgId + '_' + chat.messages.length}
-            keyExtractor={(i) => String(i.id || i._id || Math.random())}
+            keyExtractor={(i) => String(i.localId || i.id || i._id || Math.random())}
             renderItem={renderItem}
             inverted={true}
             contentContainerStyle={[

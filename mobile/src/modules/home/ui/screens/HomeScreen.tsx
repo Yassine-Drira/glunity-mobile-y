@@ -578,7 +578,7 @@ export function HomeScreen({
       showSearch
       onSearchPress={toggleSearch}
       searchIcon={searchOpen ? 'x' : 'search'}
-      contentStyle={{ backgroundColor: T.bg }}
+      contentStyle={{ backgroundColor: T.bg, paddingBottom: 0 }}
     >
       <View style={[styles.root, { backgroundColor: T.bg }]}>
         <ScrollView

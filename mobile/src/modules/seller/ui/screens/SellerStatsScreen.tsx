@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
-import { Radius } from '@/shared/utils/theme';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '@/navigation/types';
@@ -18,873 +16,646 @@ import { AppScaffold } from '@/shared/components/AppScaffold';
 import { useFocusEffect } from '@react-navigation/native';
 import authApi, { SellerStats } from '../../../auth/api/auth.api';
 import { useLanguage } from '@/shared/context/language.context';
-
-// SVG components import
-import Svg, {
-  Path,
-  Circle,
-  Defs,
-  LinearGradient,
-  Stop,
-  Line,
-  Text as SvgText,
-} from 'react-native-svg';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line, Text as SvgText, Rect } from 'react-native-svg';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerStats'>;
-
 const DAY_LABELS_7 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-
 
 function buildAreaPath(values: number[], svgW: number, svgH: number, padLeft = 38, padRight = 16, padY = 18): { linePath: string; areaPath: string; points: [number, number][] } {
   if (!values || values.length === 0) return { linePath: '', areaPath: '', points: [] };
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const allEqual = min === max;
-  const range = max - min || 1;
+  const min = 0; const max = Math.max(...values);
+  const allEqual = max === 0; const range = max - min || 1;
   const stepX = (svgW - padLeft - padRight) / (values.length - 1);
   const points: [number, number][] = values.map((v, i) => {
     const x = padLeft + i * stepX;
-    const y = allEqual 
-      ? svgH / 2 
-      : padY + ((max - v) / range) * (svgH - padY * 2 - 12); // Reserve 12px at bottom for X labels
+    const y = allEqual
+      ? svgH - padY - 12
+      : padY + ((max - v) / range) * (svgH - padY * 2 - 12);
     return [x, y];
   });
-
   let linePath = `M ${points[0][0]},${points[0][1]}`;
   for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    const cpX = (prev[0] + curr[0]) / 2;
+    const prev = points[i - 1]; const curr = points[i]; const cpX = (prev[0] + curr[0]) / 2;
     linePath += ` C ${cpX},${prev[1]} ${cpX},${curr[1]} ${curr[0]},${curr[1]}`;
   }
-  const last = points[points.length - 1];
-  const first = points[0];
+  const last = points[points.length - 1]; const first = points[0];
   const areaPath = `${linePath} L ${last[0]},${svgH - padY - 12} L ${first[0]},${svgH - padY - 12} Z`;
-
   return { linePath, areaPath, points };
 }
 
 export default function SellerStatsScreen({ navigation }: Props) {
   const { user } = useAuth();
-  const { theme: T } = useTheme();
+  const { theme: T, isDark } = useTheme();
   const { width: windowWidth } = useWindowDimensions();
   const screenWidth = Math.min(windowWidth, 600);
   const { t, isRTL } = useLanguage();
   const [timeframe, setTimeframe] = useState<'7d' | '30d'>('7d');
-  const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
-
+  const [selectedPointIdx, setSelectedPointIdx] = useState<number | null>(null);
   const [statsData, setStatsData] = useState<SellerStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchStats = async () => {
-    try {
-      setLoading(true);
-      const res = await authApi.getSellerStats();
-      setStatsData(res);
-    } catch (err) {
-      console.error('Error fetching seller stats:', err);
-    } finally {
-      setLoading(false);
-    }
+    try { setLoading(true); const res = await authApi.getSellerStats(); setStatsData(res); }
+    catch (err) { console.error('Error fetching seller stats:', err); }
+    finally { setLoading(false); }
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      fetchStats();
-      return undefined;
-    }, [])
-  );
+  useFocusEffect(React.useCallback(() => { fetchStats(); return undefined; }, []));
 
-  const s = React.useMemo(() => StyleSheet.create({
-    safe: { flex: 1, backgroundColor: T.bg },
-    flex: { flex: 1 },
-    content: { paddingHorizontal: 20, paddingTop: 16 },
-    viewProfileBtn: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: T.surface,
-      borderRadius: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: T.border,
-      marginBottom: 20,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    viewProfileLeft: {
-      flexDirection: isRTL ? 'row-reverse' : 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    storeIconCircle: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: T.greenLight,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    viewProfileTitle: {
-      fontSize: 13.6,
-      fontWeight: '700',
-      fontFamily: 'Poppins_700Bold',
-      color: T.text,
-    },
-    viewProfileSubtitle: {
-      fontSize: 10.5,
-      color: T.textMuted,
-      fontFamily: 'Poppins_400Regular',
-      marginTop: 2,
-    },
-
-    // ── Stats Grid ──────────────────────────────────────────────────────────
-    statsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
-      gap: 12,
-      marginBottom: 24,
-    },
-    statCard: {
-      width: (screenWidth - 52) / 2,
-      borderRadius: 16,
-      backgroundColor: T.surface,
-      paddingVertical: 14,
-      paddingLeft: 18,
-      paddingRight: 14,
-      justifyContent: 'space-between',
-      borderWidth: 1,
-      borderColor: T.border,
-      position: 'relative',
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    cardIndicator: {
-      position: 'absolute',
-      left: 0,
-      top: 12,
-      bottom: 12,
-      width: 4,
-      borderTopRightRadius: 4,
-      borderBottomRightRadius: 4,
-    },
-    statCardWide: {
-      width: '100%',
-      borderRadius: 16,
-      backgroundColor: T.surface,
-      padding: 14,
-      borderWidth: 1,
-      borderColor: T.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-    statHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginBottom: 10,
-    },
-    iconWrapper: {
-      width: 30,
-      height: 30,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    statTitle: {
-      fontSize: 10,
-      fontWeight: '700',
-      fontFamily: 'Poppins_700Bold',
-      color: T.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    statValue: {
-      fontSize: 24,
-      fontWeight: '700',
-      fontFamily: 'Poppins_700Bold',
-      color: T.text,
-      marginTop: 4,
-    },
-    statMeta: {
-      fontSize: 9,
-      fontWeight: '500',
-      fontFamily: 'Poppins_500Medium',
-      color: T.textMuted,
-      marginTop: 2,
-    },
-
-    // ── Section Title ───────────────────────────────────────────────────────
-    sectionRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-      zIndex: 10,
-    },
-    sectionTitle: {
-      fontSize: 15,
-      fontWeight: '700',
-      fontFamily: 'Poppins_700Bold',
-      color: T.text,
-    },
-
-    // ── Timeframe dropdown ──────────────────────────────────────────────────
-    dropdownContainer: { position: 'relative', zIndex: 20 },
-    timeframeSelect: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: T.surface,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderWidth: 1,
-      borderColor: T.border,
-      gap: 4,
-    },
-    timeframeText: { fontSize: 10, fontFamily: 'Poppins_500Medium', color: T.text },
-    dropdownBox: {
-      position: 'absolute',
-      top: 32,
-      right: 0,
-      width: 110,
-      backgroundColor: T.surface,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: T.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-      elevation: 8,
-      zIndex: 30,
-    },
-    dropdownItem: { paddingVertical: 9, paddingHorizontal: 12 },
-    dropdownText: { fontSize: 11, color: T.textMuted, fontFamily: 'Poppins_500Medium' },
-
-    // ── Chart ───────────────────────────────────────────────────────────────
-    chartWrapper: {
-      backgroundColor: T.surface,
-      borderRadius: 20,
-      padding: 14,
-      marginBottom: 24,
-      borderWidth: 1,
-      borderColor: T.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.04,
-      shadowRadius: 6,
-      elevation: 2,
-    },
-    chartLegendRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginTop: 8,
-    },
-    chartLegendLabel: {
-      fontSize: 9,
-      color: T.textMuted,
-      fontFamily: 'Poppins_500Medium',
-      textAlign: 'center',
-      flex: 1,
-    },
-
-    // ── Rating distribution ─────────────────────────────────────────────────
-    ratingRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 6,
-      gap: 8,
-    },
-    ratingLabel: { fontSize: 10, color: T.textMuted, width: 14, textAlign: 'right' },
-    ratingBarBg: {
-      flex: 1,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: T.surfaceAlt,
-      overflow: 'hidden',
-    },
-    ratingBarFill: { height: 6, borderRadius: 3, backgroundColor: T.green },
-    ratingCount: { fontSize: 10, color: T.textMuted, width: 22, textAlign: 'right' },
-
-    // ── Categories ──────────────────────────────────────────────────────────
-    catRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 8,
-      gap: 8,
-    },
-    catBullet: {
-      width: 8, height: 8, borderRadius: 4,
-    },
-    catName: { flex: 1, fontSize: 11, color: T.text, fontFamily: 'Poppins_500Medium' },
-    catCount: { fontSize: 11, color: T.textMuted, fontFamily: 'Poppins_500Medium' },
-
-    // ── Insights ────────────────────────────────────────────────────────────
-    insightsList: { gap: 10 },
-    insightCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: T.surface,
-      borderRadius: Radius.lg,
-      padding: 12,
-      borderWidth: 1,
-      borderColor: T.border,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.03,
-      shadowRadius: 3,
-      elevation: 1,
-    },
-    insightIconBox: {
-      width: 38,
-      height: 38,
-      borderRadius: 10,
-      backgroundColor: T.surfaceAlt,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 12,
-    },
-    insightTexts: { flex: 1 },
-    insightLabel: { fontSize: 9, color: T.textMuted, marginBottom: 2 },
-    insightValue: {
-      fontSize: 12,
-      fontWeight: '700',
-      fontFamily: 'Poppins_700Bold',
-      color: T.text,
-    },
-    insightValueGreen: {
-      fontSize: 12,
-      fontWeight: '700',
-      fontFamily: 'Poppins_700Bold',
-      color: T.green,
-    },
-  }), [T, screenWidth]);
-
-  // ── Loading state ──────────────────────────────────────────────────────────
   if (loading && !statsData) {
     return (
-      <AppScaffold
-        title="Your visibility"
-        activeTab="profile"
-        onBack={() => navigation.goBack()}
-        onPressHome={() => navigation.navigate('Home')}
-        onPressEvents={() => navigation.navigate('Map')}
-        onPressCenter={() => {}}
-        onPressReels={() => navigation.navigate('ReelsFeed')}
-        onPressProfile={() => {
-          if (user?.profileType === 'pro_commerce') {
-            navigation.navigate('SellerProProfile');
-          } else {
-            navigation.navigate('Profile');
-          }
-        }}
-        contentStyle={{ backgroundColor: T.bg }}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: T.bg }}>
-          <ActivityIndicator size="large" color={T.green} />
+      <AppScaffold title={t('Store Analytics')} activeTab="profile" onBack={() => navigation.goBack()}
+        onPressHome={() => navigation.navigate('Home')} onPressEvents={() => navigation.navigate('Map')}
+        onPressCenter={() => {}} onPressReels={() => navigation.navigate('ReelsFeed')}
+        onPressProfile={() => { if (user?.profileType === 'pro_commerce') navigation.navigate('SellerProProfile'); else navigation.navigate('Profile'); }}
+        contentStyle={{ backgroundColor: T.bg }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: `${T.green}18`, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <ActivityIndicator size="large" color={T.green} />
+          </View>
+          <Text style={{ fontFamily: 'Poppins_600SemiBold', color: T.textMuted, fontSize: 13 }}>{t('Loading your analytics…')}</Text>
         </View>
       </AppScaffold>
     );
   }
 
-  // ── Derived data ──────────────────────────────────────────────────────────
-  const chartValues = timeframe === '7d'
-    ? (statsData?.chartData ?? [0, 0, 0, 0, 0, 0, 0])
-    : (statsData?.chartData30d ?? Array(30).fill(0));
-
-  const chartSvgW = screenWidth - 40;
-  const chartSvgH = 140;
-  const { linePath, areaPath, points: chartPoints } = buildAreaPath(chartValues, chartSvgW, chartSvgH, 38, 16, 18);
-
-  // Peak point
-  const maxVal = Math.max(...chartValues);
-  const minVal = Math.min(...chartValues);
-  const maxIdx = chartValues.indexOf(maxVal);
-  const peakPoint = chartPoints[maxIdx];
-
-  // Calculate Y-axis tick values and locations
-  const rangeVal = maxVal - minVal;
-  const padY = 18;
-  const padLeft = 38;
-  const padRight = 16;
+  const chartValues = timeframe === '7d' ? (statsData?.chartData ?? [0,0,0,0,0,0,0]) : (statsData?.chartData30d ?? Array(30).fill(0));
+  const chartSvgW = screenWidth - 40; const chartSvgH = 150;
+  const { linePath, areaPath, points: chartPoints } = buildAreaPath(chartValues, chartSvgW - 32, chartSvgH, 38, 16, 18);
+  const maxVal = Math.max(...chartValues); const maxIdx = chartValues.indexOf(maxVal);
+  const peakPoint = chartPoints[maxIdx]; const rangeVal = maxVal - Math.min(...chartValues);
+  const padY = 18; const padLeft = 38; const padRight = 16;
   const yLabels: { y: number; val: number }[] = [];
-
   if (rangeVal === 0) {
-    const baseVal = maxVal;
-    // 3 ticks: base + 2, base, base - 2 (clamped at 0)
-    const ticks = [baseVal + 2, baseVal, Math.max(0, baseVal - 2)];
-    // Make sure we have unique values if clamp makes them equal
-    const uniqueTicks = Array.from(new Set(ticks)).sort((a, b) => b - a);
-    uniqueTicks.forEach((val, i) => {
-      const frac = uniqueTicks.length > 1 ? i / (uniqueTicks.length - 1) : 0.5;
-      yLabels.push({
-        y: padY + frac * (chartSvgH - padY * 2 - 12),
-        val
-      });
-    });
+    [maxVal + 2, maxVal, Math.max(0, maxVal - 2)].forEach((val, i, arr) => yLabels.push({ y: padY + (i / (arr.length - 1)) * (chartSvgH - padY * 2 - 12), val }));
   } else {
-    // 4 ticks: max, 2/3, 1/3, min
-    const ticksCount = 4;
-    for (let i = 0; i < ticksCount; i++) {
-      const frac = i / (ticksCount - 1);
-      yLabels.push({
-        y: padY + frac * (chartSvgH - padY * 2 - 12),
-        val: Math.round(maxVal - frac * rangeVal)
-      });
-    }
+    for (let i = 0; i < 4; i++) yLabels.push({ y: padY + (i / 3) * (chartSvgH - padY * 2 - 12), val: Math.round(maxVal - (i / 3) * rangeVal) });
   }
 
-  // Views shown depend on timeframe
-  const viewsShown = timeframe === '7d'
-    ? (statsData?.views ?? 0)
-    : (statsData?.viewsLast30Days ?? 0);
-  const mapClicksShown = timeframe === '7d'
-    ? (statsData?.mapClicks ?? 0)
-    : (statsData?.mapClicksLast30Days ?? 0);
-
+  const viewsShown = timeframe === '7d' ? (statsData?.views ?? 0) : (statsData?.viewsLast30Days ?? 0);
+  const mapClicksShown = timeframe === '7d' ? (statsData?.mapClicks ?? 0) : (statsData?.mapClicksLast30Days ?? 0);
   const ratingDist = statsData?.ratingDistribution ?? { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   const totalRatings = Object.values(ratingDist).reduce((a, b) => a + b, 0);
-
-  const CAT_COLORS = [T.green, '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6'];
+  const xLabels7d = statsData?.chartLabels ?? DAY_LABELS_7;
+  const totalReelInteractions = (statsData?.reelsLikesCount ?? 0) + (statsData?.reelsCommentsCount ?? 0);
 
   const statCards = [
-    {
-      title: t('Views'),
-      value: loading ? '...' : viewsShown.toLocaleString(),
-      meta: timeframe === '7d' ? t('Last 7 days') : t('Last 30 days'),
-      icon: 'eye',
-      color: T.green,
-      bg: T.greenLight,
-    },
-    {
-      title: t('Map Clicks'),
-      value: loading ? '...' : mapClicksShown.toLocaleString(),
-      meta: t('Visits generated'),
-      icon: 'map-pin',
-      color: '#3B82F6',
-      bg: 'rgba(59, 130, 246, 0.12)',
-    },
-    {
-      title: t('Products'),
-      value: loading ? '...' : (statsData?.productsCount ?? 0).toString(),
-      meta: `${statsData?.certifiedGFCount ?? 0} ${t('certified GF')}`,
-      icon: 'package',
-      color: '#F59E0B',
-      bg: 'rgba(245, 158, 11, 0.12)',
-    },
-    {
-      title: t('Avg Price'),
-      value: loading ? '...' : `${(statsData?.avgPrice ?? 0).toFixed(1)} TND`,
-      meta: t('Per product'),
-      icon: 'tag',
-      color: '#8B5CF6',
-      bg: 'rgba(139, 92, 246, 0.12)',
-    },
+    { title: t('Profile Views'), value: loading ? '—' : viewsShown.toLocaleString(), meta: timeframe === '7d' ? t('Last 7 days') : t('Last 30 days'), icon: 'eye' as const, color: T.green, bg: `${T.green}15` },
+    { title: t('Map Clicks'), value: loading ? '—' : mapClicksShown.toLocaleString(), meta: t('Directions requested'), icon: 'map-pin' as const, color: T.green, bg: `${T.green}12` },
+    { title: t('Products'), value: loading ? '—' : (statsData?.productsCount ?? 0).toString(), meta: `${statsData?.certifiedGFCount ?? 0} ${t('GF certified')}`, icon: 'package' as const, color: T.green, bg: `${T.green}12` },
+    { title: t('Avg Price'), value: loading ? '—' : `${(statsData?.avgPrice ?? 0).toFixed(1)} TND`, meta: t('Per product'), icon: 'tag' as const, color: T.green, bg: `${T.green}12` },
   ];
 
-  const timeframeLabel = timeframe === '7d' ? t('Last 7 days') : t('Last 30 days');
-  const xLabels7d = statsData?.chartLabels ?? DAY_LABELS_7;
-  const xLabels = timeframe === '7d'
-    ? xLabels7d
-    : ['1', '5', '10', '15', '20', '25', '30'];
+  const C = { card: { backgroundColor: T.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 } };
 
   return (
-    <AppScaffold
-      title="Your visibility"
-      activeTab="profile"
-      onBack={() => navigation.goBack()}
-      onPressHome={() => navigation.navigate('Home')}
-      onPressEvents={() => navigation.navigate('Events')}
-      onPressCenter={() => {}}
-      onPressReels={() => navigation.navigate('ReelsFeed')}
-      onPressProfile={() => {
-        if (user?.profileType === 'pro_commerce') {
-          navigation.navigate('SellerProProfile');
-        } else {
-          navigation.navigate('Profile');
-        }
-      }}
-      contentStyle={{ backgroundColor: T.bg }}
-    >
-      <ScrollView
-        style={s.flex}
-        contentContainerStyle={s.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <TouchableOpacity
-          style={s.viewProfileBtn}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate('SellerProfile', { sellerId: user?._id })}
-          id="btn-stats-view-profile"
-        >
-          <View style={s.viewProfileLeft}>
-            <View style={s.storeIconCircle}>
-              <Feather name="shopping-bag" size={16} color={T.green} />
-            </View>
-            <View>
-              <Text style={s.viewProfileTitle}>{t('View Details')}</Text>
-              <Text style={s.viewProfileSubtitle}>{t('See how customers view your profile')}</Text>
-            </View>
-          </View>
-          <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={18} color={T.textMuted} />
-        </TouchableOpacity>
+    <AppScaffold title={t('Store Analytics')} activeTab="profile" onBack={() => navigation.goBack()}
+      onPressHome={() => navigation.navigate('Home')} onPressEvents={() => navigation.navigate('Events')}
+      onPressCenter={() => {}} onPressReels={() => navigation.navigate('ReelsFeed')}
+      onPressProfile={() => { if (user?.profileType === 'pro_commerce') navigation.navigate('SellerProProfile'); else navigation.navigate('Profile'); }}
+      contentStyle={{ backgroundColor: T.bg }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
 
-        {/* ── KPI Cards ─────────────────────────────────────────────────── */}
-        <View style={s.statsGrid}>
-          {statCards.map((card, idx) => (
-            <View key={idx} style={s.statCard}>
-              <View style={[s.cardIndicator, { backgroundColor: card.color }]} />
-              <View style={s.statHeader}>
-                <View style={[s.iconWrapper, { backgroundColor: card.bg }]}>
-                  <Feather name={card.icon as any} size={15} color={card.color} />
-                </View>
-                <Text style={s.statTitle}>{card.title}</Text>
+        {/* ── Hero Banner ── */}
+        <View style={{ marginHorizontal: 20, marginTop: 16, marginBottom: 24, borderRadius: 24, overflow: 'hidden', backgroundColor: T.green, shadowColor: T.green, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 20, elevation: 10 }}>
+          <View style={{ position: 'absolute', top: -30, right: -20, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.10)' }} />
+          <View style={{ position: 'absolute', bottom: -40, right: 60, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+          <View style={{ padding: 20 }}>
+            <TouchableOpacity onPress={() => navigation.navigate('SellerProfile', { sellerId: user?._id })} activeOpacity={0.85} id="btn-stats-view-profile"
+              style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="shopping-bag" size={18} color="#FFF" />
               </View>
-              <Text style={s.statValue}>{card.value}</Text>
-              <Text style={s.statMeta}>{card.meta}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* ── Chart ──────────────────────────────────────────────────────── */}
-        <View style={s.sectionRow}>
-          <Text style={s.sectionTitle}>{t('Views over time')}</Text>
-          <View style={s.dropdownContainer}>
-            <TouchableOpacity
-              id="btn-timeframe-dropdown"
-              style={s.timeframeSelect}
-              activeOpacity={0.8}
-              onPress={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
-            >
-              <Text style={s.timeframeText}>{timeframeLabel}</Text>
-              <Feather name="chevron-down" size={11} color={T.textMuted} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 14, color: '#FFF' }}>{user?.storeInfo?.storeName || t('My Store')}</Text>
+                <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.78)' }}>{t('View public profile')} →</Text>
+              </View>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#FFF' }}>{t('View Details')}</Text>
+              </View>
             </TouchableOpacity>
-            {showTimeframeDropdown && (
-              <View style={s.dropdownBox}>
-                {(([['7d', t('Last 7 days')], ['30d', t('Last 30 days')]] as const)).map(([key, label]) => (
-                  <TouchableOpacity
-                    key={key}
-                    style={s.dropdownItem}
-                    onPress={() => { setTimeframe(key); setShowTimeframeDropdown(false); }}
-                  >
-                    <Text style={[s.dropdownText, timeframe === key && { color: T.green, fontWeight: '700' }]}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </View>
         </View>
 
-        <View style={s.chartWrapper}>
-          <Svg width={chartSvgW} height={chartSvgH} style={{ overflow: 'visible' }}>
-            <Defs>
-              <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor={T.green} stopOpacity={0.22} />
-                <Stop offset="100%" stopColor={T.green} stopOpacity={0.0} />
-              </LinearGradient>
-            </Defs>
-
-            {/* Grid lines & Y-axis labels */}
-            {yLabels.map((lbl, i) => (
-              <React.Fragment key={i}>
-                <Line
-                  x1={padLeft}
-                  y1={lbl.y}
-                  x2={chartSvgW - padRight}
-                  y2={lbl.y}
-                  stroke={T.border}
-                  strokeWidth={1}
-                  strokeDasharray="4 4"
-                />
-                <SvgText
-                  x={padLeft - 8}
-                  y={lbl.y}
-                  fill={T.textMuted}
-                  fontSize={8}
-                  fontFamily="Poppins_500Medium"
-                  textAnchor="end"
-                  alignmentBaseline="middle"
-                >
-                  {lbl.val}
-                </SvgText>
-              </React.Fragment>
+        {/* ── KPI Cards ── */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {statCards.map((card, idx) => (
+              <View key={idx} style={{ width: (screenWidth - 52) / 2, borderRadius: 18, backgroundColor: T.surface, padding: 16, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: card.bg, alignItems: 'center', justifyContent: 'center' }}>
+                    <Feather name={card.icon} size={15} color={card.color} />
+                  </View>
+                  <Text style={{ fontSize: 9, fontFamily: 'Poppins_700Bold', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1 }}>{card.title}</Text>
+                </View>
+                <Text style={{ fontSize: 24, fontFamily: 'Poppins_700Bold', color: T.text }}>{card.value}</Text>
+                <Text style={{ fontSize: 9, fontFamily: 'Poppins_400Regular', color: T.textMuted, marginTop: 2 }}>{card.meta}</Text>
+              </View>
             ))}
-
-            {/* Area fill */}
-            {areaPath ? <Path d={areaPath} fill="url(#grad)" /> : null}
-
-            {/* Line */}
-            {linePath ? (
-              <Path d={linePath} fill="none" stroke={T.green} strokeWidth={2.5} />
-            ) : null}
-
-            {/* Data Dots & Value Labels */}
-            {chartPoints.map((pt, idx) => {
-              const val = chartValues[idx];
-              const isPeak = idx === maxIdx;
-              const showLabel = timeframe === '7d' || (timeframe === '30d' && isPeak && val > 0);
-
-              return (
-                <React.Fragment key={idx}>
-                  <Circle
-                    cx={pt[0]}
-                    cy={pt[1]}
-                    r={isPeak ? 5 : 3.5}
-                    fill={isPeak ? T.surface : T.green}
-                    stroke={T.green}
-                    strokeWidth={isPeak ? 2.5 : 1.5}
-                  />
-                  {showLabel && (
-                    <SvgText
-                      x={pt[0]}
-                      y={pt[1] - 8}
-                      fill={isPeak ? T.green : T.text}
-                      fontSize={8}
-                      fontWeight={isPeak ? '700' : '500'}
-                      fontFamily={isPeak ? 'Poppins_700Bold' : 'Poppins_500Medium'}
-                      textAnchor="middle"
-                    >
-                      {val}
-                    </SvgText>
-                  )}
-                </React.Fragment>
-              );
-            })}
-
-            {/* X axis labels (aligned with data points inside Svg) */}
-            {timeframe === '7d' && xLabels7d.map((lbl, idx) => {
-              const pt = chartPoints[idx];
-              if (!pt) return null;
-              return (
-                <SvgText
-                  key={idx}
-                  x={pt[0]}
-                  y={chartSvgH - 4}
-                  fill={T.textMuted}
-                  fontSize={8}
-                  fontFamily="Poppins_500Medium"
-                  textAnchor="middle"
-                >
-                  {lbl}
-                </SvgText>
-              );
-            })}
-
-            {timeframe === '30d' && chartPoints.map((pt, idx) => {
-              const labelDays = [0, 4, 9, 14, 19, 24, 29];
-              if (!labelDays.includes(idx)) return null;
-              const dayNum = idx + 1;
-              return (
-                <SvgText
-                  key={idx}
-                  x={pt[0]}
-                  y={chartSvgH - 4}
-                  fill={T.textMuted}
-                  fontSize={8}
-                  fontFamily="Poppins_500Medium"
-                  textAnchor="middle"
-                >
-                  {dayNum}
-                </SvgText>
-              );
-            })}
-          </Svg>
+          </View>
         </View>
 
-        {/* ── Rating Overview ─────────────────────────────────────────────── */}
-        {(statsData?.totalReviews ?? 0) > 0 && (
-          <>
-            <View style={s.sectionRow}>
-              <Text style={s.sectionTitle}>{t('Customer reviews')}</Text>
-              <Text style={{ fontSize: 11, color: T.textMuted, fontFamily: 'Poppins_500Medium' }}>
-                {statsData?.totalReviews} {t('total')}
+        {/* ── Views Chart ── */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
+          {/* Header row */}
+          <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <View>
+              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 15, color: T.text }}>{t('Views Over Time')}</Text>
+              <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 10, color: T.textMuted, marginTop: 1 }}>
+                {timeframe === '7d' ? t('Last 7 days') : t('Last 30 days')}
               </Text>
             </View>
-            <View style={[s.statCardWide, { marginBottom: 24 }]}>
-              {/* Big rating + distribution */}
-              <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-                <View style={{ alignItems: 'center', minWidth: 56 }}>
-                  <Text style={{ fontSize: 38, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.green, lineHeight: 44 }}>
-                    {statsData?.rating ?? '—'}
+            <View style={{ flexDirection: 'row', backgroundColor: isDark ? '#FFFFFF0F' : '#0000000A', borderRadius: 10, padding: 3 }}>
+              {(['7d', '30d'] as const).map(key => (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => {
+                    setTimeframe(key);
+                    setSelectedPointIdx(null);
+                  }}
+                  style={{
+                    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8,
+                    backgroundColor: timeframe === key ? T.green : 'transparent',
+                  }}
+                >
+                  <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: timeframe === key ? '#FFF' : T.textMuted }}>
+                    {key === '7d' ? t('7 days') : t('30 days')}
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: 2 }}>
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <Feather
-                        key={star}
-                        name="star"
-                        size={10}
-                        color={parseFloat(statsData?.rating ?? '0') >= star ? '#F59E0B' : T.border}
-                      />
-                    ))}
-                  </View>
-                  <Text style={{ fontSize: 8, color: T.textMuted, marginTop: 2 }}>{statsData?.totalReviews} {t('reviews')}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  {[5, 4, 3, 2, 1].map(star => {
-                    const count = ratingDist[star as 1 | 2 | 3 | 4 | 5] ?? 0;
-                    const pct = totalRatings > 0 ? count / totalRatings : 0;
-                    return (
-                      <View key={star} style={s.ratingRow}>
-                        <Text style={s.ratingLabel}>{star}</Text>
-                        <View style={s.ratingBarBg}>
-                          <View style={[s.ratingBarFill, { width: `${pct * 100}%` }]} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Chart card */}
+          <View style={{
+            backgroundColor: T.surface,
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: T.border,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 3,
+            overflow: 'hidden',
+          }}>
+
+            <View style={{ padding: 18, paddingTop: 16 }}>
+
+              {/* Dynamic Scrubbing/Peak Info Header */}
+              {(() => {
+                const activeIdx = selectedPointIdx !== null ? selectedPointIdx : maxIdx;
+                const activeVal = chartValues[activeIdx] ?? 0;
+                const isPeak = activeIdx === maxIdx;
+                return (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 6,
+                      backgroundColor: isPeak ? `${T.green}14` : (isDark ? '#FFFFFF0A' : '#00000006'),
+                      borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7,
+                    }}>
+                      <Feather name={isPeak ? "trending-up" : "eye"} size={13} color={isPeak ? T.green : T.textMuted} />
+                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 11, color: isPeak ? T.green : T.text }}>
+                        {timeframe === '7d'
+                          ? (xLabels7d[activeIdx] ?? '')
+                          : `${t('Day')} ${activeIdx + 1}`
+                        }: {activeVal} {t('views')}
+                      </Text>
+                    </View>
+
+                    {selectedPointIdx !== null && selectedPointIdx !== maxIdx ? (
+                      <TouchableOpacity
+                        onPress={() => setSelectedPointIdx(null)}
+                        style={{
+                          backgroundColor: `${T.green}10`,
+                          borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
+                        }}
+                      >
+                        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 9, color: T.green }}>
+                          {t('Reset to Peak')}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      maxVal > 0 && (
+                        <View style={{
+                          flexDirection: 'row', alignItems: 'center', gap: 5,
+                          backgroundColor: `${T.green}14`,
+                          borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6,
+                        }}>
+                          <Feather name="zap" size={11} color={T.green} />
+                          <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 9, color: T.green, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                            {t('Peak Period')}
+                          </Text>
                         </View>
-                        <Text style={s.ratingCount}>{count}</Text>
+                      )
+                    )}
+                  </View>
+                );
+              })()}
+
+              {/* SVG Chart */}
+              {(() => {
+                const svgW = chartSvgW - 36;
+                const svgH = 200;
+                const svgPadLeft = 38;
+                const svgPadRight = 16;
+                const svgPadY = 22;
+                const { linePath: lp, areaPath: ap, points: pts } = buildAreaPath(chartValues, svgW, svgH, svgPadLeft, svgPadRight, svgPadY);
+
+                const maxV = Math.max(...chartValues);
+                const yMax = maxV || 4;
+                const yLbls: { y: number; val: number }[] = [];
+                for (let i = 0; i < 5; i++) {
+                  yLbls.push({
+                    y: svgPadY + (i / 4) * (svgH - svgPadY * 2 - 12),
+                    val: Math.round(yMax - (i / 4) * yMax)
+                  });
+                }
+
+                const activeIdx = selectedPointIdx !== null ? selectedPointIdx : maxIdx;
+                const activePt = pts[activeIdx];
+                const activeVal = chartValues[activeIdx];
+
+                return (
+                  <Svg width={svgW} height={svgH} style={{ overflow: 'visible' }}>
+                    <Defs>
+                      <LinearGradient id="chartGradFill" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0%" stopColor={T.green} stopOpacity={0.30} />
+                        <Stop offset="60%" stopColor={T.green} stopOpacity={0.06} />
+                        <Stop offset="100%" stopColor={T.green} stopOpacity={0.0} />
+                      </LinearGradient>
+                      <LinearGradient id="lineGlow" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0%" stopColor={T.green} stopOpacity={0.15} />
+                        <Stop offset="100%" stopColor={T.green} stopOpacity={0.0} />
+                      </LinearGradient>
+                    </Defs>
+
+                    {/* Horizontal Grid lines */}
+                    {yLbls.map((lbl, i) => (
+                      <React.Fragment key={i}>
+                        <Line
+                          x1={svgPadLeft} y1={lbl.y}
+                          x2={svgW - svgPadRight} y2={lbl.y}
+                          stroke={isDark ? '#FFFFFF10' : '#00000009'}
+                          strokeWidth={1}
+                          strokeDasharray={i === yLbls.length - 1 ? '0' : '4 5'}
+                        />
+                        <SvgText
+                          x={svgPadLeft - 6} y={lbl.y}
+                          fill={T.textMuted} fontSize={9}
+                          fontFamily="Poppins_500Medium"
+                          textAnchor="end"
+                          alignmentBaseline="middle"
+                        >
+                          {lbl.val}
+                        </SvgText>
+                      </React.Fragment>
+                    ))}
+
+                    {/* Volume columns backdrop silhouettes */}
+                    {pts.map((pt, idx) => {
+                      const barH = svgH - svgPadY - 12 - pt[1];
+                      if (barH <= 0) return null;
+                      return (
+                        <Rect
+                          key={`vol-${idx}`}
+                          x={pt[0] - 4}
+                          y={pt[1]}
+                          width={8}
+                          height={barH}
+                          rx={4}
+                          fill={idx === activeIdx ? T.green : (isDark ? '#FFFFFF' : '#000000')}
+                          fillOpacity={idx === activeIdx ? 0.16 : (isDark ? 0.04 : 0.03)}
+                          pointerEvents="none"
+                        />
+                      );
+                    })}
+
+                    {/* Gradient fill area */}
+                    {ap ? <Path d={ap} fill="url(#chartGradFill)" /> : null}
+
+                    {/* Selected scrubber vertical tracking line */}
+                    {activePt && (
+                      <Line
+                        x1={activePt[0]} y1={svgPadY - 4}
+                        x2={activePt[0]} y2={svgH - svgPadY - 12}
+                        stroke={T.green}
+                        strokeWidth={1.5}
+                        strokeDasharray="3 3"
+                        strokeOpacity={0.55}
+                        pointerEvents="none"
+                      />
+                    )}
+
+                    {/* Curved line glow drop-shadow */}
+                    {lp ? (
+                      <Path
+                        d={lp}
+                        fill="none"
+                        stroke={T.green}
+                        strokeWidth={6}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeOpacity={0.12}
+                        pointerEvents="none"
+                      />
+                    ) : null}
+
+                    {/* Curved line main stroke */}
+                    {lp ? (
+                      <Path
+                        d={lp}
+                        fill="none"
+                        stroke={T.green}
+                        strokeWidth={3}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        pointerEvents="none"
+                      />
+                    ) : null}
+
+                    {/* Data point markers */}
+                    {pts.map((pt, idx) => {
+                      const isSelected = idx === activeIdx;
+                      const isPeak = idx === maxIdx;
+                      return (
+                        <React.Fragment key={idx}>
+                          {isSelected ? (
+                            <>
+                              {/* Soft pulsing rings */}
+                              <Circle cx={pt[0]} cy={pt[1]} r={12} fill={T.green} fillOpacity={0.12} pointerEvents="none" />
+                              <Circle cx={pt[0]} cy={pt[1]} r={7.5} fill={T.green} fillOpacity={0.25} pointerEvents="none" />
+                              {/* Selected point dot */}
+                              <Circle cx={pt[0]} cy={pt[1]} r={4.5} fill={T.surface} stroke={T.green} strokeWidth={2.5} pointerEvents="none" />
+                            </>
+                          ) : (
+                            isPeak && maxV > 0 && (
+                              <Circle cx={pt[0]} cy={pt[1]} r={3.5} fill={T.green} fillOpacity={0.4} pointerEvents="none" />
+                            )
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+
+                    {/* X-Axis Labels */}
+                    {timeframe === '7d' && xLabels7d.map((lbl, idx) => {
+                      const pt = pts[idx];
+                      if (!pt) return null;
+                      const isSelected = idx === activeIdx;
+                      return (
+                        <React.Fragment key={idx}>
+                          {isSelected && (
+                            <Circle
+                              cx={pt[0]} cy={svgH}
+                              r={2}
+                              fill={T.green}
+                            />
+                          )}
+                          <SvgText
+                            x={pt[0]} y={svgH - 4}
+                            fill={isSelected ? T.green : T.textMuted}
+                            fontSize={9}
+                            fontFamily={isSelected ? 'Poppins_700Bold' : 'Poppins_500Medium'}
+                            fontWeight={isSelected ? '700' : '500'}
+                            textAnchor="middle"
+                          >
+                            {lbl}
+                          </SvgText>
+                        </React.Fragment>
+                      );
+                    })}
+
+                    {timeframe === '30d' && pts.map((pt, idx) => {
+                      if (![0, 6, 13, 20, 27, 29].includes(idx)) return null;
+                      const isSelected = idx === activeIdx;
+                      return (
+                        <React.Fragment key={idx}>
+                          {isSelected && (
+                            <Circle
+                              cx={pt[0]} cy={svgH}
+                              r={2}
+                              fill={T.green}
+                            />
+                          )}
+                          <SvgText
+                            key={idx}
+                            x={pt[0]} y={svgH - 4}
+                            fill={isSelected ? T.green : T.textMuted}
+                            fontSize={8}
+                            fontFamily={isSelected ? 'Poppins_700Bold' : 'Poppins_500Medium'}
+                            fontWeight={isSelected ? '700' : '500'}
+                            textAnchor="middle"
+                          >
+                            {idx + 1}
+                          </SvgText>
+                        </React.Fragment>
+                      );
+                    })}
+
+                    {/* Touch targets overlay: vertical column hot-zones */}
+                    {pts.map((pt, idx) => {
+                      const colW = (svgW - svgPadLeft - svgPadRight) / (chartValues.length - 1 || 1);
+                      return (
+                        <Circle
+                          key={`touch-${idx}`}
+                          cx={pt[0]}
+                          cy={pt[1]}
+                          r={Math.min(24, colW / 1.1)}
+                          fill="transparent"
+                          onPress={() => setSelectedPointIdx(idx)}
+                        />
+                      );
+                    })}
+                  </Svg>
+                );
+              })()}
+
+              {/* Bottom stats bar */}
+              <View style={{
+                flexDirection: 'row',
+                marginTop: 18,
+                borderTopWidth: 1,
+                borderTopColor: isDark ? '#FFFFFF0C' : '#0000000A',
+                paddingTop: 14,
+                gap: 0,
+              }}>
+                {[
+                  {
+                    label: t('Total'),
+                    value: chartValues.reduce((a, b) => a + b, 0).toLocaleString(),
+                    icon: 'bar-chart-2' as const,
+                  },
+                  {
+                    label: t('Daily Avg'),
+                    value: (chartValues.reduce((a, b) => a + b, 0) / (chartValues.length || 1)).toFixed(1),
+                    icon: 'activity' as const,
+                  },
+                  {
+                    label: t('Peak Day'),
+                    value: maxVal.toLocaleString(),
+                    icon: 'zap' as const,
+                  },
+                ].map((stat, i, arr) => (
+                  <React.Fragment key={i}>
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <View style={{
+                        width: 32, height: 32, borderRadius: 10,
+                        backgroundColor: `${T.green}14`,
+                        alignItems: 'center', justifyContent: 'center',
+                        marginBottom: 6,
+                      }}>
+                        <Feather name={stat.icon} size={14} color={T.green} />
+                      </View>
+                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 14, color: T.text }}>{stat.value}</Text>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 9, color: T.textMuted, marginTop: 2 }}>{stat.label}</Text>
+                    </View>
+                    {i < arr.length - 1 && (
+                      <View style={{ width: 1, backgroundColor: isDark ? '#FFFFFF0C' : '#0000000A', marginVertical: 4 }} />
+                    )}
+                  </React.Fragment>
+                ))}
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Rating Overview ── */}
+        {(statsData?.totalReviews ?? 0) > 0 && (
+          <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 15, color: T.text }}>{t('Customer Reviews')}</Text>
+              <View style={{ backgroundColor: `${T.green}15`, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: T.green }}>{statsData?.totalReviews} {t('total')}</Text>
+              </View>
+            </View>
+            <View style={C.card}>
+              <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
+                <View style={{ alignItems: 'center', minWidth: 64 }}>
+                  <Text style={{ fontSize: 44, fontFamily: 'Poppins_700Bold', color: T.green, lineHeight: 52 }}>{statsData?.rating ?? '—'}</Text>
+                  <View style={{ flexDirection: 'row', gap: 2 }}>
+                    {[1,2,3,4,5].map(star => <Feather key={star} name="star" size={12} color={parseFloat(statsData?.rating ?? '0') >= star ? T.green : T.border} />)}
+                  </View>
+                  <Text style={{ fontSize: 9, color: T.textMuted, marginTop: 4, fontFamily: 'Poppins_400Regular' }}>{statsData?.totalReviews} {t('reviews')}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 6 }}>
+                  {[5,4,3,2,1].map(star => {
+                    const count = ratingDist[star as 1|2|3|4|5] ?? 0; const pct = totalRatings > 0 ? count / totalRatings : 0;
+                    return (
+                      <View key={star} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 10, color: T.textMuted, width: 10, textAlign: 'right' }}>{star}</Text>
+                        <Feather name="star" size={9} color={T.green} />
+                        <View style={{ flex: 1, height: 7, borderRadius: 4, backgroundColor: isDark ? '#FFFFFF0F' : '#0000000A', overflow: 'hidden' }}>
+                          <View style={{ height: 7, borderRadius: 4, width: `${pct * 100}%`, backgroundColor: T.green }} />
+                        </View>
+                        <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 9, color: T.textMuted, width: 18, textAlign: 'right' }}>{count}</Text>
                       </View>
                     );
                   })}
                 </View>
               </View>
             </View>
-          </>
+          </View>
         )}
 
-        {/* ── Categories Breakdown ─────────────────────────────────────────── */}
+        {/* ── Product Categories ── */}
         {(statsData?.topCategories?.length ?? 0) > 0 && (
-          <>
-            <Text style={[s.sectionTitle, { marginBottom: 12 }]}>{t('Product categories')}</Text>
-            <View style={[s.statCardWide, { marginBottom: 24 }]}>
-              {statsData?.topCategories?.map((cat, i) => (
-                <View key={i} style={s.catRow}>
-                  <View style={[s.catBullet, { backgroundColor: CAT_COLORS[i % CAT_COLORS.length] }]} />
-                  <Text style={s.catName}>{cat.name}</Text>
-                  <Text style={s.catCount}>{cat.count} {t('products')}</Text>
-                </View>
-              ))}
+          <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
+            <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 15, color: T.text, marginBottom: 14 }}>{t('Product Categories')}</Text>
+            <View style={C.card}>
+              {statsData?.topCategories?.map((cat, i) => {
+                const total = statsData?.productsCount || 1; const pct = Math.round((cat.count / total) * 100);
+                return (
+                  <View key={i} style={{ marginBottom: i < (statsData.topCategories.length - 1) ? 14 : 0 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: T.green, marginRight: 8 }} />
+                      <Text style={{ flex: 1, fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: T.text }}>{cat.name}</Text>
+                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 11, color: T.green }}>{cat.count}</Text>
+                      <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 10, color: T.textMuted, marginLeft: 2 }}>{t('products')}</Text>
+                    </View>
+                    <View style={{ height: 6, borderRadius: 3, backgroundColor: isDark ? '#FFFFFF0F' : '#0000000A', overflow: 'hidden' }}>
+                      <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: T.green }} />
+                    </View>
+                  </View>
+                );
+              })}
             </View>
-          </>
+          </View>
         )}
 
-        {/* ── Reels Analytics ─────────────────────────────────────────────── */}
-        <Text style={[s.sectionTitle, { marginBottom: 12, marginTop: 12 }]}>{t('Reels Analytics')}</Text>
-        <View style={s.statsGrid}>
-          <View style={s.statCard}>
-            <View style={[s.cardIndicator, { backgroundColor: '#FF2D55' }]} />
-            <View style={s.statHeader}>
-              <View style={[s.iconWrapper, { backgroundColor: 'rgba(255, 45, 85, 0.12)' }]}>
-                <Feather name="film" size={15} color="#FF2D55" />
+        {/* ── Reels Analytics ── */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
+          <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 15, color: T.text, marginBottom: 14 }}>{t('Reels Analytics')}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+            {[
+              { label: t('Published'), value: String(statsData?.reelsCount ?? 0), icon: 'film' as const },
+              { label: t('Total Views'), value: (statsData?.reelsViewsCount ?? 0).toLocaleString(), icon: 'play' as const },
+              { label: t('Interactions'), value: totalReelInteractions.toLocaleString(), icon: 'heart' as const },
+              { label: t('Engagement'), value: `${statsData?.reelsEngagementRate ?? '0.0'}%`, icon: 'percent' as const },
+            ].map((item, i) => (
+              <View key={i} style={{ width: (screenWidth - 52) / 2, backgroundColor: T.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: `${T.green}14`, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
+                  <Feather name={item.icon} size={16} color={T.green} />
+                </View>
+                <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 22, color: T.text }}>{loading ? '—' : item.value}</Text>
+                <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 9, color: T.textMuted, marginTop: 2 }}>{item.label}</Text>
               </View>
-              <Text style={s.statTitle}>{t('Reels Published')}</Text>
-            </View>
-            <Text style={s.statValue}>{loading ? '...' : (statsData?.reelsCount ?? 0).toString()}</Text>
-            <Text style={s.statMeta}>{t('Total short videos')}</Text>
+            ))}
           </View>
-
-          <View style={s.statCard}>
-            <View style={[s.cardIndicator, { backgroundColor: '#F59E0B' }]} />
-            <View style={s.statHeader}>
-              <View style={[s.iconWrapper, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
-                <Feather name="play" size={15} color="#F59E0B" />
+          {totalReelInteractions > 0 && (
+            <View style={{ marginTop: 12, backgroundColor: T.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: T.border }}>
+              <View style={{ flexDirection: 'row', gap: 16 }}>
+                {[
+                  { icon: 'heart' as const, count: statsData?.reelsLikesCount ?? 0, label: t('Likes') },
+                  { icon: 'message-circle' as const, count: statsData?.reelsCommentsCount ?? 0, label: t('Comments') },
+                ].map((item, i, arr) => (
+                  <React.Fragment key={i}>
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: `${T.green}14`, alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name={item.icon} size={14} color={T.green} />
+                      </View>
+                      <View>
+                        <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 16, color: T.text }}>{item.count.toLocaleString()}</Text>
+                        <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 9, color: T.textMuted }}>{item.label}</Text>
+                      </View>
+                    </View>
+                    {i < arr.length - 1 && <View style={{ width: 1, backgroundColor: T.border }} />}
+                  </React.Fragment>
+                ))}
               </View>
-              <Text style={s.statTitle}>{t('Reel Views')}</Text>
             </View>
-            <Text style={s.statValue}>{loading ? '...' : (statsData?.reelsViewsCount ?? 0).toLocaleString()}</Text>
-            <Text style={s.statMeta}>{t('Across all videos')}</Text>
-          </View>
+          )}
+        </View>
 
-          <View style={s.statCard}>
-            <View style={[s.cardIndicator, { backgroundColor: '#3B82F6' }]} />
-            <View style={s.statHeader}>
-              <View style={[s.iconWrapper, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                <Feather name="heart" size={15} color="#3B82F6" />
+        {/* ── Insights ── */}
+        <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
+          <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 15, color: T.text, marginBottom: 14 }}>{t('Store Insights')}</Text>
+          <View style={{ gap: 10 }}>
+            {[
+              { icon: 'trending-up' as const, label: t('Most reviewed product'), value: loading ? '…' : (statsData?.mostViewedProduct ?? '—') },
+              { icon: 'calendar' as const, label: t('Peak interaction day'), value: loading ? '…' : (statsData?.topInteractionDay ?? '—') },
+              { icon: 'check-circle' as const, label: t('Gluten-free certified'), value: loading ? '…' : `${statsData?.certifiedGFCount ?? 0} / ${statsData?.productsCount ?? 0} ${t('products')}`, badge: (statsData?.certifiedGFCount ?? 0) > 0 ? '✓ GF' : undefined },
+              { icon: 'clock' as const, label: t('Member since'), value: loading ? '…' : (statsData?.memberSince ?? '—'), sub: !loading && (statsData?.accountAgeDays ?? 0) > 0 ? `${statsData?.accountAgeDays} ${t('days on Glunity')}` : undefined },
+              { icon: 'map-pin' as const, label: t('Map clicks (30d)'), value: loading ? '…' : (statsData?.mapClicksLast30Days ?? 0).toLocaleString() },
+            ].map((item: any, i) => (
+              <View key={i} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: T.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2, gap: 12 }}>
+                <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: `${T.green}14`, alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name={item.icon} size={18} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 10, color: T.textMuted, marginBottom: 2 }}>{item.label}</Text>
+                  <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 13, color: T.text }}>{item.value}</Text>
+                  {item.sub && <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 10, color: T.textMuted, marginTop: 1 }}>{item.sub}</Text>}
+                </View>
+                {item.badge && (
+                  <View style={{ backgroundColor: `${T.green}18`, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 9, color: T.green }}>{item.badge}</Text>
+                  </View>
+                )}
               </View>
-              <Text style={s.statTitle}>{t('Reel Interactions')}</Text>
-            </View>
-            <Text style={s.statValue}>
-              {loading ? '...' : `${(statsData?.reelsLikesCount ?? 0) + (statsData?.reelsCommentsCount ?? 0)}`}
-            </Text>
-            <Text style={s.statMeta}>{`${statsData?.reelsLikesCount ?? 0} likes • ${statsData?.reelsCommentsCount ?? 0} comments`}</Text>
-          </View>
-
-          <View style={s.statCard}>
-            <View style={[s.cardIndicator, { backgroundColor: T.green }]} />
-            <View style={s.statHeader}>
-              <View style={[s.iconWrapper, { backgroundColor: T.greenLight }]}>
-                <Feather name="percent" size={15} color={T.green} />
-              </View>
-              <Text style={s.statTitle}>{t('Engagement Rate')}</Text>
-            </View>
-            <Text style={s.statValue}>{loading ? '...' : `${statsData?.reelsEngagementRate ?? '0.0'}%`}</Text>
-            <Text style={s.statMeta}>{t('Likes + Comments / Views')}</Text>
+            ))}
           </View>
         </View>
 
-        {/* ── Insights ────────────────────────────────────────────────────── */}
-        <Text style={[s.sectionTitle, { marginBottom: 12 }]}>{t('Insights')}</Text>
-        <View style={s.insightsList}>
-
-          {/* Most reviewed product */}
-          <View style={s.insightCard}>
-            <View style={s.insightIconBox}>
-              <Feather name="trending-up" size={17} color={T.green} />
-            </View>
-            <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>{t('Most reviewed product')}</Text>
-              <Text style={s.insightValue}>{loading ? '...' : (statsData?.mostViewedProduct ?? '—')}</Text>
-            </View>
-          </View>
-
-          {/* Top interaction day */}
-          <View style={s.insightCard}>
-            <View style={s.insightIconBox}>
-              <Feather name="calendar" size={17} color={T.green} />
-            </View>
-            <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>{t('Peak interaction day')}</Text>
-              <Text style={s.insightValue}>{loading ? '...' : (statsData?.topInteractionDay ?? '—')}</Text>
-            </View>
-          </View>
-
-          {/* Certified GF */}
-          <View style={s.insightCard}>
-            <View style={s.insightIconBox}>
-              <Feather name="check-circle" size={17} color={T.green} />
-            </View>
-            <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>{t('Certified gluten-free products')}</Text>
-              <Text style={s.insightValue}>
-                {loading ? '...' : `${statsData?.certifiedGFCount ?? 0} / ${statsData?.productsCount ?? 0} ${t('products')}`}
-              </Text>
-            </View>
-            {!loading && (statsData?.certifiedGFCount ?? 0) > 0 && (
-              <Text style={[s.insightValueGreen, { marginLeft: 6 }]}>✓</Text>
-            )}
-          </View>
-
-          {/* Member since */}
-          <View style={s.insightCard}>
-            <View style={s.insightIconBox}>
-              <Feather name="clock" size={17} color={T.green} />
-            </View>
-            <View style={s.insightTexts}>
-              <Text style={s.insightLabel}>{t('Member since')}</Text>
-              <Text style={s.insightValue}>
-                {loading ? '...' : statsData?.memberSince ?? '—'}
-              </Text>
-              {!loading && (statsData?.accountAgeDays ?? 0) > 0 && (
-                <Text style={s.insightLabel}>{statsData?.accountAgeDays} {t('days on Glunity')}</Text>
-              )}
-            </View>
-          </View>
-
-        </View>
-
-        <View style={{ height: 110 }} />
       </ScrollView>
     </AppScaffold>
   );

@@ -24,6 +24,7 @@ export type AppStackParamList = {
   SellerProfile:   { sellerId?: string } | undefined;
   SellerProProfile: undefined;
   AddProduct:      { product?: any } | undefined;
+  AddRecipe:       { recipe?: any } | undefined;
   SellerStats:     undefined;
   ProductDetail:   { product?: any; productId?: string };
   ProductsMarket:  { sellerId?: string } | undefined;
