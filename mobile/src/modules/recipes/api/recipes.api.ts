@@ -61,6 +61,20 @@ const recipesApi = {
     );
     return data.data.recipe;
   },
+
+  async create(dto: Partial<Recipe>) {
+    const { data } = await http.post<{ success: boolean; data: { recipe: Recipe } }>('/recipes', dto);
+    return data.data.recipe;
+  },
+
+  async update(recipeId: string, dto: Partial<Recipe>) {
+    const { data } = await http.put<{ success: boolean; data: { recipe: Recipe } }>(`/recipes/${recipeId}`, dto);
+    return data.data.recipe;
+  },
+
+  async remove(recipeId: string) {
+    await http.delete(`/recipes/${recipeId}`);
+  },
 };
 
 export default recipesApi;

@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -182,17 +183,56 @@ type WeekSchedule = Record<string, DaySchedule>;
 function parseSchedule(str: string): WeekSchedule {
   const s: WeekSchedule = {};
   DAYS.forEach(d => s[d] = { active: false, open: '08:00', close: '18:00' });
-  // If it's empty, default Mon-Fri open
   if (!str) {
     ['Mon','Tue','Wed','Thu','Fri'].forEach(d => s[d].active = true);
     return s;
   }
-  // Try to naively see if a day is mentioned, else leave fallback
-  DAYS.forEach(d => {
-    if (str.includes(d) || str.toLowerCase().includes('7 day') || str.toLowerCase().includes('everyday')) {
-      s[d].active = true;
+
+  const clean = str.trim();
+
+  // "Open 7 days • 08:00 - 18:00"
+  if (clean.toLowerCase().includes('7 days') || clean.toLowerCase().includes('everyday')) {
+    const match = clean.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+    const open = match ? match[1] : '08:00';
+    const close = match ? match[2] : '18:00';
+    DAYS.forEach(d => { s[d] = { active: true, open, close }; });
+    return s;
+  }
+
+  // "Open Mon-Fri • 08:00 - 18:00"
+  if (clean.toLowerCase().includes('mon-fri')) {
+    const match = clean.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+    const open = match ? match[1] : '08:00';
+    const close = match ? match[2] : '18:00';
+    ['Mon','Tue','Wed','Thu','Fri'].forEach(d => { s[d] = { active: true, open, close }; });
+    return s;
+  }
+
+  // "Open Mon-Sat • 08:00 - 18:00"
+  if (clean.toLowerCase().includes('mon-sat')) {
+    const match = clean.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+    const open = match ? match[1] : '08:00';
+    const close = match ? match[2] : '18:00';
+    ['Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d => { s[d] = { active: true, open, close }; });
+    return s;
+  }
+
+  // Mixed individual list: "Tue 08:00-18:00, Thu 08:00-18:00"
+  const parts = clean.split(',');
+  parts.forEach(part => {
+    const trimmed = part.trim();
+    const match = trimmed.match(/^([A-Za-z]{3})\s+(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
+    if (match) {
+      const day = match[1];
+      const open = match[2];
+      const close = match[3];
+      const matchedDay = DAYS.find(d => d.toLowerCase() === day.toLowerCase());
+      if (matchedDay) {
+        s[matchedDay] = { active: true, open, close };
+      }
     }
   });
+
   return s;
 }
 
@@ -213,9 +253,67 @@ function serializeSchedule(sched: WeekSchedule): string {
 
 
 // ── EditStoreScreen ─────────────────────────────────────────────────────────────
+// ── Time Wheel Picker ─────────────────────────────────────────────────────────
+const HOURS   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+const ITEM_H  = 44;
+
+function TimeWheel({ values, selected, onSelect, accentColor }: {
+  values: string[]; selected: string; onSelect: (v: string) => void; accentColor: string;
+}) {
+  const { theme: T } = useTheme();
+  const listRef = React.useRef<any>(null);
+  const idx = values.indexOf(selected);
+  const safeIdx = idx >= 0 ? idx : 0;
+
+  return (
+    <View style={{ height: ITEM_H * 3, overflow: 'hidden', position: 'relative' }}>
+      {/* Top + bottom fades */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H, backgroundColor: T.surface, opacity: 0.85, zIndex: 1 }} pointerEvents="none" />
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H, backgroundColor: T.surface, opacity: 0.85, zIndex: 1 }} pointerEvents="none" />
+      {/* Selection highlight */}
+      <View style={{ position: 'absolute', top: ITEM_H, left: 0, right: 0, height: ITEM_H, borderRadius: 12, backgroundColor: `${accentColor}18`, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: `${accentColor}40`, zIndex: 0 }} pointerEvents="none" />
+      <FlatList
+        ref={listRef}
+        data={values}
+        keyExtractor={v => v}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        decelerationRate="fast"
+        contentContainerStyle={{ paddingVertical: ITEM_H }}
+        getItemLayout={(_, i) => ({ length: ITEM_H, offset: ITEM_H * i, index: i })}
+        onLayout={() => {
+          setTimeout(() => {
+            try {
+              listRef.current?.scrollToIndex({ index: safeIdx, animated: false, viewPosition: 0.5 });
+            } catch (e) {}
+          }, 80);
+        }}
+        onScroll={e => {
+          const y = e.nativeEvent.contentOffset.y;
+          const index = Math.round(y / ITEM_H);
+          const clamped = Math.max(0, Math.min(index, values.length - 1));
+          const val = values[clamped];
+          if (val && val !== selected) {
+            onSelect(val);
+          }
+        }}
+        scrollEventThrottle={16}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => onSelect(item)} activeOpacity={0.7} style={{ height: ITEM_H, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: item === selected ? 22 : 16, fontFamily: item === selected ? 'Poppins_700Bold' : 'Poppins_400Regular', color: item === selected ? accentColor : T.textMuted }}>
+              {item}
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+}
+
 export default function EditStoreScreen({ navigation, route }: Props) {
   const { user, updateProfile } = useAuth();
-  const { theme: T } = useTheme();
+  const { theme: T, isDark } = useTheme();
   const { language, setLanguage, t, isRTL } = useLanguage();
   const isSeller = user?.profileType === 'pro_commerce';
 
@@ -274,9 +372,18 @@ export default function EditStoreScreen({ navigation, route }: Props) {
     }
   }
 
-  // Time Picker State
+  // Schedule Builder state
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [schedule, setSchedule] = useState<WeekSchedule>(() => parseSchedule(storeInfo.operatingHours ?? ''));
+  // Which day is expanded for the wheel picker
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+
+  const openTimePicker = () => {
+    // Sync schedule builder list state with the latest string input
+    setSchedule(parseSchedule(operatingHours));
+    setExpandedDay(null);
+    setShowTimePicker(true);
+  };
 
   const successScale = useRef(new Animated.Value(0.6)).current;
   const successOpacity = useRef(new Animated.Value(0)).current;
@@ -341,8 +448,8 @@ export default function EditStoreScreen({ navigation, route }: Props) {
     mapModalConfirmBtn: { backgroundColor: T.green, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
     mapModalConfirmText: { color: '#FFF', fontFamily: 'Poppins_600SemiBold', fontSize: 13 },
 
-    schedModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    schedModalBody: { backgroundColor: T.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, maxHeight: '80%' },
+    schedModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+    schedModalBody: { backgroundColor: T.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 44, height: '80%' },
     schedRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: T.border },
     schedDayText: { flex: 1, fontSize: 15, fontFamily: 'Poppins_600SemiBold', color: T.text, textAlign: isRTL ? 'right' : 'left' },
     schedTimeBox: { backgroundColor: T.surfaceAlt, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: T.border, minWidth: 64, alignItems: 'center' },
@@ -466,42 +573,180 @@ export default function EditStoreScreen({ navigation, route }: Props) {
             hint="You can either upload an image from your device or paste a web URL link"
           />
 
+          {/* ── Working Hours — Premium redesign ─────────────────────── */}
           <View style={{ marginBottom: 20 }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.textMuted, marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase', textAlign: isRTL ? 'right' : 'left', width: '100%' }}>{t("Working Hours")}</Text>
-            <View style={{ borderWidth: 1.5, borderColor: T.border, borderRadius: 16, backgroundColor: T.surface, overflow: 'hidden' }}>
-              <TextInput 
-                value={operatingHours} 
-                onChangeText={setOperatingHours} 
-                placeholder={t("e.g. Open today • 08:00 - 19:00")} 
-                placeholderTextColor={T.textMuted} 
-                autoCapitalize="none" 
-                style={{ 
-                  fontSize: 15, color: T.text, fontFamily: 'Poppins_400Regular', 
-                  paddingHorizontal: 16, 
-                  paddingLeft: isRTL ? 120 : 16, 
-                  paddingRight: isRTL ? 16 : 120,
-                  textAlign: isRTL ? 'right' : 'left',
-                  paddingVertical: 16 
-                }} 
-              />
-              <TouchableOpacity 
-                onPress={() => setShowTimePicker(true)} 
-                style={{ 
-                  position: 'absolute', 
-                  left: isRTL ? 8 : undefined, 
-                  right: isRTL ? undefined : 8, 
-                  top: 8, bottom: 8, 
-                  backgroundColor: `#F59E0B22`, 
-                  borderRadius: 10, paddingHorizontal: 12, 
-                  alignItems: 'center', justifyContent: 'center', 
-                  flexDirection: isRTL ? 'row-reverse' : 'row', gap: 4 
+            <Text style={{
+              fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold',
+              color: T.textMuted, marginBottom: 8, letterSpacing: 0.8,
+              textTransform: 'uppercase', textAlign: isRTL ? 'right' : 'left',
+            }}>
+              {t('Working Hours')}
+            </Text>
+
+            {/* Premium card */}
+            <View style={{
+              borderRadius: 18,
+              backgroundColor: T.surface,
+              shadowColor: T.green,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.10,
+              shadowRadius: 12,
+              elevation: 3,
+              overflow: 'hidden',
+              borderWidth: 1.5,
+              borderColor: operatingHours ? `${T.green}33` : T.border,
+            }}>
+
+              {/* Card header */}
+              <View style={{
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingTop: 14,
+                paddingBottom: 12,
+                borderBottomWidth: StyleSheet.hairlineWidth,
+                borderBottomColor: T.border,
+                gap: 10,
+              }}>
+                <View style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  backgroundColor: `${T.green}18`,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Feather name="clock" size={18} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: 14, fontFamily: 'Poppins_600SemiBold',
+                    color: T.text,
+                  }}>
+                    {t('Business Hours')}
+                  </Text>
+                  <Text style={{
+                    fontSize: 11, fontFamily: 'Poppins_400Regular',
+                    color: T.textMuted, marginTop: 1,
+                  }}>
+                    {operatingHours
+                      ? t('Your schedule is configured')
+                      : t('Not configured yet')}
+                  </Text>
+                </View>
+                {/* Status pill */}
+                <View style={{
+                  paddingHorizontal: 10, paddingVertical: 4,
+                  borderRadius: 20,
+                  backgroundColor: operatingHours ? '#22C55E18' : `${T.green}18`,
+                }}>
+                  <Text style={{
+                    fontSize: 10, fontFamily: 'Poppins_700Bold',
+                    color: operatingHours ? '#22C55E' : T.green,
+                    letterSpacing: 0.4,
+                  }}>
+                    {operatingHours ? t('Active') : t('Set up')}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Schedule preview — parsed day chips */}
+              <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
+                {operatingHours ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {operatingHours.split(',').map((slot, idx) => {
+                      const parts = slot.trim().split(' ');
+                      const day = parts[0] || '';
+                      const hours = parts.slice(1).join(' ');
+                      return (
+                        <View key={idx} style={{
+                          flexDirection: 'row', alignItems: 'center',
+                          backgroundColor: `${T.green}12`,
+                          borderRadius: 10,
+                          paddingHorizontal: 10, paddingVertical: 6,
+                          gap: 5,
+                          borderWidth: 1,
+                          borderColor: `${T.green}28`,
+                        }}>
+                          <Text style={{ fontSize: 12, fontFamily: 'Poppins_700Bold', color: T.green }}>
+                            {day}
+                          </Text>
+                          {!!hours && (
+                            <Text style={{ fontSize: 11, fontFamily: 'Poppins_400Regular', color: T.text, opacity: 0.8 }}>
+                              {hours}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <View style={{
+                    alignItems: 'center', paddingVertical: 16,
+                    gap: 6,
+                  }}>
+                    <Feather name="calendar" size={28} color={T.border} />
+                    <Text style={{ fontSize: 13, fontFamily: 'Poppins_400Regular', color: T.textMuted, textAlign: 'center' }}>
+                      {t('No hours defined yet')}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Hidden raw text input for raw editing (accessible via Builder) */}
+              <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}>
+                <TextInput
+                  value={operatingHours}
+                  onChangeText={setOperatingHours}
+                  placeholder={t('e.g. Mon 08:00-18:00, Tue 08:00-18:00')}
+                  placeholderTextColor={T.textMuted}
+                  autoCapitalize="none"
+                  style={{
+                    fontSize: 12, color: T.textMuted,
+                    fontFamily: 'Poppins_400Regular',
+                    textAlign: isRTL ? 'right' : 'left',
+                    paddingVertical: 8,
+                    borderTopWidth: StyleSheet.hairlineWidth,
+                    borderTopColor: T.border,
+                  }}
+                />
+              </View>
+
+              {/* Edit Schedule CTA */}
+              <TouchableOpacity
+                onPress={openTimePicker}
+                activeOpacity={0.85}
+                style={{
+                  margin: 12,
+                  marginTop: 4,
+                  borderRadius: 12,
+                  backgroundColor: T.green,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingVertical: 13,
+                  gap: 8,
+                  shadowColor: T.green,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.35,
+                  shadowRadius: 8,
+                  elevation: 4,
                 }}
               >
-                <Feather name="calendar" size={13} color="#F59E0B" />
-                <Text style={{ fontSize: 11, color: '#F59E0B', fontFamily: 'Poppins_600SemiBold', fontWeight: '600' }}>{t('Builder')}</Text>
+                <Feather name="edit-3" size={15} color="#FFF" />
+                <Text style={{
+                  fontSize: 13, fontFamily: 'Poppins_700Bold',
+                  color: '#FFF', letterSpacing: 0.3,
+                }}>
+                  {t('Edit Schedule')}
+                </Text>
               </TouchableOpacity>
             </View>
-            <Text style={{ fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 5, marginLeft: 4, textAlign: isRTL ? 'right' : 'left' }}>{t("Tap \"Builder\" to flexibly select your days and hours")}</Text>
+
+            <Text style={{
+              fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular',
+              marginTop: 6, marginLeft: isRTL ? 0 : 4, marginRight: isRTL ? 4 : 0,
+              textAlign: isRTL ? 'right' : 'left',
+            }}>
+              {t('Use the schedule builder or type directly above')}
+            </Text>
           </View>
 
           <View style={{ height: 16 }} />
@@ -552,54 +797,209 @@ export default function EditStoreScreen({ navigation, route }: Props) {
         </View>
       </Modal>
 
-      {/* ── Schedule Builder Modal ─────────────────────────────────────────── */}
+      {/* ── Schedule Builder Modal — Premium Redesign ──────────────────────── */}
       <Modal visible={showTimePicker} transparent animationType="slide" onRequestClose={() => setShowTimePicker(false)}>
         <View style={s.schedModalOverlay}>
           <View style={s.schedModalBody}>
-            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ fontSize: 18, fontFamily: 'Poppins_700Bold', color: T.text }}>{t("Schedule Builder")}</Text>
-              <TouchableOpacity onPress={() => setShowTimePicker(false)}><Feather name="x" size={24} color={T.textMuted} /></TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {DAYS.map(day => (
-                <View key={day} style={s.schedRow}>
-                  <Text style={s.schedDayText}>{t(day)}</Text>
-                  <Switch 
-                    value={schedule[day].active} 
-                    onValueChange={v => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], active: v } }))} 
-                    trackColor={{ false: T.border, true: T.green }}
-                  />
-                  {schedule[day].active && (
-                    <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 8, marginLeft: isRTL ? 0 : 16, marginRight: isRTL ? 16 : 0 }}>
-                      <TextInput 
-                        style={s.schedTimeBox} 
-                        value={schedule[day].open} 
-                        onChangeText={t => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], open: t } }))}
-                        placeholder="08:00"
-                        placeholderTextColor={T.textMuted}
-                      />
-                      <Text style={{ color: T.textMuted }}>-</Text>
-                      <TextInput 
-                        style={s.schedTimeBox} 
-                        value={schedule[day].close} 
-                        onChangeText={t => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], close: t } }))}
-                        placeholder="18:00"
-                        placeholderTextColor={T.textMuted}
-                      />
-                    </View>
-                  )}
+
+            {/* ── Header ── */}
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${T.green}18`, alignItems: 'center', justifyContent: 'center' }}>
+                  <Feather name="clock" size={18} color={T.green} />
                 </View>
+                <View>
+                  <Text style={{ fontSize: 17, fontFamily: 'Poppins_700Bold', color: T.text }}>{t('Schedule Builder')}</Text>
+                  <Text style={{ fontSize: 11, fontFamily: 'Poppins_400Regular', color: T.textMuted }}>{t('Tap a day to set its hours')}</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowTimePicker(false)}
+                style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isDark ? '#FFFFFF12' : '#0000000A', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Feather name="x" size={18} color={T.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* ── Quick select row ── */}
+            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16, marginTop: 12 }}>
+              {[['Mon-Fri', ['Mon','Tue','Wed','Thu','Fri']], ['All week', DAYS], ['Weekend', ['Sat','Sun']]].map(([label, days]) => (
+                <TouchableOpacity
+                  key={label as string}
+                  activeOpacity={0.75}
+                  onPress={() => {
+                    const arr = days as string[];
+                    setSchedule(prev => {
+                      const next = { ...prev };
+                      DAYS.forEach(d => { next[d] = { ...prev[d], active: arr.includes(d) }; });
+                      return next;
+                    });
+                  }}
+                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: `${T.green}18`, borderWidth: 1, borderColor: `${T.green}30` }}
+                >
+                  <Text style={{ fontSize: 11, fontFamily: 'Poppins_600SemiBold', color: T.green }}>{t(label as string)}</Text>
+                </TouchableOpacity>
               ))}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+              {DAYS.map(day => {
+                const isActive = schedule[day].active;
+                const isExpanded = expandedDay === day;
+                const [openH, openM] = (schedule[day].open || '08:00').split(':');
+                const [closeH, closeM] = (schedule[day].close || '18:00').split(':');
+
+                return (
+                  <View key={day} style={{
+                    marginBottom: 8,
+                    borderRadius: 14,
+                    borderWidth: 1.5,
+                    borderColor: isActive ? `${T.green}40` : T.border,
+                    backgroundColor: isActive ? (isDark ? `${T.green}08` : `${T.green}0A`) : T.surfaceAlt,
+                    overflow: 'hidden',
+                  }}>
+                    {/* Day toggle row */}
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => {
+                        if (!isActive) {
+                          setSchedule(prev => ({ ...prev, [day]: { ...prev[day], active: true } }));
+                          setExpandedDay(day);
+                        } else if (isExpanded) {
+                          setExpandedDay(null);
+                        } else {
+                          setExpandedDay(day);
+                        }
+                      }}
+                      style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13, gap: 10 }}
+                    >
+                      {/* Day pill */}
+                      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: isActive ? T.green : (isDark ? '#FFFFFF10' : '#0000000A'), alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 12, fontFamily: 'Poppins_700Bold', color: isActive ? '#FFF' : T.textMuted }}>
+                          {t(day)}
+                        </Text>
+                      </View>
+
+                      <View style={{ flex: 1 }}>
+                        {isActive ? (
+                          <Text style={{ fontSize: 14, fontFamily: 'Poppins_600SemiBold', color: T.text }}>
+                            {schedule[day].open} – {schedule[day].close}
+                          </Text>
+                        ) : (
+                          <Text style={{ fontSize: 13, fontFamily: 'Poppins_400Regular', color: T.textMuted }}>
+                            {t('Closed')}
+                          </Text>
+                        )}
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {/* On/Off toggle */}
+                        <Switch
+                          value={isActive}
+                          onValueChange={v => {
+                            setSchedule(prev => ({ ...prev, [day]: { ...prev[day], active: v } }));
+                            if (v) setExpandedDay(day); else if (expandedDay === day) setExpandedDay(null);
+                          }}
+                          trackColor={{ false: T.border, true: T.green }}
+                          thumbColor="#FFFFFF"
+                        />
+                        {isActive && (
+                          <Feather name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={T.green} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Expanded time wheels */}
+                    {isActive && isExpanded && (
+                      <View style={{ paddingHorizontal: 14, paddingBottom: 16 }}>
+                        <View style={{ height: 1, backgroundColor: `${T.green}20`, marginBottom: 12 }} />
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                          {/* Open time */}
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 10, fontFamily: 'Poppins_700Bold', color: T.green, textAlign: 'center', letterSpacing: 0.5, marginBottom: 6, textTransform: 'uppercase' }}>
+                              {t('Opens')}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? '#FFFFFF06' : `${T.green}06`, borderRadius: 12, borderWidth: 1, borderColor: `${T.green}20`, padding: 4 }}>
+                              <View style={{ flex: 1 }}>
+                                <TimeWheel
+                                  values={HOURS}
+                                  selected={openH || '08'}
+                                  accentColor={T.green}
+                                  onSelect={h => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], open: `${h}:${openM || '00'}` } }))}
+                                />
+                              </View>
+                              <Text style={{ fontSize: 20, fontFamily: 'Poppins_700Bold', color: T.green, opacity: 0.5 }}>:</Text>
+                              <View style={{ flex: 1 }}>
+                                <TimeWheel
+                                  values={MINUTES}
+                                  selected={openM || '00'}
+                                  accentColor={T.green}
+                                  onSelect={m => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], open: `${openH || '08'}:${m}` } }))}
+                                />
+                              </View>
+                            </View>
+                          </View>
+
+                          {/* Separator */}
+                          <View style={{ justifyContent: 'center', alignItems: 'center', paddingTop: 22 }}>
+                            <Feather name="arrow-right" size={16} color={T.textMuted} />
+                          </View>
+
+                          {/* Close time */}
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 10, fontFamily: 'Poppins_700Bold', color: T.green, textAlign: 'center', letterSpacing: 0.5, marginBottom: 6, textTransform: 'uppercase' }}>
+                              {t('Closes')}
+                            </Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isDark ? '#FFFFFF06' : `${T.green}06`, borderRadius: 12, borderWidth: 1, borderColor: `${T.green}20`, padding: 4 }}>
+                              <View style={{ flex: 1 }}>
+                                <TimeWheel
+                                  values={HOURS}
+                                  selected={closeH || '18'}
+                                  accentColor={T.green}
+                                  onSelect={h => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], close: `${h}:${closeM || '00'}` } }))}
+                                />
+                              </View>
+                              <Text style={{ fontSize: 20, fontFamily: 'Poppins_700Bold', color: T.green, opacity: 0.5 }}>:</Text>
+                              <View style={{ flex: 1 }}>
+                                <TimeWheel
+                                  values={MINUTES}
+                                  selected={closeM || '00'}
+                                  accentColor={T.green}
+                                  onSelect={m => setSchedule(prev => ({ ...prev, [day]: { ...prev[day], close: `${closeH || '18'}:${m}` } }))}
+                                />
+                              </View>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </ScrollView>
-            <TouchableOpacity 
-              style={[s.saveBtn, { marginTop: 24 }]} 
+
+            {/* ── Apply Button ── */}
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={{
+                marginTop: 16, borderRadius: 14,
+                backgroundColor: T.green,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center', justifyContent: 'center',
+                paddingVertical: 15, gap: 8,
+                shadowColor: T.green, shadowOffset: { width: 0, height: 6 },
+                shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
+              }}
               onPress={() => {
                 setOperatingHours(serializeSchedule(schedule));
+                setExpandedDay(null);
                 setShowTimePicker(false);
               }}
             >
-              <Text style={s.saveBtnText}>{t("Apply Schedule")}</Text>
+              <Feather name="check" size={18} color="#FFF" />
+              <Text style={{ fontSize: 15, fontFamily: 'Poppins_700Bold', color: '#FFF', letterSpacing: 0.3 }}>{t('Apply Schedule')}</Text>
             </TouchableOpacity>
+
           </View>
         </View>
       </Modal>

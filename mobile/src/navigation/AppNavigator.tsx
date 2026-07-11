@@ -18,6 +18,7 @@ import EditStoreScreen from '../modules/seller/ui/screens/EditStoreScreen';
 import SellerProfileScreen    from '../modules/seller/ui/screens/SellerProfileScreen';
 import SellerProProfileScreen from '../modules/seller/ui/screens/SellerProProfileScreen';
 import AddProductScreen        from '../modules/seller/ui/screens/AddProductScreen';
+import AddRecipeScreen         from '../modules/seller/ui/screens/AddRecipeScreen';
 import SellerStatsScreen       from '../modules/seller/ui/screens/SellerStatsScreen';
 import ProductsMarketScreen from '../modules/products/ui/screens/ProductsMarketScreen';
 import ProductDetailScreen  from '../modules/products/ui/screens/ProductDetailScreen';
@@ -152,6 +153,7 @@ export function AppNavigator() {
       <Stack.Screen name="SellerProfile"      component={SellerProfileScreen} />
       <Stack.Screen name="SellerProProfile"   component={SellerProProfileScreen} options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="AddProduct"         component={AddProductScreen} />
+      <Stack.Screen name="AddRecipe"          component={AddRecipeScreen} options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="SellerStats"        component={SellerStatsScreen} />
       <Stack.Screen name="ProductsMarket"  component={ProductsMarketScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ProductDetail"   component={ProductDetailScreen}  options={{ animation: 'slide_from_right' }} />

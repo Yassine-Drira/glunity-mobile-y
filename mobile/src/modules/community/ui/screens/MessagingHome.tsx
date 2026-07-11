@@ -1229,7 +1229,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
       {activeTab !== 'contacts' && (
         <ActiveNowSection
           users={users}
-          currentUserId={String(user?._id || user?.id || '')}
+          currentUserId={user?._id || ''}
           isOnline={isOnline}
           getLastSeen={getLastSeen}
           onUserPress={(u: any) => {
@@ -1345,8 +1345,9 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => setShowCreateOptions(true)}
+        activeOpacity={0.8}
       >
-        <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
+        <Ionicons name="create-outline" size={28} color="#fff" />
       </TouchableOpacity>
 
       {/* Custom dropdown/options modal for web and mobile */}
