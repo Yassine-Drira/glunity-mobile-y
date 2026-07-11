@@ -1,5 +1,6 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Animated, useWindowDimensions, Alert, Linking, Modal } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../auth/state/auth.context';
 import { useTheme } from '../../../../shared/context/theme.context';
@@ -180,6 +181,103 @@ const getWaveformHeights = (id: string, count: number) => {
   }
   return heights;
 };
+
+const MessageVideoPlayer = React.memo(({
+  videoUrl,
+  thumbUrl,
+  isDark,
+  T,
+  windowWidth,
+  styles,
+  isMe,
+  item,
+  longPressHandler
+}: any) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<Video | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  if (!isPlaying) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setIsPlaying(true)}
+        onLongPress={longPressHandler}
+        delayLongPress={300}
+        style={{ overflow: 'hidden', position: 'relative' }}
+      >
+        {thumbUrl ? (
+          <ExpoImage
+            source={{ uri: thumbUrl }}
+            style={{
+              width: Math.min(windowWidth * 0.68, 250),
+              height: Math.min(windowWidth * 0.45, 170),
+              backgroundColor: T.surfaceAlt,
+            }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        ) : (
+          <View style={{
+            width: Math.min(windowWidth * 0.68, 250),
+            height: Math.min(windowWidth * 0.45, 170),
+            backgroundColor: isDark ? '#1a2a1a' : '#e8f5e9',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <Ionicons name="videocam" size={32} color={T.green || '#2ECC71'} />
+          </View>
+        )}
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name="play" size={22} color="#fff" />
+          </View>
+        </View>
+        {!!item.content && (
+          <View style={{ paddingHorizontal: 12, paddingBottom: 10, paddingTop: 6 }}>
+            <Text style={[styles.msgText, { color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={{ width: Math.min(windowWidth * 0.68, 250), height: Math.min(windowWidth * 0.45, 170), position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
+      <Video
+        ref={(ref) => { videoRef.current = ref; }}
+        source={{ uri: videoUrl }}
+        rate={1.0}
+        volume={1.0}
+        isMuted={false}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay
+        useNativeControls
+        style={{
+          width: '100%',
+          height: '100%',
+        }}
+        onError={(err) => {
+          console.warn('[VideoPlayer] Error:', err);
+          setIsPlaying(false);
+        }}
+      />
+      <TouchableOpacity 
+        style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}
+        onPress={() => setIsPlaying(false)}
+      >
+        <Ionicons name="close" size={16} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+});
 
 const MessageItem = React.memo(({
   item,
@@ -529,47 +627,17 @@ const MessageItem = React.memo(({
         return null;
       })();
       return (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => { if (videoUrl) Linking.openURL(videoUrl).catch(() => { }); }}
-          onLongPress={longPressHandler}
-          delayLongPress={300}
-          style={{ overflow: 'hidden', position: 'relative' }}
-        >
-          {thumbUrl ? (
-            <ExpoImage
-              source={{ uri: thumbUrl }}
-              style={{
-                width: Math.min(windowWidth * 0.68, 250),
-                height: Math.min(windowWidth * 0.45, 170),
-                backgroundColor: T.surfaceAlt,
-              }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={{
-              width: Math.min(windowWidth * 0.68, 250),
-              height: Math.min(windowWidth * 0.45, 170),
-              backgroundColor: isDark ? '#1a2a1a' : '#e8f5e9',
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}>
-              <Ionicons name="videocam" size={32} color={T.green || '#2ECC71'} />
-            </View>
-          )}
-          {/* Play overlay */}
-          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="play" size={22} color="#fff" />
-            </View>
-          </View>
-          {!!item.content && (
-            <View style={{ paddingHorizontal: 12, paddingBottom: 10, paddingTop: 6 }}>
-              <Text style={[styles.msgText, { color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <MessageVideoPlayer
+          videoUrl={videoUrl}
+          thumbUrl={thumbUrl}
+          isDark={isDark}
+          T={T}
+          windowWidth={windowWidth}
+          styles={styles}
+          isMe={isMe}
+          item={item}
+          longPressHandler={longPressHandler}
+        />
       );
     }
 
@@ -1307,10 +1375,47 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     );
   };
 
+  // Keep a dynamic ref to all parameters renderItem uses to preserve callback reference stability
+  const renderItemPropsRef = useRef<any>(null);
+  renderItemPropsRef.current = {
+    reversedMessages,
+    channelParticipants: chat.channel?.participants || chat.channel?.members || [],
+    user,
+    T,
+    isDark,
+    isRTL,
+    dmPartnerId,
+    isDMChannel,
+    highlightedMsgId,
+    windowWidth,
+    playingId: chat.playingId,
+    audioProgress: chat.audioProgress,
+    audioBuffering: chat.audioBuffering,
+    audioErrors: chat.audioErrors,
+    seekAudio: chat.seekAudio,
+    playAudio: chat.playAudio,
+    handlePressMessage: chat.handlePressMessage,
+    setReactionMsgId: chat.setReactionMsgId,
+    handleRetrySend: chat.handleRetrySend,
+    handleToggleReaction: chat.handleToggleReaction,
+    openUserProfile: chat.openUserProfile,
+    setReactorsMsgId,
+    setReactorsCounts,
+    setReactorsSheetVisible,
+    handleTogglePin: chat.handleTogglePin,
+    navigation,
+    t,
+    styles,
+    reducedMotion
+  };
+
   const renderItem = useCallback(({ item, index }: { item: any; index: number }) => {
-    const origIndex = filteredMessages.findIndex(m => String(m.id || m._id) === String(item.id || item._id));
-    const prevMsg = origIndex > 0 ? filteredMessages[origIndex - 1] : null;
-    const nextMsg = origIndex < filteredMessages.length - 1 ? filteredMessages[origIndex + 1] : null;
+    const props = renderItemPropsRef.current;
+    if (!props) return null;
+
+    // O(1) constant lookup for prev/next messages in inverted list to eliminate linear scan drops
+    const prevMsg = index < props.reversedMessages.length - 1 ? props.reversedMessages[index + 1] : null;
+    const nextMsg = index > 0 ? props.reversedMessages[index - 1] : null;
 
     const senderId = typeof item.senderId === 'object' && item.senderId ? (item.senderId._id || item.senderId.id) : item.senderId;
     const currentMsgDate = new Date(item.createdAt || item.created_at);
@@ -1338,46 +1443,38 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         nextMsg={nextMsg}
         shouldGroup={shouldGroup}
         isContinuation={isContinuation}
-        channelParticipants={chat.channel?.participants || chat.channel?.members || []}
-        user={user}
-        T={T}
-        isDark={isDark}
-        isRTL={isRTL}
-        dmPartnerId={dmPartnerId}
-        isDMChannel={isDMChannel}
-        highlightedMsgId={highlightedMsgId}
-        windowWidth={windowWidth}
-        playingId={chat.playingId}
-        audioProgress={chat.audioProgress}
-        audioBuffering={chat.audioBuffering}
-        audioErrors={chat.audioErrors}
-        onSeek={chat.seekAudio}
-        onPress={isAudio ? chat.playAudio : chat.handlePressMessage}
-        onLongPress={chat.setReactionMsgId}
-        onRetrySend={chat.handleRetrySend}
-        onToggleReaction={chat.handleToggleReaction}
-        onUserProfilePress={chat.openUserProfile}
+        channelParticipants={props.channelParticipants}
+        user={props.user}
+        T={props.T}
+        isDark={props.isDark}
+        isRTL={props.isRTL}
+        dmPartnerId={props.dmPartnerId}
+        isDMChannel={props.isDMChannel}
+        highlightedMsgId={props.highlightedMsgId}
+        windowWidth={props.windowWidth}
+        playingId={props.playingId}
+        audioProgress={props.audioProgress}
+        audioBuffering={props.audioBuffering}
+        audioErrors={props.audioErrors}
+        onSeek={props.seekAudio}
+        onPress={isAudio ? props.playAudio : props.handlePressMessage}
+        onLongPress={props.setReactionMsgId}
+        onRetrySend={props.handleRetrySend}
+        onToggleReaction={props.handleToggleReaction}
+        onUserProfilePress={props.openUserProfile}
         onReactorsPress={(msgId: string, counts: any) => {
-          setReactorsMsgId(msgId);
-          setReactorsCounts(counts);
-          setReactorsSheetVisible(true);
+          props.setReactorsMsgId(msgId);
+          props.setReactorsCounts(counts);
+          props.setReactorsSheetVisible(true);
         }}
-        onTogglePin={chat.handleTogglePin}
-        navigation={navigation}
-        t={t}
-        styles={styles}
-        reducedMotion={reducedMotion}
+        onTogglePin={props.handleTogglePin}
+        navigation={props.navigation}
+        t={props.t}
+        styles={props.styles}
+        reducedMotion={props.reducedMotion}
       />
     );
-  }, [
-    filteredMessages, chat.playingId, chat.audioProgress, chat.audioBuffering, chat.audioErrors,
-    chat.seekAudio, chat.playAudio, chat.handlePressMessage, chat.setReactionMsgId,
-    chat.handleRetrySend, chat.handleToggleReaction, chat.openUserProfile,
-    chat.handleTogglePin, chat.channel?.participants, chat.channel?.members,
-    user, T, isDark, isRTL, dmPartnerId, isDMChannel,
-    highlightedMsgId, windowWidth, setReactorsMsgId, setReactorsCounts,
-    setReactorsSheetVisible, t, styles, reducedMotion, navigation
-  ]);
+  }, []);
 
   if (!chat.channel) {
     return (
@@ -1791,6 +1888,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
           <FlatList
             ref={chat.listRef}
             data={reversedMessages}
+            extraData={chat.playingId + '_' + chat.audioProgress + '_' + chat.audioBuffering + '_' + highlightedMsgId + '_' + chat.messages.length}
             keyExtractor={(i) => String(i.id || i._id || Math.random())}
             renderItem={renderItem}
             inverted={true}
@@ -1807,6 +1905,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             initialNumToRender={20}
             removeClippedSubviews={true}
             updateCellsBatchingPeriod={50}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+            }}
             // ── Scroll throttle — fire at most every 100ms ─────────────
             scrollEventThrottle={100}
             onScroll={(event) => {
@@ -1830,7 +1931,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                 chat.loadMoreMessages();
               }
             }}
-            onEndReachedThreshold={0.2}
+            onEndReachedThreshold={1.0}
             ListFooterComponent={
               chat.loadingMore ? (
                 <View style={{ paddingVertical: 12, alignItems: 'center', transform: [{ scaleY: -1 }] }}>
