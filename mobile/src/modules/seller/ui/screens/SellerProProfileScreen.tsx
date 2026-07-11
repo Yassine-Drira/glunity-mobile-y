@@ -11,6 +11,7 @@ import {
   Modal,
   ActivityIndicator,
   DeviceEventEmitter,
+  RefreshControl,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -57,10 +58,18 @@ const PRO_BADGES = [
 ];
 
 export default function SellerProProfileScreen({ navigation }: Props) {
-  const { user, logout, checkIn } = useAuth();
+  const { user, logout, checkIn, refreshUser } = useAuth();
   const { theme: T } = useTheme();
   const { isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
+
+  const [refreshing, setRefreshing] = React.useState(false);
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await refreshUser();
+    await fetchUserReels();
+    setRefreshing(false);
+  }, [refreshUser]);
   const bottomInset = Math.max(insets.bottom, 8) + 110;
 
   const [checkingIn, setCheckingIn] = React.useState(false);
@@ -811,7 +820,13 @@ export default function SellerProProfileScreen({ navigation }: Props) {
       onPressProfile={() => navigation.navigate('SellerProProfile')}
       contentStyle={{ backgroundColor: T.bg }}
     >
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scrollContent, { paddingBottom: bottomInset }]}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={[s.scrollContent, { paddingBottom: bottomInset }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.red} />}
+      >
+
+        {/* ── Avatar + stats row ── */}
 
         {/* ── Avatar + stats row ── */}
         <View style={s.headerSection}>

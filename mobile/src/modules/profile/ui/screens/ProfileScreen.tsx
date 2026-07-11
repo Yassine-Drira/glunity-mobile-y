@@ -11,6 +11,7 @@ import {
   TextInput,
   Modal,
   DeviceEventEmitter,
+  RefreshControl,
 } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -89,7 +90,7 @@ const PRO_BADGES = [
 ];
 
 export default function ProfileScreen({ navigation, route }: Props) {
-  const { user: currentUser, logout, checkIn } = useAuth();
+  const { user: currentUser, logout, checkIn, refreshUser } = useAuth();
   const { theme: T } = useTheme();
   const { isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
@@ -99,6 +100,23 @@ export default function ProfileScreen({ navigation, route }: Props) {
 
   const [profileUser, setProfileUser] = React.useState<any>(null);
   const [loadingUser, setLoadingUser] = React.useState(false);
+
+  const [refreshing, setRefreshing] = React.useState(false);
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await refreshUser();
+    if (profileUser) {
+      await fetchUserReels();
+    }
+    setRefreshing(false);
+  }, [profileUser, refreshUser]);
+
+  // Auto-navigate to Pro profile if user's profile type is updated to pro_commerce
+  React.useEffect(() => {
+    if (isOwnProfile && currentUser?.profileType === 'pro_commerce') {
+      navigation.navigate('SellerProProfile');
+    }
+  }, [currentUser?.profileType, isOwnProfile, navigation]);
 
   const [activeProfileTab, setActiveProfileTab] = React.useState<'achievements' | 'reels'>('achievements');
   const [reels, setReels] = React.useState<Reel[]>([]);
@@ -1295,7 +1313,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
         if (currentUser?.profileType === 'pro_commerce') {
           navigation.navigate('SellerProProfile');
         } else {
-          navigation.navigate('Profile');
+      navigation.navigate('Profile');
         }
       }}
       contentStyle={{ backgroundColor: T.bg, paddingBottom: 0 }}
@@ -1306,6 +1324,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
           s.scrollContent,
           { paddingBottom: bottomInset },
         ]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.red} />}
       >
         <View style={s.headerSection}>
           <View style={s.avatarWrap}>

@@ -79,7 +79,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       console.log('[SocketProvider] Connecting to socket service:', MSG_SERVICE_SOCKET_URL);
       const s = io(MSG_SERVICE_SOCKET_URL, {
         auth: { token },
-        transports: ['polling', 'websocket'], // Allow polling fallback for maximum reliability
+        transports: ['websocket'], // Force websocket transport on React Native to prevent polling bugs (which cause one-way emit without receiving)
       });
 
       s.on('connect', () => {

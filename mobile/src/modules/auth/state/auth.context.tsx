@@ -36,6 +36,7 @@ interface AuthContextValue extends AuthState {
   textSize:      'Small' | 'Medium' | 'Large';
   updateTextSize: (size: 'Small' | 'Medium' | 'Large') => Promise<void>;
   verify2Fa:     (userId: string, code: string) => Promise<any>;
+  refreshUser:   () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -230,9 +231,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const user = await authApi.getMe();
+      dispatch({ type: 'UPDATE_USER', payload: user });
+    } catch (err) {
+      console.warn('Failed to refresh user:', err);
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ ...state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa }),
-    [state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa],
+    () => ({ ...state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser }),
+    [state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

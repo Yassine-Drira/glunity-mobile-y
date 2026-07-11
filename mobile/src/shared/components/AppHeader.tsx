@@ -74,6 +74,14 @@ export function AppHeader({
     : 'check-decagram';
   const shouldShowSearch = showSearch ?? !!onSearchPress;
 
+  const handleProfilePress = () => {
+    if (user?.profileType === 'pro_commerce') {
+      navigation.navigate('SellerProProfile');
+    } else {
+      navigation.navigate('Profile');
+    }
+  };
+
   const [unreadCount, setUnreadCount] = React.useState(0);
   const prevUnreadCountRef = React.useRef(0);
   const navigationRef = React.useRef(navigation);
@@ -469,7 +477,7 @@ export function AppHeader({
         ) : (
           // Main tab screens header flow
           <>
-            <View style={s.mainLeft}>
+            <TouchableOpacity style={s.mainLeft} onPress={handleProfilePress} activeOpacity={0.75} accessibilityRole="button">
               <View style={s.avatarWrap}>
                 <Image source={{ uri: avatarUrl }} style={s.avatar} />
                 <View style={s.shieldBadge}>
@@ -479,7 +487,7 @@ export function AppHeader({
               <View style={s.profileInfo}>
                 <Text style={s.nameText}>{firstName}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
 
             <View style={s.mainRight}>
               {rightElement ?? (
