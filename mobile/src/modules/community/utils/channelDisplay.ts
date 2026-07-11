@@ -15,21 +15,37 @@ export function getChannelDisplay(channel: any, currentUser?: any) {
   const isDM = explicitDMByName || explicitDMByType || implicitDMByParticipants;
 
   if (isDM) {
-    // Try to resolve the other participant name/avatar
+    // Try to resolve the other participant name/avatar.
+    // Backend now populates fullName + avatarUrl into each participant entry,
+    // so we can resolve names immediately without a separate /users call.
     let other: any = null;
     if (Array.isArray(parts) && parts.length > 0) {
-      const ids = parts.map((p: any) => (typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId)));
-      const otherId = ids.find((id: any) => id && String(id) !== String(currentUser?._id));
-      if (otherId) {
-        // if participants contain objects, find that object
-        const obj = parts.find((p: any) => p && (String(p._id) === String(otherId) || String(p.id) === String(otherId)));
-        if (obj) other = obj;
-        else other = { _id: otherId, fullName: otherId, avatarUrl: null };
+      const myId = String(currentUser?._id || currentUser?.id || '');
+      // Find the participant that is NOT the current user.
+      // Support both enriched objects ({ userId, fullName, avatarUrl }) and plain id strings.
+      const otherEntry = parts.find((p: any) => {
+        const pid = typeof p === 'string' ? p : String(p.userId || p._id || p.id || '');
+        return pid && pid !== myId;
+      });
+
+      if (otherEntry) {
+        if (typeof otherEntry === 'string') {
+          other = { _id: otherEntry, fullName: null, avatarUrl: null };
+        } else {
+          // Prefer populated name from the enriched backend response
+          const pid = String(otherEntry.userId || otherEntry._id || otherEntry.id || '');
+          other = {
+            _id: pid,
+            id: pid,
+            fullName: otherEntry.fullName || otherEntry.name || otherEntry.displayName || null,
+            avatarUrl: otherEntry.avatarUrl || otherEntry.avatar || null,
+          };
+        }
       }
     }
 
-    const name = other ? (other.fullName || other.name || other.displayName || `User`) : (channel.name || 'Direct Message');
-    const avatar = other ? (other.avatarUrl || other.avatar || null) : (channel.avatarUrl || null);
+    const name = other?.fullName || other?.name || other?.displayName || channel.name || 'Direct Message';
+    const avatar = other?.avatarUrl || other?.avatar || channel.avatarUrl || null;
     return { name, avatar, isDM: true };
   }
 

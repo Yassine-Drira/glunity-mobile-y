@@ -366,8 +366,12 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     if (typeof targetId === 'string' && targetId.startsWith('local-')) return;
     if (messages.length === 0) return;
 
-    const oldestMsg = messages[0];
-    const cursor = oldestMsg._id || oldestMsg.id;
+    const oldestRealMsg = messages.find(m => {
+      const id = String(m._id || m.id || '');
+      return id && !id.startsWith('temp-');
+    });
+    if (!oldestRealMsg) return;
+    const cursor = oldestRealMsg._id || oldestRealMsg.id;
     if (!cursor) return;
 
     const controller = abortControllerRef.current || new AbortController();

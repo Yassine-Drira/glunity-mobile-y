@@ -48,24 +48,65 @@ const channelsService = {
   async listForUser(userId) {
     const channels = await repository.findForUser(userId, { limit: 50 });
     const User = require('../../database/models/user.model');
-    const userObj = await User.findById(userId).select('pinnedGroups').lean();
-    const pinnedIds = (userObj && userObj.pinnedGroups) ? userObj.pinnedGroups.map(id => id.toString()) : [];
-
     const Message = require('../../database/models/message.model');
+
+    // ── 1. Fetch pinned groups for this user ─────────────────────────────────
+    const userObj = await User.findById(userId).select('pinnedGroups').lean();
+    const pinnedIds = (userObj && userObj.pinnedGroups)
+      ? userObj.pinnedGroups.map(id => id.toString())
+      : [];
+
+    // ── 2. Collect ALL unique participant userIds across every channel ────────
+    //       One bulk User.find() instead of N individual lookups.
+    const allParticipantIds = new Set();
+    for (const ch of channels) {
+      for (const p of (ch.participants ?? [])) {
+        if (p.userId) allParticipantIds.add(p.userId.toString());
+      }
+    }
+
+    const userDocs = await User
+      .find({ _id: { $in: [...allParticipantIds] } })
+      .select('_id fullName avatar')
+      .lean();
+
+    const userMap = new Map(userDocs.map(u => [u._id.toString(), u]));
+
+    // ── 3. Enrich channels ───────────────────────────────────────────────────
     return Promise.all(
       channels.map(async (channel) => {
         const myEntry = (channel.participants ?? []).find(
           (p) => p.userId?.toString() === userId.toString()
         );
         const lastReadAt = myEntry?.lastReadAt || new Date(0);
-        const unreadCount = await Message.countDocuments({
-          channelId: channel._id,
-          deletedAt: { $in: [null, undefined] },
-          createdAt: { $gt: lastReadAt },
+
+        // Parallel: unread count + populate participant profile snapshots
+        const [unreadCount] = await Promise.all([
+          Message.countDocuments({
+            channelId: channel._id,
+            deletedAt: { $in: [null, undefined] },
+            createdAt: { $gt: lastReadAt },
+          }),
+        ]);
+
+        // Inject fullName + avatarUrl into each participant so the client
+        // can immediately display names without a secondary user-list fetch.
+        const enrichedParticipants = (channel.participants ?? []).map(p => {
+          const profile = userMap.get(p.userId?.toString());
+          return profile
+            ? {
+                ...p,
+                fullName:  profile.fullName ?? null,
+                // User model stores avatar as { url, publicId } — flatten to string
+                avatarUrl: profile.avatar?.url ?? null,
+              }
+            : p;
         });
+
         const channelIdStr = channel._id.toString();
         return {
           ...channel,
+          participants: enrichedParticipants,
           unreadCount,
           isPinned: pinnedIds.includes(channelIdStr),
         };

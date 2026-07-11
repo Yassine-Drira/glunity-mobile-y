@@ -17,6 +17,7 @@ import { usePresence } from '../../../../shared/hooks/usePresence';
 import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { UserProfileBottomSheet } from '../components/UserProfileBottomSheet';
+import ActiveNowSection from '../components/ActiveNowSection';
 
 let BlurView: any = null;
 try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
@@ -122,6 +123,7 @@ const ChannelRowItem = React.memo(({
   if (pItem.lastMessage?.content !== nItem.lastMessage?.content) return false;
   if (pItem.lastMessage?.createdAt !== nItem.lastMessage?.createdAt) return false;
   if (pItem.description !== nItem.description) return false;
+  if (pItem.updatedAt !== nItem.updatedAt) return false;
 
   const pOther = prevProps.findOtherParticipant(pItem);
   const nOther = nextProps.findOtherParticipant(nItem);
@@ -160,7 +162,7 @@ export default function MessagingHome({ navigation }: any) {
   const { t, isRTL } = useLanguage();
   const { user } = useAuth();
   const { socket } = useSocket();
-  const { isOnline, fetchStatuses } = usePresence();
+  const { isOnline, getLastSeen, fetchStatuses } = usePresence();
 
   const seenIds = useRef<Set<string>>(new Set());
   const activeFetchesRef = useRef<Set<string>>(new Set());
@@ -200,7 +202,7 @@ export default function MessagingHome({ navigation }: any) {
           return next;
         }
         const next = [...prev];
-        next[foundIdx] = { ...next[foundIdx], ...updated };
+        next[foundIdx] = { ...next[foundIdx], ...updated, updatedAt: updated.updatedAt || new Date().toISOString() };
         ChatCacheService.saveChannels(next).catch(() => {});
         return next;
       });
@@ -218,9 +220,6 @@ export default function MessagingHome({ navigation }: any) {
   }, []);
 
   const [channels, setChannels] = useState<any[]>([]);
-  // sortOrder: explicit ordered list of channelIds, most-recent first.
-  // Updated immediately on conversation:updated so the list reorders in real-time.
-  const [sortOrder, setSortOrder] = useState<string[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [publicChannels, setPublicChannels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -458,8 +457,6 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
         });
 
         setChannels(enriched);
-        const cachedIds = enriched.map((c: any) => String(c._id || c.id));
-        setSortOrder(cachedIds);
         setLoading(false);
 
         // Fetch presence statuses for participants
@@ -486,8 +483,6 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
         signal 
       });
       const fresh = res.data?.data || [];
-      const ids = fresh.map((c: any) => String(c._id || c.id));
-      setSortOrder(ids);
 
       // Save channels to cache
       await ChatCacheService.saveChannels(fresh);
@@ -549,7 +544,15 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     (async () => {
       try {
         const res = await http.get('/users');
-        setUsers(res.data?.data || []);
+        const allUsers = res.data?.data || [];
+        setUsers(allUsers);
+        // Fetch presence statuses for all users so the Active Now section works
+        const allUserIds = allUsers
+          .map((u: any) => String(u._id || u.id))
+          .filter((id: string) => id && id !== String(user?._id));
+        if (allUserIds.length > 0) {
+          fetchStatuses(allUserIds);
+        }
       } catch (err) {
         setUsers([]);
       }
@@ -585,38 +588,53 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
 
   const findOtherParticipant = useCallback((channel: any) => {
     if (!channel || !user) return null;
-    // participants may be array of ids or objects
+    const myId = String((user as any)._id || (user as any).id || '');
     const parts = channel.participants || channel.members || channel.participantIds || channel.userIds;
-    let otherId: any = null;
 
+    let otherEntry: any = null;
     if (parts && Array.isArray(parts)) {
-      const ids = parts.map((p: any) => (typeof p === 'string' ? p : (p._id || p.id || p.userId || p._userId)));
-      otherId = ids.find((id: any) => id && String(id) !== String(user._id));
+      otherEntry = parts.find((p: any) => {
+        const pid = typeof p === 'string' ? p : String(p.userId || p._id || p.id || '');
+        return pid && pid !== myId;
+      });
     }
 
-    // fallback: try parse ids from channel.name (some DM names contain both ids)
-    if (!otherId && channel.name && typeof channel.name === 'string') {
-      const matches = channel.name.match(/[0-9a-fA-F]{6,}/g);
-      if (matches && matches.length) {
-        const m = matches.find((mId: string) => String(mId) !== String(user._id));
-        if (m) otherId = m;
+    if (!otherEntry) {
+      // fallback: try parse ids from channel.name (some DM names contain both ids)
+      if (channel.name && typeof channel.name === 'string') {
+        const matches = channel.name.match(/[0-9a-fA-F]{24}/g);
+        if (matches) {
+          const otherId = matches.find((mId: string) => mId !== myId);
+          if (otherId) {
+            const found = users.find(u => String(u._id) === otherId || String(u.id) === otherId);
+            return found || { _id: otherId, fullName: null, avatarUrl: null };
+          }
+        }
       }
+      return null;
     }
 
-    if (!otherId) return null;
-
-    // try find in local users cache
-    const found = users.find(u => String(u._id) === String(otherId) || String(u.id) === String(otherId));
-    if (found) return found;
-
-    // if participants array contains user objects, return that
-    if (parts && Array.isArray(parts)) {
-      const obj = parts.find((p: any) => p && (String(p._id) === String(otherId) || String(p.id) === String(otherId)));
-      if (obj) return obj;
+    if (typeof otherEntry === 'string') {
+      const found = users.find(u => String(u._id) === otherEntry || String(u.id) === otherEntry);
+      return found || { _id: otherEntry, fullName: null, avatarUrl: null };
     }
 
+<<<<<<< HEAD
     return { _id: otherId, fullName: otherId, avatarUrl: null };
   }, [user, users]);
+=======
+    // Participant is an enriched object — use it directly
+    const pid = String(otherEntry.userId || otherEntry._id || otherEntry.id || '');
+    // Check local users cache for the freshest profile
+    const cached = users.find(u => String(u._id) === pid || String(u.id) === pid);
+    return cached || {
+      _id: pid,
+      id: pid,
+      fullName: otherEntry.fullName || otherEntry.name || otherEntry.displayName || null,
+      avatarUrl: otherEntry.avatarUrl || otherEntry.avatar || null,
+    };
+  }
+>>>>>>> 45ef51d4d0b74c8fce03461935c1885474602c36
 
   const getChannelDisplay = useCallback((channel: any) => {
     const d = getDisplayForChannel(channel, user);
@@ -663,28 +681,11 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     });
   }, [channels, activeTab]);
 
-  // Channel list sort rules:
-  //  1. Group channels always appear ABOVE direct messages.
-  //  2. Groups are ordered by creation date (oldest → newest, so order is stable).
-  //  3. Direct messages are ordered by last message sent time (newest → top).
+  // Unified sort: ALL conversations ordered by lastMessageDate descending (newest → top).
+  // This matches WhatsApp / Instagram / Messenger / Telegram behavior.
   const sortedChannels = useMemo(() => {
     const list = filteredChannels ? [...filteredChannels] : [];
     list.sort((a: any, b: any) => {
-      const aIsGroup = isGroupChannel(a);
-      const bIsGroup = isGroupChannel(b);
-
-      // Groups always on top
-      if (aIsGroup && !bIsGroup) return -1;
-      if (!aIsGroup && bIsGroup) return 1;
-
-      // Both groups → stable sort by creation date (ascending)
-      if (aIsGroup && bIsGroup) {
-        const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return ta - tb;
-      }
-
-      // Both DMs → newest last-message first (descending)
       const ta = a?.lastMessage?.createdAt || a?.updatedAt || a?.createdAt || 0;
       const tb = b?.lastMessage?.createdAt || b?.updatedAt || b?.createdAt || 0;
       const timeA = ta ? new Date(ta).getTime() : 0;
@@ -878,7 +879,11 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
           const cId = String(c._id || c.id || c.channelId || '');
           if (cId === cid) {
             found = true;
-            return { ...c, lastMessage: { content: message.content, createdAt: message.createdAt, messageId: message.id || message._id } };
+            return {
+              ...c,
+              lastMessage: { content: message.content, createdAt: message.createdAt || new Date().toISOString(), messageId: message.id || message._id },
+              updatedAt: new Date().toISOString(),
+            };
           }
           return c;
         });
@@ -915,6 +920,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
           ...prev[idx],
           ...(lastMessage ? { lastMessage } : {}),
           ...(unreadCount !== undefined ? { unreadCount } : {}),
+          updatedAt: new Date().toISOString(),
         };
         const next = [...prev];
         next[idx] = updated;
@@ -1001,7 +1007,11 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
           const cId = String(c._id || c.id || c.channelId || '');
           if (cId === cid) {
             found = true;
-            return { ...c, lastMessage: { content: message.content, createdAt: message.createdAt, messageId: message.id || message._id } };
+            return {
+              ...c,
+              lastMessage: { content: message.content, createdAt: message.createdAt || new Date().toISOString(), messageId: message.id || message._id },
+              updatedAt: new Date().toISOString(),
+            };
           }
           return c;
         });
@@ -1176,6 +1186,37 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* ── Active Now Section (between tabs and chat list) ── */}
+      {activeTab !== 'contacts' && (
+        <ActiveNowSection
+          users={users}
+          currentUserId={String(user?._id || user?.id || '')}
+          isOnline={isOnline}
+          getLastSeen={getLastSeen}
+          onUserPress={(u: any) => {
+            const uid = String(u._id || u.id);
+            contactUser(uid);
+          }}
+          onUserLongPress={(u: any) => {
+            const uid = String(u._id || u.id);
+            const name = u.fullName || u.name || u.displayName || 'User';
+            Alert.alert(
+              name,
+              '',
+              [
+                { text: t('View Profile'), onPress: () => openUserProfile(uid) },
+                { text: t('Start Chat'), onPress: () => contactUser(uid) },
+                { text: t('Cancel'), style: 'cancel' },
+              ],
+              { cancelable: true }
+            );
+          }}
+          loading={loadingUsers}
+          theme={T}
+          isDark={isDark}
+        />
+      )}
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 30 }} />

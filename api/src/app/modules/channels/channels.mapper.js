@@ -3,12 +3,27 @@
 // ── Sub-mappers ─────────────────────────────────────────────────────────────
 
 const toParticipant = (p) => ({
-	userId: p.userId?.toString() ?? null,
-	role:   p.role   ?? 'member',
-	muted:  p.muted  ?? false,
+	userId:    p.userId?.toString() ?? null,
+	role:      p.role   ?? 'member',
+	muted:     p.muted  ?? false,
 	muteOption: p.muteOption ?? 'all',
 	muteExpiresAt: p.muteExpiresAt ?? null,
+	// Enriched profile snapshot for immediate DM name/avatar display
+	fullName:  p.fullName  ?? null,
+	avatarUrl: p.avatarUrl ?? null,
 });
+
+const toLastMessage = (lm) => {
+	if (!lm || !lm.messageId) return null;
+	return {
+		messageId:  lm.messageId?.toString?.() ?? lm.messageId,
+		senderId:   lm.senderId?.toString?.()  ?? lm.senderId   ?? null,
+		senderName: lm.senderName              ?? null,
+		content:    lm.content                 ?? '',
+		type:       lm.type                    ?? 'text',
+		createdAt:  lm.createdAt               ?? null,
+	};
+};
 
 const toPinnedMessage = (pm) => {
 	const msgObj = pm.messageId || {};
@@ -49,6 +64,12 @@ const toChannelResponse = (channel, currentUserId) => {
 		participants:   (channel.participants  ?? []).map(toParticipant),
 		pinnedMessages: (channel.pinnedMessages ?? []).map(toPinnedMessage),
 		isPinned:       channel.isPinned       ?? false,
+		// ── Fields required for WhatsApp-style sort & unread badges ──────────
+		lastMessage:    toLastMessage(channel.lastMessage),
+		messageCount:   channel.messageCount   ?? 0,
+		unreadCount:    channel.unreadCount    ?? 0,
+		updatedAt:      channel.updatedAt      ?? null,
+		createdAt:      channel.createdAt      ?? null,
 		// Convenience fields for the requesting user
 		myRole:  myEntry?.role  ?? null,
 		myMuted: myEntry?.muted ?? false,

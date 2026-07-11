@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../modules/auth/state/auth.context';
 import { TokenStore } from '../../core/storage/secure-store';
 import { API_BASE_URL } from '../../core/config/api.config';
+import { isJwtExpired, refreshAccessTokenIfNeeded } from '../../core/network/http.client';
 
 interface SocketContextValue {
   socket: Socket | null;
@@ -55,7 +56,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   const connect = useCallback(async () => {
     try {
-      const token = await TokenStore.getAccessToken();
+      let token = await TokenStore.getAccessToken();
+      if (token && isJwtExpired(token)) {
+        try {
+          const refreshed = await refreshAccessTokenIfNeeded();
+          if (refreshed) token = refreshed;
+        } catch {
+          // ignore error, will fail on socket connection
+        }
+      }
+
       if (!token || !user) {
         disconnect();
         return;
@@ -87,8 +97,27 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         setIsConnected(false);
       });
 
-      s.on('connect_error', (err) => {
-        console.warn('[SocketProvider] Socket connect_error:', err);
+      s.on('connect_error', async (err) => {
+        console.warn('[SocketProvider] Socket connect_error:', err.message || err);
+        
+        const isAuthError = err.message === 'Invalid token' || 
+                            err.message === 'Authentication required' || 
+                            err.message === 'jwt expired';
+                            
+        if (isAuthError) {
+          try {
+            console.log('[SocketProvider] Socket auth error, attempting to refresh token...');
+            const freshToken = await refreshAccessTokenIfNeeded();
+            if (freshToken) {
+              console.log('[SocketProvider] Token refreshed, reconnecting socket...');
+              s.auth = { token: freshToken };
+              s.connect();
+              return;
+            }
+          } catch (refreshErr) {
+            console.warn('[SocketProvider] Token refresh failed for socket reconnect:', refreshErr);
+          }
+        }
         setIsConnected(false);
       });
 

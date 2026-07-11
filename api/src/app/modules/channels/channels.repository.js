@@ -31,6 +31,7 @@ const channelsRepository = {
 				select: 'content senderId createdAt',
 				populate: { path: 'senderId', select: 'fullName avatar' }
 			})
+			.sort({ 'lastMessage.createdAt': -1, updatedAt: -1 })
 			.limit(limit)
 			.skip(skip)
 			.lean();

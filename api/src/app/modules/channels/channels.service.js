@@ -5,7 +5,52 @@ const repository = require('./channels.repository');
 const channelsService = {
 	async list({ userId, limit = 50, skip = 0 } = {}) {
 		const items = await repository.findMany({ userId, limit, skip });
-		return { items };
+		if (!userId || items.length === 0) return { items };
+
+		const User    = require('../../../database/models/user.model');
+		const Message = require('../../../database/models/message.model');
+
+		// ── Bulk-fetch participant profiles (one query) ───────────────────────
+		const allParticipantIds = new Set();
+		for (const ch of items) {
+			for (const p of (ch.participants ?? [])) {
+				if (p.userId) allParticipantIds.add(p.userId.toString());
+			}
+		}
+
+		const userDocs = await User
+			.find({ _id: { $in: [...allParticipantIds] } })
+			.select('_id fullName avatar')
+			.lean();
+
+		const userMap = new Map(userDocs.map(u => [u._id.toString(), u]));
+
+		// ── Enrich channels ───────────────────────────────────────────────────
+		const enriched = await Promise.all(items.map(async (channel) => {
+			const myEntry = (channel.participants ?? []).find(
+				(p) => p.userId?.toString() === userId.toString()
+			);
+			const lastReadAt = myEntry?.lastReadAt || new Date(0);
+
+			const [unreadCount] = await Promise.all([
+				Message.countDocuments({
+					channelId: channel._id,
+					deletedAt: { $in: [null, undefined] },
+					createdAt: { $gt: lastReadAt },
+				}),
+			]);
+
+			const enrichedParticipants = (channel.participants ?? []).map(p => {
+				const profile = userMap.get(p.userId?.toString());
+				return profile
+					? { ...p, fullName: profile.fullName ?? null, avatarUrl: profile.avatar?.url ?? null }
+					: p;
+			});
+
+			return { ...channel, participants: enrichedParticipants, unreadCount };
+		}));
+
+		return { items: enriched };
 	},
 
 	async getById(id) {

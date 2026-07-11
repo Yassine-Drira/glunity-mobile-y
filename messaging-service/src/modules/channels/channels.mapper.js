@@ -10,6 +10,9 @@ const toParticipant = (p) => ({
   muted:  p.muted  ?? false,
   muteOption: p.muteOption ?? 'all',
   muteExpiresAt: p.muteExpiresAt ?? null,
+  // Enriched profile snapshot — allows the client to render DM names immediately
+  fullName:  p.fullName  ?? null,
+  avatarUrl: p.avatarUrl ?? null,
 });
 
 const toLastMessage = (lm) => {

@@ -10,17 +10,20 @@ const messagesRepository = {
     const isObjectId = cursor && /^[a-f\d]{24}$/i.test(cursor);
 
     if (cursor) {
-      if (direction === 'before') {
-        if (isObjectId) {
+      if (isObjectId) {
+        if (direction === 'before') {
           query._id = { $lt: cursor };
         } else {
-          query.createdAt = { $lt: new Date(cursor) };
+          query._id = { $gt: cursor };
         }
       } else {
-        if (isObjectId) {
-          query._id = { $gt: cursor };
-        } else {
-          query.createdAt = { $gt: new Date(cursor) };
+        const parsedDate = new Date(cursor);
+        if (!isNaN(parsedDate.getTime())) {
+          if (direction === 'before') {
+            query.createdAt = { $lt: parsedDate };
+          } else {
+            query.createdAt = { $gt: parsedDate };
+          }
         }
       }
     }

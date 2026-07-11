@@ -30,7 +30,7 @@ function decodeJwtPayload(token: string): any | null {
   }
 }
 
-function isJwtExpired(token: string, skewSeconds = 10): boolean {
+export function isJwtExpired(token: string, skewSeconds = 10): boolean {
   const payload = decodeJwtPayload(token);
   if (!payload?.exp || typeof payload.exp !== 'number') return false;
   const now = Math.floor(Date.now() / 1000);
@@ -39,7 +39,7 @@ function isJwtExpired(token: string, skewSeconds = 10): boolean {
 
 let refreshInFlight: Promise<string | null> | null = null;
 
-async function refreshAccessTokenIfNeeded(): Promise<string | null> {
+export async function refreshAccessTokenIfNeeded(): Promise<string | null> {
   if (refreshInFlight) {
     return refreshInFlight;
   }
