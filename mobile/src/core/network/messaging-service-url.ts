@@ -1,6 +1,6 @@
 import { API_BASE_URL } from '../config/api.config';
 
-const DEFAULT_MESSAGING_PORT = '5002';
+const DEFAULT_MESSAGING_PORT = '5001';
 
 export function resolveMessagingServiceUrl(apiBaseUrl: string = API_BASE_URL): string {
   const envOverride = process.env.EXPO_PUBLIC_MESSAGING_SERVICE_URL?.trim();

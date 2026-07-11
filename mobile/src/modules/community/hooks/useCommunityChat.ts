@@ -313,7 +313,11 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       try {
         const res = await messagingHttp.get(`/channels/${initialChannelId}`);
         if (mounted) setChannel(res.data?.data || res.data || null);
-      } catch (err) {
+      } catch (err: any) {
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          if (mounted) setChannel(null);
+          return;
+        }
         try {
           const cachedList = await ChatCacheService.getChannels();
           const foundCached = Array.isArray(cachedList) ? cachedList.find((c: any) => String(c._id || c.id) === String(initialChannelId)) : null;
@@ -493,8 +497,9 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
             markAsRead(id, lastMsgId);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         if (axios.isCancel(err)) return;
+        if (axios.isAxiosError(err) && err.response?.status === 404) return;
         console.warn('[community] loadHistory failed', err);
       } finally {
         if (mounted) {

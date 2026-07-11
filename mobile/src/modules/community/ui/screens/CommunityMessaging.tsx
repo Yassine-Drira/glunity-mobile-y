@@ -1123,13 +1123,13 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       height: 64,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: T.divider,
-      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 8,
       justifyContent: 'space-between',
       backgroundColor: T.surface,
     },
-    headerLeft: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', flex: 1, minWidth: 0 },
+    headerLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
     headerRight: { flexDirection: 'row', alignItems: 'center', paddingLeft: 4 },
     backBtn: { padding: 6, marginRight: 2 },
     // DM avatar: slightly larger, circular with ring
@@ -1161,7 +1161,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     title: { fontSize: 16, fontWeight: '700', color: T.text },
     subtitle: { fontSize: 12, color: T.textMuted },
     listContent: { padding: 16, paddingBottom: 24 },
-    row: { marginVertical: 3, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'flex-end' },
+    row: { marginVertical: 3, flexDirection: 'row', alignItems: 'flex-end' },
     bubbleLeft: {
       backgroundColor: T.surfaceAlt,
       paddingVertical: 10, paddingHorizontal: 14,
@@ -1289,7 +1289,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
       padding: 12, backgroundColor: T.surface,
       borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.divider,
     },
-    inputRow: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' },
+    inputRow: { flexDirection: 'row', alignItems: 'center' },
     textInput: {
       flex: 1, marginHorizontal: 8,
       backgroundColor: T.surfaceAlt,

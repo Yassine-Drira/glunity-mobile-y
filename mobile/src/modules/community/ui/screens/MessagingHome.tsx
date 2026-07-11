@@ -1080,9 +1080,9 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     tabText: { color: T.textMuted, fontSize: 14, fontWeight: '700', textAlign: 'center' },
     tabTextActive: { color: '#fff' },
     list: { paddingHorizontal: 12, paddingRight: 12 },
-    row: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.divider, paddingHorizontal: 6, paddingRight: 12, minHeight: 68 },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.divider, paddingHorizontal: 6, paddingRight: 12, minHeight: 68 },
     avatar: { width: 52, height: 52, borderRadius: 26 },
-    rowContent: { flex: 1, marginLeft: isRTL ? 0 : 12, marginRight: isRTL ? 12 : 0 },
+    rowContent: { flex: 1, marginLeft: 12, marginRight: 0 },
     rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     rowName: { fontSize: 16, fontWeight: '700', color: T.text },
     rowTime: { color: T.textMuted, fontSize: 12 },
@@ -1097,8 +1097,8 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
     optionsCard: { backgroundColor: T.surface, borderRadius: 16, padding: 20, width: '100%', maxWidth: 340, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
     optionsTitle: { fontSize: 18, fontWeight: '800', color: T.text, marginBottom: 16, textAlign: 'center' },
-    optionItem: { flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.divider },
-    optionIconCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 },
+    optionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: T.divider },
+    optionIconCircle: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', marginRight: 12, marginLeft: 0 },
     optionText: { fontSize: 15, fontWeight: '700', color: T.text },
     optionSubtext: { fontSize: 12, color: T.textMuted, marginTop: 2 },
     cancelBtn: { marginTop: 16, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surfaceAlt, borderRadius: 12 },
@@ -1282,7 +1282,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
                   entering={enteringAnimation}
                   style={[styles.row, { justifyContent: 'space-between' }]}
                 >
-                  <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <TouchableOpacity onPress={() => openUserProfile(item._id || item.id)} activeOpacity={0.8}>
                       <ExpoImage source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || 'U')}&background=8BC34A&color=fff` }} style={styles.avatar} cachePolicy="memory-disk" />
                     </TouchableOpacity>

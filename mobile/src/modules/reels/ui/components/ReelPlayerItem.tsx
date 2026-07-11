@@ -93,8 +93,11 @@ const syncOfflineAnalytics = async () => {
 				if (!response.success) {
 					remaining.push(item);
 				}
-			} catch (err) {
-				remaining.push(item);
+			} catch (err: any) {
+				const status = err?.response?.status;
+				if (status !== 404 && status !== 400) {
+					remaining.push(item);
+				}
 			}
 		}
 

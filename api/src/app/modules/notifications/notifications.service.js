@@ -1,6 +1,7 @@
 'use strict';
 
 const repository = require('./notifications.repository');
+const notificationEvents = require('./notifications.events');
 
 const notificationsService = {
 	async list(userId, { limit = 50, skip = 0 } = {}) {
@@ -16,39 +17,16 @@ const notificationsService = {
 			throw error;
 		}
 
-		// Dispatch badge update
-		(async () => {
-			try {
-				const socketBootstrap = require('../../bootstrap/socket.bootstrap');
-				const io = socketBootstrap.getIO();
-				if (io) {
-					const unreadCount = await repository.countUnread(userId);
-					io.to(String(userId)).emit('notification:badge', { unreadCount });
-				}
-			} catch (err) {
-				console.error('Failed to emit real-time badge update on markAsRead:', err);
-			}
-		})();
-
+		// Dispatch badge update event
+		notificationEvents.emit('notification:badgeUpdate', { userId });
 		return updated;
 	},
 
 	async markAllAsRead(userId) {
 		await repository.markAllAsRead(userId);
 
-		// Dispatch badge update
-		(async () => {
-			try {
-				const socketBootstrap = require('../../bootstrap/socket.bootstrap');
-				const io = socketBootstrap.getIO();
-				if (io) {
-					io.to(String(userId)).emit('notification:badge', { unreadCount: 0 });
-				}
-			} catch (err) {
-				console.error('Failed to emit real-time badge update on markAllAsRead:', err);
-			}
-		})();
-
+		// Dispatch badge update event
+		notificationEvents.emit('notification:badgeUpdate', { userId, unreadCount: 0 });
 		return { success: true };
 	},
 
@@ -60,90 +38,27 @@ const notificationsService = {
 			throw error;
 		}
 
-		// Dispatch badge update
-		(async () => {
-			try {
-				const socketBootstrap = require('../../bootstrap/socket.bootstrap');
-				const io = socketBootstrap.getIO();
-				if (io) {
-					const unreadCount = await repository.countUnread(userId);
-					io.to(String(userId)).emit('notification:badge', { unreadCount });
-				}
-			} catch (err) {
-				console.error('Failed to emit real-time badge update on delete:', err);
-			}
-		})();
-
+		// Dispatch badge update event
+		notificationEvents.emit('notification:badgeUpdate', { userId });
 		return doc;
 	},
 
 	async deleteAll(userId) {
 		await repository.deleteAll(userId);
 
-		// Dispatch badge update
-		(async () => {
-			try {
-				const socketBootstrap = require('../../bootstrap/socket.bootstrap');
-				const io = socketBootstrap.getIO();
-				if (io) {
-					io.to(String(userId)).emit('notification:badge', { unreadCount: 0 });
-				}
-			} catch (err) {
-				console.error('Failed to emit real-time badge update on deleteAll:', err);
-			}
-		})();
-
+		// Dispatch badge update event
+		notificationEvents.emit('notification:badgeUpdate', { userId, unreadCount: 0 });
 		return { success: true };
 	},
 
 	async create(payload) {
 		const doc = await repository.create(payload);
 
-		// Dispatch real-time socket events
-		(async () => {
-			try {
-				const socketBootstrap = require('../../bootstrap/socket.bootstrap');
-				const io = socketBootstrap.getIO();
-				if (io) {
-					const populated = await repository.findById(doc._id);
-					if (populated) {
-						const mapper = require('./notifications.mapper');
-						const dto = mapper.toNotificationDto(populated);
-						const recipientId = payload.recipientId || payload.userId;
-
-						io.to(String(recipientId)).emit('notification:new', dto);
-
-						const unreadCount = await repository.countUnread(recipientId);
-						io.to(String(recipientId)).emit('notification:badge', { unreadCount });
-					}
-				}
-			} catch (socketErr) {
-				console.error('Failed to dispatch real-time socket notification:', socketErr);
-			}
-		})();
-
-		// Dispatch push notification in the background
-		(async () => {
-			try {
-				const User = require('../../../database/models/user.model');
-				const recipientId = payload.recipientId || payload.userId;
-				const user = await User.findById(recipientId, 'pushToken pushEnabled').lean();
-				if (user && user.pushToken && user.pushEnabled !== false) {
-					const expoClient = require('../../integrations/push/expo.client');
-					await expoClient.sendPushNotification(
-						user.pushToken,
-						payload.title || 'GlUnity',
-						payload.body || payload.message,
-						payload.metadata || {}
-					);
-				}
-			} catch (err) {
-				console.error('Failed to send push notification background event:', err);
-			}
-		})();
+		// Dispatch background tasks (socket and push) via event emitter
+		notificationEvents.emit('notification:created', { doc, payload });
+		
 		return doc;
 	},
 };
 
 module.exports = notificationsService;
-

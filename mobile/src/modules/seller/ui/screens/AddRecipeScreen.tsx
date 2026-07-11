@@ -95,7 +95,7 @@ export default function AddRecipeScreen({ navigation, route }: Props) {
       overflow: 'hidden',
       position: 'relative',
     },
-    imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
+    imagePreview: { width: '100%', height: '100%' },
     changePhotoBadge: {
       position: 'absolute',
       bottom: 12,
@@ -533,7 +533,7 @@ export default function AddRecipeScreen({ navigation, route }: Props) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [16, 9],
       quality: 0.65,
@@ -582,6 +582,13 @@ export default function AddRecipeScreen({ navigation, route }: Props) {
       const ingredientsArray = ingredients
         ? ingredients.split(',').map(i => i.trim()).filter(Boolean)
         : [];
+      
+      if (ingredientsArray.length === 0) {
+        setIsSubmitting(false);
+        alert(t('Please add at least one ingredient'));
+        return;
+      }
+
       const photosArray = recipeImage ? [recipeImage] : [];
 
       const dto: any = {
@@ -693,7 +700,7 @@ export default function AddRecipeScreen({ navigation, route }: Props) {
         >
           {recipeImage ? (
             <View style={s.imagePreviewWrapper}>
-              <Image source={{ uri: recipeImage }} style={s.imagePreview} />
+              <Image source={{ uri: recipeImage }} style={s.imagePreview} resizeMode="cover" />
               <View style={s.changePhotoBadge}>
                 <Feather name="camera" size={12} color="#FFFFFF" />
                 <Text style={s.changePhotoText}>{t('Change')}</Text>

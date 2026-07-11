@@ -683,6 +683,11 @@ const fr = {
   'Gluten Sensitive': 'Sensible au Gluten',
   'Allergy': 'Allergie',
   'Pro': 'Pro',
+  'This user has not set a bio yet.': 'Cet utilisateur n\'a pas encore de bio.',
+  'Living gluten-free for 12 years 🌿': 'Sans gluten depuis 12 ans 🌿',
+  'Empowering the gluten-free community 🏆': 'Soutenir la communauté sans gluten 🏆',
+  'Pro User': 'Utilisateur Pro',
+  'Anonymous': 'Anonyme',
 };
 
 export default fr;

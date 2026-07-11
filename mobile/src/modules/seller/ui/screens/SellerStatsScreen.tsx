@@ -18,6 +18,9 @@ import authApi, { SellerStats } from '../../../auth/api/auth.api';
 import { useLanguage } from '@/shared/context/language.context';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, Line, Text as SvgText, Rect } from 'react-native-svg';
 
+let BlurView: any;
+try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
+
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerStats'>;
 const DAY_LABELS_7 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -49,6 +52,45 @@ export default function SellerStatsScreen({ navigation }: Props) {
   const { width: windowWidth } = useWindowDimensions();
   const screenWidth = Math.min(windowWidth, 600);
   const { t, isRTL } = useLanguage();
+
+  const renderGlassIcon = (iconName: string, size: number, iconColor: string, containerSize: number, borderRadius: number, containerStyle?: any) => {
+    return (
+      <View style={[{
+        width: containerSize,
+        height: containerSize,
+        borderRadius: borderRadius,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(200, 16, 46, 0.15)',
+        backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(200, 16, 46, 0.04)',
+        shadowColor: iconColor,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+        overflow: 'hidden',
+      }, containerStyle]}>
+        {BlurView ? (
+          <BlurView 
+            intensity={12} 
+            tint={isDark ? 'dark' : 'light'} 
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+        ) : null}
+        <Feather 
+          name={iconName as any} 
+          size={size} 
+          color={iconColor} 
+          style={{
+            textShadowColor: iconColor,
+            textShadowOffset: { width: 0.25, height: 0.25 },
+            textShadowRadius: 0.8,
+          }}
+        />
+      </View>
+    );
+  };
   const [timeframe, setTimeframe] = useState<'7d' | '30d'>('7d');
   const [selectedPointIdx, setSelectedPointIdx] = useState<number | null>(null);
   const [statsData, setStatsData] = useState<SellerStats | null>(null);
@@ -70,8 +112,8 @@ export default function SellerStatsScreen({ navigation }: Props) {
         onPressProfile={() => { if (user?.profileType === 'pro_commerce') navigation.navigate('SellerProProfile'); else navigation.navigate('Profile'); }}
         contentStyle={{ backgroundColor: T.bg }}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: `${T.green}18`, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <ActivityIndicator size="large" color={T.green} />
+          <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: `${T.red}18`, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <ActivityIndicator size="large" color={T.red} />
           </View>
           <Text style={{ fontFamily: 'Poppins_600SemiBold', color: T.textMuted, fontSize: 13 }}>{t('Loading your analytics…')}</Text>
         </View>
@@ -100,10 +142,10 @@ export default function SellerStatsScreen({ navigation }: Props) {
   const totalReelInteractions = (statsData?.reelsLikesCount ?? 0) + (statsData?.reelsCommentsCount ?? 0);
 
   const statCards = [
-    { title: t('Profile Views'), value: loading ? '—' : viewsShown.toLocaleString(), meta: timeframe === '7d' ? t('Last 7 days') : t('Last 30 days'), icon: 'eye' as const, color: T.green, bg: `${T.green}15` },
-    { title: t('Map Clicks'), value: loading ? '—' : mapClicksShown.toLocaleString(), meta: t('Directions requested'), icon: 'map-pin' as const, color: T.green, bg: `${T.green}12` },
-    { title: t('Products'), value: loading ? '—' : (statsData?.productsCount ?? 0).toString(), meta: `${statsData?.certifiedGFCount ?? 0} ${t('GF certified')}`, icon: 'package' as const, color: T.green, bg: `${T.green}12` },
-    { title: t('Avg Price'), value: loading ? '—' : `${(statsData?.avgPrice ?? 0).toFixed(1)} TND`, meta: t('Per product'), icon: 'tag' as const, color: T.green, bg: `${T.green}12` },
+    { title: t('Profile Views'), value: loading ? '—' : viewsShown.toLocaleString(), meta: timeframe === '7d' ? t('Last 7 days') : t('Last 30 days'), icon: 'eye' as const, color: T.red, bg: `${T.red}15` },
+    { title: t('Map Clicks'), value: loading ? '—' : mapClicksShown.toLocaleString(), meta: t('Directions requested'), icon: 'map-pin' as const, color: T.red, bg: `${T.red}12` },
+    { title: t('Products'), value: loading ? '—' : (statsData?.productsCount ?? 0).toString(), meta: `${statsData?.certifiedGFCount ?? 0} ${t('GF certified')}`, icon: 'package' as const, color: T.red, bg: `${T.red}12` },
+    { title: t('Avg Price'), value: loading ? '—' : `${(statsData?.avgPrice ?? 0).toFixed(1)} TND`, meta: t('Per product'), icon: 'tag' as const, color: T.red, bg: `${T.red}12` },
   ];
 
   const C = { card: { backgroundColor: T.surface, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 } };
@@ -117,15 +159,13 @@ export default function SellerStatsScreen({ navigation }: Props) {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero Banner ── */}
-        <View style={{ marginHorizontal: 20, marginTop: 16, marginBottom: 24, borderRadius: 24, overflow: 'hidden', backgroundColor: T.green, shadowColor: T.green, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 20, elevation: 10 }}>
+        <View style={{ marginHorizontal: 20, marginTop: 16, marginBottom: 24, borderRadius: 24, overflow: 'hidden', backgroundColor: T.red, shadowColor: T.red, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 20, elevation: 10 }}>
           <View style={{ position: 'absolute', top: -30, right: -20, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.10)' }} />
           <View style={{ position: 'absolute', bottom: -40, right: 60, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.07)' }} />
           <View style={{ padding: 20 }}>
             <TouchableOpacity onPress={() => navigation.navigate('SellerProfile', { sellerId: user?._id })} activeOpacity={0.85} id="btn-stats-view-profile"
               style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
-                <Feather name="shopping-bag" size={18} color="#FFF" />
-              </View>
+              {renderGlassIcon('shopping-bag', 18, '#FFF', 40, 20)}
               <View style={{ flex: 1 }}>
                 <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 14, color: '#FFF' }}>{user?.storeInfo?.storeName || t('My Store')}</Text>
                 <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.78)' }}>{t('View public profile')} →</Text>
@@ -143,9 +183,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
             {statCards.map((card, idx) => (
               <View key={idx} style={{ width: (screenWidth - 52) / 2, borderRadius: 18, backgroundColor: T.surface, padding: 16, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: card.bg, alignItems: 'center', justifyContent: 'center' }}>
-                    <Feather name={card.icon} size={15} color={card.color} />
-                  </View>
+                  {renderGlassIcon(card.icon, 15, card.color, 32, 10)}
                   <Text style={{ fontSize: 9, fontFamily: 'Poppins_700Bold', color: T.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, flex: 1 }}>{card.title}</Text>
                 </View>
                 <Text style={{ fontSize: 24, fontFamily: 'Poppins_700Bold', color: T.text }}>{card.value}</Text>
@@ -175,7 +213,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                   }}
                   style={{
                     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 8,
-                    backgroundColor: timeframe === key ? T.green : 'transparent',
+                    backgroundColor: timeframe === key ? T.red : 'transparent',
                   }}
                 >
                   <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 11, color: timeframe === key ? '#FFF' : T.textMuted }}>
@@ -211,11 +249,11 @@ export default function SellerStatsScreen({ navigation }: Props) {
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                     <View style={{
                       flexDirection: 'row', alignItems: 'center', gap: 6,
-                      backgroundColor: isPeak ? `${T.green}14` : (isDark ? '#FFFFFF0A' : '#00000006'),
+                      backgroundColor: isPeak ? `${T.red}14` : (isDark ? '#FFFFFF0A' : '#00000006'),
                       borderRadius: 12, paddingHorizontal: 12, paddingVertical: 7,
                     }}>
-                      <Feather name={isPeak ? "trending-up" : "eye"} size={13} color={isPeak ? T.green : T.textMuted} />
-                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 11, color: isPeak ? T.green : T.text }}>
+                      <Feather name={isPeak ? "trending-up" : "eye"} size={13} color={isPeak ? T.red : T.textMuted} />
+                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 11, color: isPeak ? T.red : T.text }}>
                         {timeframe === '7d'
                           ? (xLabels7d[activeIdx] ?? '')
                           : `${t('Day')} ${activeIdx + 1}`
@@ -227,11 +265,11 @@ export default function SellerStatsScreen({ navigation }: Props) {
                       <TouchableOpacity
                         onPress={() => setSelectedPointIdx(null)}
                         style={{
-                          backgroundColor: `${T.green}10`,
+                          backgroundColor: `${T.red}10`,
                           borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4,
                         }}
                       >
-                        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 9, color: T.green }}>
+                        <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 9, color: T.red }}>
                           {t('Reset to Peak')}
                         </Text>
                       </TouchableOpacity>
@@ -239,11 +277,11 @@ export default function SellerStatsScreen({ navigation }: Props) {
                       maxVal > 0 && (
                         <View style={{
                           flexDirection: 'row', alignItems: 'center', gap: 5,
-                          backgroundColor: `${T.green}14`,
+                          backgroundColor: `${T.red}14`,
                           borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6,
                         }}>
-                          <Feather name="zap" size={11} color={T.green} />
-                          <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 9, color: T.green, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                          <Feather name="zap" size={11} color={T.red} />
+                          <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 9, color: T.red, textTransform: 'uppercase', letterSpacing: 0.4 }}>
                             {t('Peak Period')}
                           </Text>
                         </View>
@@ -280,13 +318,13 @@ export default function SellerStatsScreen({ navigation }: Props) {
                   <Svg width={svgW} height={svgH} style={{ overflow: 'visible' }}>
                     <Defs>
                       <LinearGradient id="chartGradFill" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0%" stopColor={T.green} stopOpacity={0.30} />
-                        <Stop offset="60%" stopColor={T.green} stopOpacity={0.06} />
-                        <Stop offset="100%" stopColor={T.green} stopOpacity={0.0} />
+                        <Stop offset="0%" stopColor={T.red} stopOpacity={0.30} />
+                        <Stop offset="60%" stopColor={T.red} stopOpacity={0.06} />
+                        <Stop offset="100%" stopColor={T.red} stopOpacity={0.0} />
                       </LinearGradient>
                       <LinearGradient id="lineGlow" x1="0" y1="0" x2="0" y2="1">
-                        <Stop offset="0%" stopColor={T.green} stopOpacity={0.15} />
-                        <Stop offset="100%" stopColor={T.green} stopOpacity={0.0} />
+                        <Stop offset="0%" stopColor={T.red} stopOpacity={0.15} />
+                        <Stop offset="100%" stopColor={T.red} stopOpacity={0.0} />
                       </LinearGradient>
                     </Defs>
 
@@ -324,7 +362,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                           width={8}
                           height={barH}
                           rx={4}
-                          fill={idx === activeIdx ? T.green : (isDark ? '#FFFFFF' : '#000000')}
+                          fill={idx === activeIdx ? T.red : (isDark ? '#FFFFFF' : '#000000')}
                           fillOpacity={idx === activeIdx ? 0.16 : (isDark ? 0.04 : 0.03)}
                           pointerEvents="none"
                         />
@@ -339,7 +377,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                       <Line
                         x1={activePt[0]} y1={svgPadY - 4}
                         x2={activePt[0]} y2={svgH - svgPadY - 12}
-                        stroke={T.green}
+                        stroke={T.red}
                         strokeWidth={1.5}
                         strokeDasharray="3 3"
                         strokeOpacity={0.55}
@@ -352,7 +390,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                       <Path
                         d={lp}
                         fill="none"
-                        stroke={T.green}
+                        stroke={T.red}
                         strokeWidth={6}
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -366,7 +404,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                       <Path
                         d={lp}
                         fill="none"
-                        stroke={T.green}
+                        stroke={T.red}
                         strokeWidth={3}
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -383,14 +421,14 @@ export default function SellerStatsScreen({ navigation }: Props) {
                           {isSelected ? (
                             <>
                               {/* Soft pulsing rings */}
-                              <Circle cx={pt[0]} cy={pt[1]} r={12} fill={T.green} fillOpacity={0.12} pointerEvents="none" />
-                              <Circle cx={pt[0]} cy={pt[1]} r={7.5} fill={T.green} fillOpacity={0.25} pointerEvents="none" />
+                              <Circle cx={pt[0]} cy={pt[1]} r={12} fill={T.red} fillOpacity={0.12} pointerEvents="none" />
+                              <Circle cx={pt[0]} cy={pt[1]} r={7.5} fill={T.red} fillOpacity={0.25} pointerEvents="none" />
                               {/* Selected point dot */}
-                              <Circle cx={pt[0]} cy={pt[1]} r={4.5} fill={T.surface} stroke={T.green} strokeWidth={2.5} pointerEvents="none" />
+                              <Circle cx={pt[0]} cy={pt[1]} r={4.5} fill={T.surface} stroke={T.red} strokeWidth={2.5} pointerEvents="none" />
                             </>
                           ) : (
                             isPeak && maxV > 0 && (
-                              <Circle cx={pt[0]} cy={pt[1]} r={3.5} fill={T.green} fillOpacity={0.4} pointerEvents="none" />
+                              <Circle cx={pt[0]} cy={pt[1]} r={3.5} fill={T.red} fillOpacity={0.4} pointerEvents="none" />
                             )
                           )}
                         </React.Fragment>
@@ -408,12 +446,12 @@ export default function SellerStatsScreen({ navigation }: Props) {
                             <Circle
                               cx={pt[0]} cy={svgH}
                               r={2}
-                              fill={T.green}
+                              fill={T.red}
                             />
                           )}
                           <SvgText
                             x={pt[0]} y={svgH - 4}
-                            fill={isSelected ? T.green : T.textMuted}
+                            fill={isSelected ? T.red : T.textMuted}
                             fontSize={9}
                             fontFamily={isSelected ? 'Poppins_700Bold' : 'Poppins_500Medium'}
                             fontWeight={isSelected ? '700' : '500'}
@@ -434,13 +472,13 @@ export default function SellerStatsScreen({ navigation }: Props) {
                             <Circle
                               cx={pt[0]} cy={svgH}
                               r={2}
-                              fill={T.green}
+                              fill={T.red}
                             />
                           )}
                           <SvgText
                             key={idx}
                             x={pt[0]} y={svgH - 4}
-                            fill={isSelected ? T.green : T.textMuted}
+                            fill={isSelected ? T.red : T.textMuted}
                             fontSize={8}
                             fontFamily={isSelected ? 'Poppins_700Bold' : 'Poppins_500Medium'}
                             fontWeight={isSelected ? '700' : '500'}
@@ -498,14 +536,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                 ].map((stat, i, arr) => (
                   <React.Fragment key={i}>
                     <View style={{ flex: 1, alignItems: 'center' }}>
-                      <View style={{
-                        width: 32, height: 32, borderRadius: 10,
-                        backgroundColor: `${T.green}14`,
-                        alignItems: 'center', justifyContent: 'center',
-                        marginBottom: 6,
-                      }}>
-                        <Feather name={stat.icon} size={14} color={T.green} />
-                      </View>
+                      {renderGlassIcon(stat.icon, 14, T.red, 32, 10, { marginBottom: 6 })}
                       <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 14, color: T.text }}>{stat.value}</Text>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 9, color: T.textMuted, marginTop: 2 }}>{stat.label}</Text>
                     </View>
@@ -524,16 +555,16 @@ export default function SellerStatsScreen({ navigation }: Props) {
           <View style={{ paddingHorizontal: 20, marginBottom: 28 }}>
             <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 15, color: T.text }}>{t('Customer Reviews')}</Text>
-              <View style={{ backgroundColor: `${T.green}15`, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: T.green }}>{statsData?.totalReviews} {t('total')}</Text>
+              <View style={{ backgroundColor: `${T.red}15`, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: T.red }}>{statsData?.totalReviews} {t('total')}</Text>
               </View>
             </View>
             <View style={C.card}>
               <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center' }}>
                 <View style={{ alignItems: 'center', minWidth: 64 }}>
-                  <Text style={{ fontSize: 44, fontFamily: 'Poppins_700Bold', color: T.green, lineHeight: 52 }}>{statsData?.rating ?? '—'}</Text>
+                  <Text style={{ fontSize: 44, fontFamily: 'Poppins_700Bold', color: T.red, lineHeight: 52 }}>{statsData?.rating ?? '—'}</Text>
                   <View style={{ flexDirection: 'row', gap: 2 }}>
-                    {[1,2,3,4,5].map(star => <Feather key={star} name="star" size={12} color={parseFloat(statsData?.rating ?? '0') >= star ? T.green : T.border} />)}
+                    {[1,2,3,4,5].map(star => <Feather key={star} name="star" size={12} color={parseFloat(statsData?.rating ?? '0') >= star ? T.red : T.border} />)}
                   </View>
                   <Text style={{ fontSize: 9, color: T.textMuted, marginTop: 4, fontFamily: 'Poppins_400Regular' }}>{statsData?.totalReviews} {t('reviews')}</Text>
                 </View>
@@ -543,9 +574,9 @@ export default function SellerStatsScreen({ navigation }: Props) {
                     return (
                       <View key={star} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 10, color: T.textMuted, width: 10, textAlign: 'right' }}>{star}</Text>
-                        <Feather name="star" size={9} color={T.green} />
+                        <Feather name="star" size={9} color={T.red} />
                         <View style={{ flex: 1, height: 7, borderRadius: 4, backgroundColor: isDark ? '#FFFFFF0F' : '#0000000A', overflow: 'hidden' }}>
-                          <View style={{ height: 7, borderRadius: 4, width: `${pct * 100}%`, backgroundColor: T.green }} />
+                          <View style={{ height: 7, borderRadius: 4, width: `${pct * 100}%`, backgroundColor: T.red }} />
                         </View>
                         <Text style={{ fontFamily: 'Poppins_500Medium', fontSize: 9, color: T.textMuted, width: 18, textAlign: 'right' }}>{count}</Text>
                       </View>
@@ -567,13 +598,13 @@ export default function SellerStatsScreen({ navigation }: Props) {
                 return (
                   <View key={i} style={{ marginBottom: i < (statsData.topCategories.length - 1) ? 14 : 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: T.green, marginRight: 8 }} />
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: T.red, marginRight: 8 }} />
                       <Text style={{ flex: 1, fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: T.text }}>{cat.name}</Text>
-                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 11, color: T.green }}>{cat.count}</Text>
+                      <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 11, color: T.red }}>{cat.count}</Text>
                       <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 10, color: T.textMuted, marginLeft: 2 }}>{t('products')}</Text>
                     </View>
                     <View style={{ height: 6, borderRadius: 3, backgroundColor: isDark ? '#FFFFFF0F' : '#0000000A', overflow: 'hidden' }}>
-                      <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: T.green }} />
+                      <View style={{ height: 6, borderRadius: 3, width: `${pct}%`, backgroundColor: T.red }} />
                     </View>
                   </View>
                 );
@@ -593,9 +624,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
               { label: t('Engagement'), value: `${statsData?.reelsEngagementRate ?? '0.0'}%`, icon: 'percent' as const },
             ].map((item, i) => (
               <View key={i} style={{ width: (screenWidth - 52) / 2, backgroundColor: T.surface, borderRadius: 18, padding: 16, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}>
-                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: `${T.green}14`, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
-                  <Feather name={item.icon} size={16} color={T.green} />
-                </View>
+                {renderGlassIcon(item.icon, 16, T.red, 34, 11, { marginBottom: 10 })}
                 <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 22, color: T.text }}>{loading ? '—' : item.value}</Text>
                 <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 9, color: T.textMuted, marginTop: 2 }}>{item.label}</Text>
               </View>
@@ -610,9 +639,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                 ].map((item, i, arr) => (
                   <React.Fragment key={i}>
                     <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: `${T.green}14`, alignItems: 'center', justifyContent: 'center' }}>
-                        <Feather name={item.icon} size={14} color={T.green} />
-                      </View>
+                      {renderGlassIcon(item.icon, 14, T.red, 30, 9)}
                       <View>
                         <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 16, color: T.text }}>{item.count.toLocaleString()}</Text>
                         <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 9, color: T.textMuted }}>{item.label}</Text>
@@ -638,17 +665,15 @@ export default function SellerStatsScreen({ navigation }: Props) {
               { icon: 'map-pin' as const, label: t('Map clicks (30d)'), value: loading ? '…' : (statsData?.mapClicksLast30Days ?? 0).toLocaleString() },
             ].map((item: any, i) => (
               <View key={i} style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', backgroundColor: T.surface, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2, gap: 12 }}>
-                <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: `${T.green}14`, alignItems: 'center', justifyContent: 'center' }}>
-                  <Feather name={item.icon} size={18} color={T.green} />
-                </View>
+                {renderGlassIcon(item.icon, 18, T.red, 42, 13)}
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 10, color: T.textMuted, marginBottom: 2 }}>{item.label}</Text>
                   <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 13, color: T.text }}>{item.value}</Text>
                   {item.sub && <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 10, color: T.textMuted, marginTop: 1 }}>{item.sub}</Text>}
                 </View>
                 {item.badge && (
-                  <View style={{ backgroundColor: `${T.green}18`, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
-                    <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 9, color: T.green }}>{item.badge}</Text>
+                  <View style={{ backgroundColor: `${T.red}18`, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}>
+                    <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 9, color: T.red }}>{item.badge}</Text>
                   </View>
                 )}
               </View>

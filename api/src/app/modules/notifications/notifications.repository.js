@@ -43,13 +43,13 @@ const notificationsRepository = {
 
 	markAllAsRead(userId) {
 		return Notification.updateMany(
-			{ userId, isRead: false },
+			{ $or: [{ userId }, { recipientId: userId }], isRead: false },
 			{ $set: { isRead: true } }
 		);
 	},
 
 	delete(id, userId) {
-		return Notification.findOneAndDelete({ _id: id, userId });
+		return Notification.findOneAndDelete({ _id: id, $or: [{ userId }, { recipientId: userId }] });
 	},
 
 	deleteAll(userId) {

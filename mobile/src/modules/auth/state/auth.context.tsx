@@ -36,6 +36,7 @@ interface AuthContextValue extends AuthState {
   textSize:      'Small' | 'Medium' | 'Large';
   updateTextSize: (size: 'Small' | 'Medium' | 'Large') => Promise<void>;
   verify2Fa:     (userId: string, code: string) => Promise<any>;
+  refreshUser:   () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -86,14 +87,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Register push notifications when user is authenticated ──────────────────
+  const userId = state.user?._id || state.user?.id;
   useEffect(() => {
-    if (state.user) {
+    if (userId && state.user) {
       const { registerForPushNotificationsAsync } = require('../../../shared/utils/notifications');
-      registerForPushNotificationsAsync().catch((err: any) => {
+      registerForPushNotificationsAsync(state.user.pushEnabled).catch((err: any) => {
         console.warn('Failed to register push notifications:', err);
       });
     }
-  }, [state.user]);
+  }, [userId]);
 
   // ── Handle global token expiration and auto-logout ────────────────────────
   useEffect(() => {
@@ -230,9 +232,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const user = await authApi.getMe();
+      dispatch({ type: 'UPDATE_USER', payload: user });
+    } catch (err) {
+      console.warn('Failed to refresh user:', err);
+    }
+  }, []);
+
   const value = useMemo(
-    () => ({ ...state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa }),
-    [state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa],
+    () => ({ ...state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser }),
+    [state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
