@@ -10,12 +10,13 @@ import { useLanguage } from '../../../shared/context/language.context';
 import { TokenStore } from '../../../core/storage/secure-store';
 import { API_BASE_URL } from '../../../core/config/api.config';
 import messagingHttp from '../../../core/network/messaging-http.client';
+import { resolveMessagingServiceUrl } from '../../../core/network/messaging-service-url';
 import messagingEvents from '../../../shared/utils/messagingEvents';
 import { ChatCacheService } from '../services/chat-cache.service';
 
 // Keep for legacy usages that don't go through the intercepted clients
 const CORE_API_URL = API_BASE_URL;
-const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5001');
+const MSG_SERVICE_URL = resolveMessagingServiceUrl(API_BASE_URL);
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -149,6 +150,11 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
   // Pagination states
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // Debounced read receipts & retry queue references
+  const pendingReadsRef = useRef<{ [channelId: string]: string }>({});
+  const readDebounceTimersRef = useRef<{ [channelId: string]: any }>({});
+  const retryAttemptsRef = useRef<{ [tempId: string]: number }>({});
 
   // Audio recording & playback hooks
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -329,13 +335,30 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
     return () => { mounted = false; };
   }, [initialChannel, initialChannelId]);
 
-  const markAsRead = useCallback(async (channelId: string, lastMsgId: string) => {
+  const markAsRead = useCallback((channelId: string, lastMsgId: string) => {
     if (!channelId || !lastMsgId || String(channelId).startsWith('local-')) return;
-    try {
-      await messagingHttp.post(`/channels/${channelId}/read`, { lastReadMsgId: lastMsgId });
-    } catch (err) {
-      console.warn('[community] Failed to persist read status', err);
+
+    // Buffer the latest read message ID
+    pendingReadsRef.current[channelId] = lastMsgId;
+
+    // Clear existing debounce timer for this channel
+    if (readDebounceTimersRef.current[channelId]) {
+      clearTimeout(readDebounceTimersRef.current[channelId]);
     }
+
+    // Debounce the network request by 1500ms to coalesce multiple fast reads
+    readDebounceTimersRef.current[channelId] = setTimeout(async () => {
+      const msgIdToMark = pendingReadsRef.current[channelId];
+      if (!msgIdToMark) return;
+      delete pendingReadsRef.current[channelId];
+      delete readDebounceTimersRef.current[channelId];
+
+      try {
+        await messagingHttp.post(`/channels/${channelId}/read`, { lastReadMsgId: msgIdToMark });
+      } catch (err) {
+        console.warn('[community] Failed to persist read status', err);
+      }
+    }, 1500);
   }, []);
 
   const loadMoreMessages = useCallback(async () => {
@@ -400,23 +423,30 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         return;
       }
 
+      // Set loading to true immediately to prevent concurrent pagination calls
+      setLoading(true);
+
       // Reset hasMore/loadingMore when initial history loads
       setHasMore(true);
       setLoadingMore(false);
+
+      // Ensure cache is initialized in case we landed directly on this screen (deep link / notification)
+      await ChatCacheService.initialize();
 
       // 1. Try to load from cache first for instant UI response
       try {
         const cached = await ChatCacheService.getMessages(id);
         if (mounted && cached && cached.length > 0) {
           const filtered = cached.filter((m: any) => !m.status || m.status === 'sent');
-          setMessages(filtered);
+          // Start over by loading ONLY the latest 20 messages, discard anything older
+          const latest20 = filtered.slice(-20);
+          setMessages(latest20);
           scrollToEnd(false);
         }
       } catch (err) {
         console.warn('[community] failed to load cached messages', err);
       }
 
-      setLoading(true);
       try {
         // 2. Fetch fresh messages from the backend (uses auto-refresh interceptor)
         const res = await messagingHttp.get(`/channels/${id}/messages?limit=20`, {
@@ -428,27 +458,18 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         
         let mergedMessages: any[] = [];
         setMessages((prev) => {
-          const merged = [...prev];
-          const existingIds = new Set(merged.map(m => String(m.id || m._id)));
+          // Identify any local optimistic messages (sending/failed) so they are not discarded
+          const localOptimistic = prev.filter(m => m.status === 'sending' || m.status === 'failed');
           
-          fresh.forEach((msg: any) => {
-            const idStr = String(msg.id || msg._id);
-            if (!existingIds.has(idStr)) {
-              merged.push(msg);
-            } else {
-              const idx = merged.findIndex(m => String(m.id || m._id) === idStr);
-              if (idx !== -1) {
-                merged[idx] = msg;
-              }
-            }
-          });
-          
-          mergedMessages = merged.sort((a, b) => {
+          // Replace state with the 20 fresh messages, sorted chronologically
+          mergedMessages = [...fresh].sort((a, b) => {
             const tA = new Date(a.createdAt || 0).getTime();
             const tB = new Date(b.createdAt || 0).getTime();
             return tA - tB;
           });
-          return mergedMessages;
+          
+          // Combine fresh messages with local unsent messages
+          return [...mergedMessages, ...localOptimistic];
         });
 
         if (fresh.length < 20) {
@@ -457,7 +478,7 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
         
         scrollToEnd(false);
 
-        // 3. Update the local cache with the merged messages
+        // 3. Update the local cache with the latest messages
         if (mergedMessages.length > 0) {
           await ChatCacheService.saveMessages(id, mergedMessages);
         } else if (fresh.length > 0) {
@@ -758,6 +779,12 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
       }
+      // Clean up read receipt timers
+      if (readDebounceTimersRef.current) {
+        Object.values(readDebounceTimersRef.current).forEach((timer: any) => {
+          if (timer) clearTimeout(timer);
+        });
+      }
       if (player) {
         try {
           player.pause();
@@ -984,17 +1011,64 @@ export function useCommunityChat(initialChannel: any, initialChannelId: string |
       payload.replyTo = { messageId: replyingTo.id, senderName: replyingTo.senderName };
     }
 
-    // Safety timeout: if server doesn't respond in 8 seconds, mark as failed
-    let resolved = false;
-    const timeout = setTimeout(() => {
-      if (!resolved) {
+    const triggerAutoRetry = (tToSend: string, tId: string) => {
+      const attempts = retryAttemptsRef.current[tId] || 0;
+      if (attempts < 3) {
+        retryAttemptsRef.current[tId] = attempts + 1;
+        const delay = 2000 * Math.pow(2, attempts); // exponential backoff: 2s, 4s, 8s
+        console.log(`[useCommunityChat] Auto-retrying send for ${tId} (attempt ${attempts + 1}/3) in ${delay}ms`);
+        setTimeout(() => {
+          setMessages((prev) => {
+            const msg = prev.find(m => m.id === tId);
+            if (msg && (msg.status === 'failed' || msg.status === 'sending')) {
+              performSendEmit(tToSend, tId);
+            }
+            return prev;
+          });
+        }, delay);
+      } else {
+        // Exceeded retries, mark as failed permanently
+        delete retryAttemptsRef.current[tId];
+        setMessages((prev) => prev.map(m => m.id === tId ? { ...m, status: 'failed' } : m));
+      }
+    };
+
+    const performSendEmit = (tToSend: string, tId: string) => {
+      // Safety timeout: if server doesn't respond in 8 seconds, trigger retry
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          triggerAutoRetry(tToSend, tId);
+        }
+      }, 8000);
+
+      socket.emit('message:send', payload, (res: any) => {
+        clearTimeout(timeout);
+        if (resolved) return;
         resolved = true;
+
         if (Platform.OS !== 'web') {
           LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         }
-        setMessages((prev) => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
-      }
-    }, 8000);
+        if (res?.ok) {
+          const realId = String(res.data?.id || res.data?._id || '');
+          setReplyingTo(null);
+          delete retryAttemptsRef.current[tId]; // clear attempt tracker
+          setMessages((prev) => {
+            if (realId && prev.some(m => (m.id || m._id) === realId)) {
+              return prev.filter(m => m.id !== tId);
+            }
+            if (realId) confirmedIdsRef.current.add(realId);
+            return prev.map(m => m.id === tId ? { ...res.data, status: 'sent' } : m);
+          });
+          try { messagingEvents.emit('message:new', res.data); } catch (e) { }
+        } else {
+          // Trigger background auto-retry on socket error
+          triggerAutoRetry(tToSend, tId);
+        }
+      });
+    };
 
     socket.emit('message:send', payload, (res: any) => {
       clearTimeout(timeout);

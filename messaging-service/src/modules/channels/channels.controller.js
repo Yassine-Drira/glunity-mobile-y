@@ -227,6 +227,24 @@ const channelsController = {
     });
   }),
 
+  // ── POST /api/channels/:id/members/:uid/ban ────────────────────────────────
+  banMember: asyncHandler(async (req, res) => {
+    const { id: channelId, uid: targetUserId } = req.params;
+    const channel = await service.banMember(channelId, req.user._id, targetUserId);
+
+    // Emit real-time channel updates
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`channel:${channelId}`).emit('channel:updated', mapper.toChannelResponse(channel, req.user._id));
+      io.to(`user:${targetUserId}`).emit('channel:banned', { channelId });
+    }
+
+    res.status(200).json({
+      success: true,
+      data:    mapper.toChannelResponse(channel, req.user._id),
+    });
+  }),
+
   createChannel: asyncHandler(async (req, res) => {
     const { name, description, avatarUrl, coverImageUrl } = req.body;
     const channel = await service.createChannel(req.user._id, {

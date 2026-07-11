@@ -164,6 +164,10 @@ const channelsService = {
     if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
     
     const reqIdStr = String(requesterId);
+    if (channel.bannedUsers && channel.bannedUsers.some(bId => String(bId) === reqIdStr)) {
+      throw createError('You are banned from this channel', 403, 'FORBIDDEN');
+    }
+    
     const isMember = channel.participants && channel.participants.some((p) => {
       if (!p) return false;
       const pId = p.userId ? String(p.userId) : String(p);
@@ -359,7 +363,10 @@ const channelsService = {
     const Channel = require('../../database/models/channel.model');
     const updated = await Channel.findByIdAndUpdate(
       channelId,
-      { $push: { participants: { $each: toAdd } } },
+      { 
+        $push: { participants: { $each: toAdd } },
+        $pullAll: { bannedUsers: toAdd.map(p => p.userId) }
+      },
       { new: true }
     );
     return updated;
@@ -406,6 +413,47 @@ const channelsService = {
     const updated = await Channel.findByIdAndUpdate(
       channelId,
       { $pull: { participants: { userId: new mongoose.Types.ObjectId(String(targetUserId)) } } },
+      { new: true }
+    );
+    return updated;
+  },
+
+  async banMember(channelId, requesterId, targetUserId) {
+    if (!mongoose.Types.ObjectId.isValid(String(channelId))) {
+      throw createError('Invalid channelId', 400, 'VALIDATION_ERROR');
+    }
+    if (!mongoose.Types.ObjectId.isValid(String(targetUserId))) {
+      throw createError('Invalid targetUserId', 400, 'VALIDATION_ERROR');
+    }
+
+    const channel = await repository.findById(channelId);
+    if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
+    if (channel.type === 'direct' || channel.type === 'DM') {
+      throw createError('Cannot ban members from a DM channel', 403, 'FORBIDDEN');
+    }
+
+    const requester = assertParticipant(channel, requesterId, 'You are not a participant of this channel');
+
+    const isSelf = requesterId.toString() === targetUserId.toString();
+    const isChannelOwner = channel.createdById && channel.createdById.toString() === requesterId.toString();
+    const hasAdminRights = ['owner', 'admin'].includes(requester.role) || isChannelOwner;
+    if (!isSelf && !hasAdminRights) {
+      throw createError('Only admins or owners can ban members', 403, 'FORBIDDEN');
+    }
+
+    const target = channel.participants.find((p) => p.userId.toString() === targetUserId.toString());
+    if (!target) throw createError('Target user is not a participant', 404, 'NOT_FOUND');
+    if (target.role === 'owner' && !isSelf) {
+      throw createError('Cannot ban the channel owner', 403, 'FORBIDDEN');
+    }
+
+    const Channel = require('../../database/models/channel.model');
+    const updated = await Channel.findByIdAndUpdate(
+      channelId,
+      { 
+        $pull: { participants: { userId: new mongoose.Types.ObjectId(String(targetUserId)) } },
+        $addToSet: { bannedUsers: new mongoose.Types.ObjectId(String(targetUserId)) }
+      },
       { new: true }
     );
     return updated;
@@ -575,6 +623,9 @@ const channelsService = {
     if (!channel) {
       throw createError('Channel not found', 404, 'NOT_FOUND');
     }
+    if (channel.bannedUsers && channel.bannedUsers.some(bId => bId.toString() === userId.toString())) {
+      throw createError('You are banned from this channel', 403, 'FORBIDDEN');
+    }
     if (channel.type !== 'channel') {
       throw createError('Cannot join this channel directly', 403, 'FORBIDDEN');
     }
@@ -636,6 +687,7 @@ const channelsService = {
     const channels = await Channel.find({
       type: 'channel',
       deletedAt: { $in: [null, undefined] },
+      bannedUsers: { $ne: new mongoose.Types.ObjectId(String(userId)) }
     }).lean();
 
     const mapper = require('./channels.mapper');

@@ -6,7 +6,11 @@ const eventsRepository = {
 	async findMany({ search, type, limit = 50, skip = 0, includeUnpublished = false } = {}) {
 		// By default only return published events. Callers can set includeUnpublished=true to override.
 		const query = {};
-		if (!includeUnpublished) query.isPublished = true;
+		if (!includeUnpublished) {
+			query.isPublished = true;
+			query.isCancelled = { $ne: true };
+			query.status = { $ne: 'cancelled' };
+		}
 		if (search && String(search).trim()) query.$text = { $search: String(search).trim() };
 		if (type && String(type).trim()) query.type = String(type).trim().toLowerCase();
 		const pipeline = [
@@ -56,7 +60,7 @@ const eventsRepository = {
 	cancel(eventId) {
 		return Event.findByIdAndUpdate(
 			eventId,
-			{ $set: { isPublished: false } },
+			{ $set: { isPublished: false, isCancelled: true, status: 'cancelled' } },
 			{ returnDocument: 'after' }
 		).lean();
 	},

@@ -144,6 +144,13 @@ router.post('/:id/members', auth, controller.addMembers);
  */
 router.delete('/:id/members/:uid', auth, controller.removeMember);
 
+/**
+ * POST /api/channels/:id/members/:uid/ban
+ * Ban a participant from a group channel.
+ * Caller must be owner or admin.
+ */
+router.post('/:id/members/:uid/ban', auth, controller.banMember);
+
 // ── Messages sub-resource ─────────────────────────────────────────────────────
 
   /**

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, Pressable, Image, ActivityIndicator, Animated, Alert, Platform, TextInput, Modal, KeyboardAvoidingView } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import http from '../../../../core/network/http.client';
@@ -17,6 +18,7 @@ import OnlineDot from '../../../../shared/components/OnlineDot';
 import AnimatedReanimated, { FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { UserProfileBottomSheet } from '../components/UserProfileBottomSheet';
 import ActiveNowSection from '../components/ActiveNowSection';
+import { resolveMessagingServiceUrl } from '../../../../core/network/messaging-service-url';
 
 let BlurView: any = null;
 try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
@@ -80,7 +82,7 @@ const ChannelRowItem = React.memo(({
         onLongPress={() => handleLongPressChannel(item)}
       >
         <View style={{ position: 'relative' }}>
-          <Image source={{ uri: avatarUri }} style={styles.avatar} />
+          <ExpoImage source={{ uri: avatarUri }} style={styles.avatar} cachePolicy="memory-disk" />
           <OnlineDot isOnline={showOnlineDot} size={13} />
         </View>
         <View style={styles.rowContent}>
@@ -140,6 +142,21 @@ const ChannelRowItem = React.memo(({
 
   return true;
 });
+
+function isDMChannel(c: any) {
+  if (!c) return false;
+  if (c.name && c.name.startsWith && c.name.startsWith('DM-')) return true;
+  if (c.type && (c.type === 'direct' || c.type === 'dm' || String(c.type).toUpperCase() === 'DM')) return true;
+  if (c.participants && Array.isArray(c.participants) && c.participants.length === 2) return true;
+  return false;
+}
+
+function isGroupChannel(c: any) {
+  if (!c) return false;
+  if (c.type && c.type === 'group') return true;
+  if (c.participants && Array.isArray(c.participants) && c.participants.length > 2) return true;
+  return false;
+}
 
 export default function MessagingHome({ navigation }: any) {
   const { theme: T, isDark } = useTheme();
@@ -440,6 +457,9 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
   }, [user?._id, mergeUserProfiles, printPerformanceReport]);
 
   const fetchChannels = useCallback(async (isBackground = false) => {
+    // Initialize/Preload memory cache if not initialized yet
+    await ChatCacheService.initialize();
+
     // Cancel any previous pending requests before starting a new one
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -583,7 +603,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
       }
       try {
         const baseURL = http.defaults.baseURL || '';
-        const msgBaseUrl = baseURL.replace(':5000', ':5001');
+        const msgBaseUrl = resolveMessagingServiceUrl(baseURL);
         const res = await http.get(`${msgBaseUrl}/channels/discover`);
         setPublicChannels(res.data?.data || []);
       } catch (err) {
@@ -611,23 +631,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  function isDMChannel(c: any) {
-    if (!c) return false;
-    if (c.name && c.name.startsWith && c.name.startsWith('DM-')) return true;
-    if (c.type && (c.type === 'direct' || c.type === 'dm' || String(c.type).toUpperCase() === 'DM')) return true;
-    if (c.participants && Array.isArray(c.participants) && c.participants.length === 2) return true;
-    return false;
-  }
-
-  function isGroupChannel(c: any) {
-    if (!c) return false;
-    if (c.type && c.type === 'group') return true;
-    if (c.participants && Array.isArray(c.participants) && c.participants.length > 2) return true;
-    // Otherwise not a group
-    return false;
-  }
-
-  function findOtherParticipant(channel: any) {
+  const findOtherParticipant = useCallback((channel: any) => {
     if (!channel || !user) return null;
     const myId = String((user as any)._id || (user as any).id || '');
     const parts = channel.participants || channel.members || channel.participantIds || channel.userIds;
@@ -670,9 +674,9 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
       fullName: otherEntry.fullName || otherEntry.name || otherEntry.displayName || null,
       avatarUrl: otherEntry.avatarUrl || otherEntry.avatar || null,
     };
-  }
+  }, [user, users]);
 
-  function getChannelDisplay(channel: any) {
+  const getChannelDisplay = useCallback((channel: any) => {
     const d = getDisplayForChannel(channel, user);
     let name = d.name;
     let avatarUrl = d.avatar;
@@ -688,9 +692,9 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     }
 
     return { name, avatarUrl, isDM: d.isDM };
-  }
+  }, [user, findOtherParticipant]);
 
-  function isMemberOfChannel(channel: any) {
+  const isMemberOfChannel = useCallback((channel: any) => {
     if (!channel || !user) return false;
     const parts = channel.participants || channel.members || channel.userIds || channel.participantIds || [];
     if (Array.isArray(parts) && parts.length > 0) {
@@ -702,7 +706,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
       });
     }
     return false;
-  }
+  }, [user]);
 
   const filteredChannels = useMemo(() => {
     if (activeTab === 'contacts') return [];
@@ -777,7 +781,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     hasPopulatedContacts.current = true;
   }
 
-  async function contactUser(targetId: string) {
+  const contactUser = useCallback(async (targetId: string) => {
     setCreatingContactFor(targetId);
     try {
       const res = await http.post('/channels/direct', { userId: targetId });
@@ -793,11 +797,9 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     } finally {
       setCreatingContactFor(null);
     }
-  }
+  }, [navigation]);
 
-
-
-  const joinChannel = async (channel: any) => {
+  const joinChannel = useCallback(async (channel: any) => {
     if (!channel) return;
     const channelId = String(channel._id || channel.id || channel.channelId || '');
     if (!channelId) return;
@@ -828,7 +830,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     } finally {
       setJoiningChannelId(null);
     }
-  };
+  }, [user?._id, setChannels, navigation, t]);
 
   const pinnedChannels = useMemo(() => {
     return sortedChannels.filter((c) => c.isPinned);
@@ -853,7 +855,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
     return list;
   }, [pinnedChannels, unpinnedChannels, t]);
 
-  const togglePinChannel = async (channel: any) => {
+  const togglePinChannel = useCallback(async (channel: any) => {
     const channelId = channel._id || channel.id;
     const originalPinned = !!channel.isPinned;
     const nextPinned = !originalPinned;
@@ -882,9 +884,9 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
       );
       Alert.alert(t('Error'), t('Failed to update pin status'));
     }
-  };
+  }, [setChannels, t]);
 
-  const handleLongPressChannel = (channel: any) => {
+  const handleLongPressChannel = useCallback((channel: any) => {
     const isPinned = !!channel.isPinned;
     const title = getChannelDisplay(channel).name;
     
@@ -903,7 +905,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
       ],
       { cancelable: true }
     );
-  };
+  }, [getChannelDisplay, togglePinChannel, t]);
 
   // Attach event listeners to the global socket for real-time updates
   useEffect(() => {
@@ -1161,7 +1163,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
                           >
                             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: isDark ? '#1E4A3A' : '#D5F5E3', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                               {item.avatarUrl ? (
-                                <Image source={{ uri: item.avatarUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                                <ExpoImage source={{ uri: item.avatarUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} cachePolicy="memory-disk" />
                               ) : (
                                 <Ionicons name="megaphone-outline" size={20} color={T.green || '#8BC34A'} />
                               )}
@@ -1178,7 +1180,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
                       return (
                         <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }} onPress={() => { setSearchOpen(false); setSearchQuery(''); contactUser(item._id || item.id); }}>
                           <TouchableOpacity onPress={() => { setSearchOpen(false); openUserProfile(item._id || item.id); }} activeOpacity={0.8}>
-                            <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                            <ExpoImage source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || item.name || 'U')}&background=8BC34A&color=fff` }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} cachePolicy="memory-disk" />
                           </TouchableOpacity>
                           <View>
                             <Text style={{ fontWeight: '700', color: T.text }}>{item.fullName || item.name || item.displayName}</Text>
@@ -1282,7 +1284,7 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
                 >
                   <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
                     <TouchableOpacity onPress={() => openUserProfile(item._id || item.id)} activeOpacity={0.8}>
-                      <Image source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || 'U')}&background=8BC34A&color=fff` }} style={styles.avatar} />
+                      <ExpoImage source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.fullName || 'U')}&background=8BC34A&color=fff` }} style={styles.avatar} cachePolicy="memory-disk" />
                     </TouchableOpacity>
                     <View style={styles.rowContent}>
                       <Text style={styles.rowName}>{item.fullName}</Text>
@@ -1297,44 +1299,58 @@ Duplicate requests prevented: ${perfStats.current.duplicateRequestsPrevented}
             }}
           />
         )
-      ) : (
-        <FlatList
-          data={flattenedList}
-          extraData={channels}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          keyExtractor={(i, idx) => i.isHeader ? `header-${i.title}-${idx}` : String(i._id || i.id || i.name || idx)}
-          renderItem={({ item, index }) => {
-            if (item.isHeader) {
-              return (
-                <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: T.green || '#8BC34A', letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                    {item.title}
-                  </Text>
-                </View>
-              );
-            }
+      ) : (() => {
+        // Memoize list keyExtractor and renderItem for high performance virtualization
+        const mainListKeyExtractor = (i: any, idx: number) => {
+          return i.isHeader ? `header-${i.title}-${idx}` : String(i._id || i.id || i.name || idx);
+        };
 
+        const mainListRenderItem = ({ item, index }: any) => {
+          if (item.isHeader) {
             return (
-              <ChannelRowItem
-                item={item}
-                index={index}
-                user={user}
-                isOnline={isOnline}
-                getChannelDisplay={getChannelDisplay}
-                findOtherParticipant={findOtherParticipant}
-                handleLongPressChannel={handleLongPressChannel}
-                formatTime={formatTime}
-                setChannels={setChannels}
-                navigation={navigation}
-                T={T}
-                reducedMotion={reducedMotion}
-                isRTL={isRTL}
-                styles={styles}
-              />
+              <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: T.green || '#8BC34A', letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                  {item.title}
+                </Text>
+              </View>
             );
-          }}
-        />
-      )}
+          }
+
+          return (
+            <ChannelRowItem
+              item={item}
+              index={index}
+              user={user}
+              isOnline={isOnline}
+              getChannelDisplay={getChannelDisplay}
+              findOtherParticipant={findOtherParticipant}
+              handleLongPressChannel={handleLongPressChannel}
+              formatTime={formatTime}
+              setChannels={setChannels}
+              navigation={navigation}
+              T={T}
+              reducedMotion={reducedMotion}
+              isRTL={isRTL}
+              styles={styles}
+            />
+          );
+        };
+
+        return (
+          <FlatList
+            data={flattenedList}
+            extraData={channels}
+            contentContainerStyle={{ paddingBottom: 120 }}
+            keyExtractor={mainListKeyExtractor}
+            renderItem={mainListRenderItem}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews={Platform.OS === 'android'}
+          />
+        );
+      })()}
 
       
 

@@ -1,5 +1,6 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable, Image, KeyboardAvoidingView, Platform, ActivityIndicator, Animated, useWindowDimensions, Alert, Linking, Modal } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../auth/state/auth.context';
 import { useTheme } from '../../../../shared/context/theme.context';
@@ -171,6 +172,113 @@ const ReelMessagePreview = ({
   );
 };
 
+const getWaveformHeights = (id: string, count: number) => {
+  const heights = [];
+  const seed = id ? id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 42;
+  for (let i = 0; i < count; i++) {
+    const h = 8 + Math.abs(Math.sin(seed + i * 0.7) * 20);
+    heights.push(h);
+  }
+  return heights;
+};
+
+const MessageVideoPlayer = React.memo(({
+  videoUrl,
+  thumbUrl,
+  isDark,
+  T,
+  windowWidth,
+  styles,
+  isMe,
+  item,
+  longPressHandler
+}: any) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<Video | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.unloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  if (!isPlaying) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => setIsPlaying(true)}
+        onLongPress={longPressHandler}
+        delayLongPress={300}
+        style={{ overflow: 'hidden', position: 'relative' }}
+      >
+        {thumbUrl ? (
+          <ExpoImage
+            source={{ uri: thumbUrl }}
+            style={{
+              width: Math.min(windowWidth * 0.68, 250),
+              height: Math.min(windowWidth * 0.45, 170),
+              backgroundColor: T.surfaceAlt,
+            }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        ) : (
+          <View style={{
+            width: Math.min(windowWidth * 0.68, 250),
+            height: Math.min(windowWidth * 0.45, 170),
+            backgroundColor: isDark ? '#1a2a1a' : '#e8f5e9',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <Ionicons name="videocam" size={32} color={T.green || '#2ECC71'} />
+          </View>
+        )}
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name="play" size={22} color="#fff" />
+          </View>
+        </View>
+        {!!item.content && (
+          <View style={{ paddingHorizontal: 12, paddingBottom: 10, paddingTop: 6 }}>
+            <Text style={[styles.msgText, { color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={{ width: Math.min(windowWidth * 0.68, 250), height: Math.min(windowWidth * 0.45, 170), position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
+      <Video
+        ref={(ref) => { videoRef.current = ref; }}
+        source={{ uri: videoUrl }}
+        rate={1.0}
+        volume={1.0}
+        isMuted={false}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay
+        useNativeControls
+        style={{
+          width: '100%',
+          height: '100%',
+        }}
+        onError={(err) => {
+          console.warn('[VideoPlayer] Error:', err);
+          setIsPlaying(false);
+        }}
+      />
+      <TouchableOpacity 
+        style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 10 }}
+        onPress={() => setIsPlaying(false)}
+      >
+        <Ionicons name="close" size={16} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+});
+
 const MessageItem = React.memo(({
   item,
   index,
@@ -222,6 +330,21 @@ const MessageItem = React.memo(({
   const isPlaying = playingId === itemId;
   const [barWidth, setBarWidth] = useState(0);
   const hasAudioError = !!(audioErrors && audioErrors[itemId]);
+  const [animTick, setAnimTick] = useState(0);
+
+  useEffect(() => {
+    let animId: any;
+    if (isPlaying && !audioBuffering) {
+      const tick = () => {
+        setAnimTick(t => t + 1);
+        animId = requestAnimationFrame(tick);
+      };
+      animId = requestAnimationFrame(tick);
+    }
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [isPlaying, audioBuffering]);
 
   const bubbleStyle = isMe
     ? [
@@ -380,30 +503,35 @@ const MessageItem = React.memo(({
 
 
     if (isAudio) {
+      const audioDuration = firstAtt?.duration || item.duration || 5;
+      const barCount = Math.max(15, Math.min(45, Math.floor(audioDuration * 1.5)));
+      const heights = getWaveformHeights(itemId, barCount);
+      const dynamicWidth = Math.min(260, Math.max(160, 160 + (audioDuration - 5) * 5));
+
       return (
-        <View style={{ flexDirection: 'row', alignItems: 'center', minWidth: 200, paddingVertical: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', width: dynamicWidth, paddingVertical: 4 }}>
           {/* Play/Pause/Buffer/Error Button */}
           <TouchableOpacity 
             onPress={() => onPress(item)} 
             style={{ 
-              width: 36, 
-              height: 36, 
-              borderRadius: 18, 
+              width: 34, 
+              height: 34, 
+              borderRadius: 17, 
               backgroundColor: isMe ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.06)', 
               justifyContent: 'center', 
               alignItems: 'center' 
             }}
           >
             {hasAudioError ? (
-              <Ionicons name="refresh" size={18} color={isMe ? '#fff' : T.text} />
+              <Ionicons name="refresh" size={16} color={isMe ? '#fff' : T.text} />
             ) : isPlaying && audioBuffering ? (
               <ActivityIndicator size="small" color={isMe ? '#fff' : T.text} />
             ) : (
-              <Ionicons name={isPlaying ? 'pause' : 'play'} size={18} color={isMe ? '#fff' : T.text} />
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color={isMe ? '#fff' : T.text} />
             )}
           </TouchableOpacity>
 
-          {/* Seekable Progress Bar */}
+          {/* Seekable Waveform Bars */}
           <View style={{ flex: 1, marginLeft: 10, marginRight: 10, justifyContent: 'center' }}>
             <Pressable
               onPress={(e) => {
@@ -414,45 +542,41 @@ const MessageItem = React.memo(({
                 }
               }}
               onLayout={(e) => setBarWidth(e.nativeEvent.layout.width)}
-              style={{ height: 20, justifyContent: 'center', width: '100%' }}
+              style={{ 
+                height: 32, 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                width: '100%' 
+              }}
             >
-              {/* Progress Line Track */}
-              <View style={{ height: 4, borderRadius: 2, backgroundColor: isMe ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.1)', width: '100%' }}>
-                <View 
-                  style={{ 
-                    height: '100%', 
-                    borderRadius: 2, 
-                    backgroundColor: isMe ? '#fff' : T.green || '#2ECC71', 
-                    width: `${(isPlaying ? audioProgress : 0) * 100}%` 
-                  }} 
-                />
-              </View>
-              {/* Seek handle */}
-              {isPlaying && (
-                <View 
-                  style={{ 
-                    position: 'absolute', 
-                    left: `${audioProgress * 100}%`, 
-                    marginLeft: -6, 
-                    width: 12, 
-                    height: 12, 
-                    borderRadius: 6, 
-                    backgroundColor: isMe ? '#fff' : T.green || '#2ECC71',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 1,
-                    elevation: 2
-                  }} 
-                />
-              )}
+              {heights.map((h, idx) => {
+                const isPlayed = isPlaying && audioProgress >= (idx / barCount);
+                const barColor = isMe ? '#FFFFFF' : (T.green || '#8BC34A');
+                
+                return (
+                  <View 
+                    key={idx} 
+                    style={{ 
+                      width: 2.5, 
+                      height: h, 
+                      borderRadius: 1.25, 
+                      backgroundColor: barColor, 
+                      opacity: isPlayed ? 1 : 0.35,
+                      transform: isPlaying && isPlayed && !audioBuffering
+                        ? [{ scaleY: 1 + Math.sin(animTick * 0.15 + idx) * 0.15 }] 
+                        : undefined
+                    }} 
+                  />
+                );
+              })}
             </Pressable>
           </View>
 
           {/* Time display */}
           <View style={{ minWidth: 32, alignItems: 'flex-end' }}>
             <Text style={{ color: isMe ? '#fff' : T.text, fontSize: 11, fontWeight: '500' }}>
-              {hasAudioError ? t('Failed') : formatDuration(isPlaying ? audioProgress * (firstAtt?.duration || item.duration || 0) : (firstAtt?.duration || item.duration || 0))}
+              {hasAudioError ? t('Failed') : formatDuration(isPlaying ? audioProgress * audioDuration : audioDuration)}
             </Text>
           </View>
         </View>
@@ -503,47 +627,17 @@ const MessageItem = React.memo(({
         return null;
       })();
       return (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => { if (videoUrl) Linking.openURL(videoUrl).catch(() => { }); }}
-          onLongPress={longPressHandler}
-          delayLongPress={300}
-          style={{ overflow: 'hidden', position: 'relative' }}
-        >
-          {thumbUrl ? (
-            <ExpoImage
-              source={{ uri: thumbUrl }}
-              style={{
-                width: Math.min(windowWidth * 0.68, 250),
-                height: Math.min(windowWidth * 0.45, 170),
-                backgroundColor: T.surfaceAlt,
-              }}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={{
-              width: Math.min(windowWidth * 0.68, 250),
-              height: Math.min(windowWidth * 0.45, 170),
-              backgroundColor: isDark ? '#1a2a1a' : '#e8f5e9',
-              justifyContent: 'center',
-              alignItems: 'center'
-            }}>
-              <Ionicons name="videocam" size={32} color={T.green || '#2ECC71'} />
-            </View>
-          )}
-          {/* Play overlay */}
-          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="play" size={22} color="#fff" />
-            </View>
-          </View>
-          {!!item.content && (
-            <View style={{ paddingHorizontal: 12, paddingBottom: 10, paddingTop: 6 }}>
-              <Text style={[styles.msgText, { color: isMe ? '#fff' : T.text }]}>{item.content}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <MessageVideoPlayer
+          videoUrl={videoUrl}
+          thumbUrl={thumbUrl}
+          isDark={isDark}
+          T={T}
+          windowWidth={windowWidth}
+          styles={styles}
+          isMe={isMe}
+          item={item}
+          longPressHandler={longPressHandler}
+        />
       );
     }
 
@@ -1281,10 +1375,47 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
     );
   };
 
+  // Keep a dynamic ref to all parameters renderItem uses to preserve callback reference stability
+  const renderItemPropsRef = useRef<any>(null);
+  renderItemPropsRef.current = {
+    reversedMessages,
+    channelParticipants: chat.channel?.participants || chat.channel?.members || [],
+    user,
+    T,
+    isDark,
+    isRTL,
+    dmPartnerId,
+    isDMChannel,
+    highlightedMsgId,
+    windowWidth,
+    playingId: chat.playingId,
+    audioProgress: chat.audioProgress,
+    audioBuffering: chat.audioBuffering,
+    audioErrors: chat.audioErrors,
+    seekAudio: chat.seekAudio,
+    playAudio: chat.playAudio,
+    handlePressMessage: chat.handlePressMessage,
+    setReactionMsgId: chat.setReactionMsgId,
+    handleRetrySend: chat.handleRetrySend,
+    handleToggleReaction: chat.handleToggleReaction,
+    openUserProfile: chat.openUserProfile,
+    setReactorsMsgId,
+    setReactorsCounts,
+    setReactorsSheetVisible,
+    handleTogglePin: chat.handleTogglePin,
+    navigation,
+    t,
+    styles,
+    reducedMotion
+  };
+
   const renderItem = useCallback(({ item, index }: { item: any; index: number }) => {
-    const origIndex = filteredMessages.findIndex(m => String(m.id || m._id) === String(item.id || item._id));
-    const prevMsg = origIndex > 0 ? filteredMessages[origIndex - 1] : null;
-    const nextMsg = origIndex < filteredMessages.length - 1 ? filteredMessages[origIndex + 1] : null;
+    const props = renderItemPropsRef.current;
+    if (!props) return null;
+
+    // O(1) constant lookup for prev/next messages in inverted list to eliminate linear scan drops
+    const prevMsg = index < props.reversedMessages.length - 1 ? props.reversedMessages[index + 1] : null;
+    const nextMsg = index > 0 ? props.reversedMessages[index - 1] : null;
 
     const senderId = typeof item.senderId === 'object' && item.senderId ? (item.senderId._id || item.senderId.id) : item.senderId;
     const currentMsgDate = new Date(item.createdAt || item.created_at);
@@ -1312,46 +1443,38 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
         nextMsg={nextMsg}
         shouldGroup={shouldGroup}
         isContinuation={isContinuation}
-        channelParticipants={chat.channel?.participants || chat.channel?.members || []}
-        user={user}
-        T={T}
-        isDark={isDark}
-        isRTL={isRTL}
-        dmPartnerId={dmPartnerId}
-        isDMChannel={isDMChannel}
-        highlightedMsgId={highlightedMsgId}
-        windowWidth={windowWidth}
-        playingId={chat.playingId}
-        audioProgress={chat.audioProgress}
-        audioBuffering={chat.audioBuffering}
-        audioErrors={chat.audioErrors}
-        onSeek={chat.seekAudio}
-        onPress={isAudio ? chat.playAudio : chat.handlePressMessage}
-        onLongPress={chat.setReactionMsgId}
-        onRetrySend={chat.handleRetrySend}
-        onToggleReaction={chat.handleToggleReaction}
-        onUserProfilePress={chat.openUserProfile}
+        channelParticipants={props.channelParticipants}
+        user={props.user}
+        T={props.T}
+        isDark={props.isDark}
+        isRTL={props.isRTL}
+        dmPartnerId={props.dmPartnerId}
+        isDMChannel={props.isDMChannel}
+        highlightedMsgId={props.highlightedMsgId}
+        windowWidth={props.windowWidth}
+        playingId={props.playingId}
+        audioProgress={props.audioProgress}
+        audioBuffering={props.audioBuffering}
+        audioErrors={props.audioErrors}
+        onSeek={props.seekAudio}
+        onPress={isAudio ? props.playAudio : props.handlePressMessage}
+        onLongPress={props.setReactionMsgId}
+        onRetrySend={props.handleRetrySend}
+        onToggleReaction={props.handleToggleReaction}
+        onUserProfilePress={props.openUserProfile}
         onReactorsPress={(msgId: string, counts: any) => {
-          setReactorsMsgId(msgId);
-          setReactorsCounts(counts);
-          setReactorsSheetVisible(true);
+          props.setReactorsMsgId(msgId);
+          props.setReactorsCounts(counts);
+          props.setReactorsSheetVisible(true);
         }}
-        onTogglePin={chat.handleTogglePin}
-        navigation={navigation}
-        t={t}
-        styles={styles}
-        reducedMotion={reducedMotion}
+        onTogglePin={props.handleTogglePin}
+        navigation={props.navigation}
+        t={props.t}
+        styles={props.styles}
+        reducedMotion={props.reducedMotion}
       />
     );
-  }, [
-    filteredMessages, chat.playingId, chat.audioProgress, chat.audioBuffering, chat.audioErrors,
-    chat.seekAudio, chat.playAudio, chat.handlePressMessage, chat.setReactionMsgId,
-    chat.handleRetrySend, chat.handleToggleReaction, chat.openUserProfile,
-    chat.handleTogglePin, chat.channel?.participants, chat.channel?.members,
-    user, T, isDark, isRTL, dmPartnerId, isDMChannel,
-    highlightedMsgId, windowWidth, setReactorsMsgId, setReactorsCounts,
-    setReactorsSheetVisible, t, styles, reducedMotion, navigation
-  ]);
+  }, []);
 
   if (!chat.channel) {
     return (
@@ -1781,6 +1904,9 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
             initialNumToRender={20}
             removeClippedSubviews={true}
             updateCellsBatchingPeriod={50}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+            }}
             // ── Scroll throttle — fire at most every 100ms ─────────────
             scrollEventThrottle={100}
             onScroll={(event) => {
@@ -1804,7 +1930,7 @@ export default function CommunityMessaging({ initialChannel, initialChannelId, n
                 chat.loadMoreMessages();
               }
             }}
-            onEndReachedThreshold={0.2}
+            onEndReachedThreshold={1.0}
             ListFooterComponent={
               chat.loadingMore ? (
                 <View style={{ paddingVertical: 12, alignItems: 'center', transform: [{ scaleY: -1 }] }}>

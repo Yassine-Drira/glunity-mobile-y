@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
+import { useRoute } from '@react-navigation/native';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { FilterPill } from '../components/FilterPill';
 import { PlaceCard } from '../components/PlaceCard';
@@ -73,6 +74,46 @@ export default function MapScreen({
   const [errorMsg, setError]        = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
+
+  const route = useRoute<any>();
+  const initialLat = route.params?.latitude;
+  const initialLng = route.params?.longitude;
+  const initialTitle = route.params?.title || 'Selected Event';
+
+  // If there are coordinates passed from route, auto-select and zoom to it.
+  useEffect(() => {
+    if (initialLat && initialLng) {
+      setSelected('event-pin');
+      setTimeout(() => {
+        mapRef.current?.flyTo(initialLng, initialLat, 16);
+      }, 1000);
+    }
+  }, [initialLat, initialLng]);
+
+  const itemsWithEvent = useMemo(() => {
+    if (initialLat && initialLng) {
+      const eventLoc: MapLocation = {
+        id: 'event-pin',
+        name: initialTitle,
+        description: 'Event Location',
+        category: 'other',
+        glutenFree: true,
+        certified: false,
+        contaminationWarning: false,
+        address: route.params?.address || 'Pinned location',
+        city: '',
+        country: '',
+        phone: '',
+        priceRange: '',
+        lat: initialLat,
+        lng: initialLng,
+        images: [],
+        rating: { average: 0, count: 0 }
+      };
+      return [eventLoc, ...items.filter(it => it.id !== 'event-pin')];
+    }
+    return items;
+  }, [items, initialLat, initialLng, initialTitle, route.params?.address]);
 
   const styles = useMemo(() => StyleSheet.create({
     root: { flex: 1, backgroundColor: T.bg },
@@ -267,8 +308,8 @@ export default function MapScreen({
   useEffect(() => { fetchLocations(filters); }, [filters, fetchLocations]);
 
   const selected = useMemo(
-    () => items.find((it) => it.id === selectedId) || null,
-    [items, selectedId],
+    () => itemsWithEvent.find((it) => it.id === selectedId) || null,
+    [itemsWithEvent, selectedId],
   );
 
   function applyFilter(next: Partial<LocationFilters>) {
@@ -279,7 +320,7 @@ export default function MapScreen({
   function onSelectFromMap(id: string | null) {
     setSelected(id);
     if (id) {
-      const loc = items.find((l) => l.id === id);
+      const loc = itemsWithEvent.find((l) => l.id === id);
       if (loc && isFinite(loc.lat) && isFinite(loc.lng)) {
         mapRef.current?.flyTo(loc.lng, loc.lat, 16);
       }
@@ -324,7 +365,7 @@ export default function MapScreen({
         <View style={styles.mapWrap}>
           <MapWebView
             ref={mapRef}
-            locations={items}
+            locations={itemsWithEvent}
             focusedId={selectedId}
             onSelectLocation={onSelectFromMap}
             initialCenter={{ lng: 10.181667, lat: 36.806389 }}
@@ -362,7 +403,7 @@ export default function MapScreen({
         </View>
 
         {/* ── Floating place card ────────────────────────────────────────── */}
-        {selected ? (
+        {selected && selected.id !== 'event-pin' ? (
           <View style={[styles.cardSlot, { bottom: 96 + Math.max(insets.bottom, 10) + 16 }]}>
             <PlaceCard
               location={selected}

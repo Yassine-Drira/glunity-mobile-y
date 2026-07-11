@@ -9,6 +9,7 @@ import { useLanguage } from '../../../../shared/context/language.context';
 import { usePresence } from '../../../../shared/hooks/usePresence';
 import OnlineDot from '../../../../shared/components/OnlineDot';
 import { useAuth } from '../../../../modules/auth/state/auth.context';
+import { resolveMessagingServiceUrl } from '../../../../core/network/messaging-service-url';
 
 const getChannelVisual = (channelName: string) => {
   const name = (channelName || '').toLowerCase();
@@ -87,7 +88,7 @@ export default function CommunityJoin({ navigation }: any) {
       try {
         // fetch core channels and messaging discover in parallel (discover may be on msg service port)
         const baseURL = http.defaults.baseURL || '';
-        const msgBaseUrl = baseURL.replace(':5000', ':5001');
+        const msgBaseUrl = resolveMessagingServiceUrl(baseURL);
 
         const corePromise = http.get('/channels').then(r => r.data?.data || []).catch(async (err) => {
           // fallback: try unauthenticated axios call to the same URL to fetch public channels

@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Style
 import http from '../../../../core/network/http.client';
 import messagingHttp from '../../../../core/network/messaging-http.client';
 import { API_BASE_URL } from '../../../../core/config/api.config';
+import { resolveMessagingServiceUrl } from '../../../../core/network/messaging-service-url';
 import { useAuth } from '../../../auth/state/auth.context';
 import { useTheme } from '../../../../shared/context/theme.context';
 import { useLanguage } from '../../../../shared/context/language.context';
@@ -16,7 +17,7 @@ let BlurView: any = null;
 try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
 
 const CORE_API_URL = API_BASE_URL;
-const MSG_SERVICE_URL = API_BASE_URL.replace(':5000', ':5001');
+const MSG_SERVICE_URL = resolveMessagingServiceUrl(API_BASE_URL);
 
 // Gets clean 1 or 2 letter initials
 const getInitials = (name: string) => {
@@ -113,7 +114,7 @@ export default function ChannelMembersScreen({ route, navigation }: any) {
   const handleRoleChange = async (targetUserId: string, newRole: 'writer' | 'member') => {
     setActionLoading(targetUserId);
     try {
-        const res = await messagingHttp.patch(`/channels/${channelId}/participants/${targetUserId}/role`, { role: newRole });
+      const res = await messagingHttp.patch(`/channels/${channelId}/participants/${targetUserId}/role`, { role: newRole });
 
       // Update local state role
       setMembers(prev => prev.map(m =>
@@ -408,54 +409,54 @@ export default function ChannelMembersScreen({ route, navigation }: any) {
         />
       )}
 
-        {/* Confirmation modal for removals */}
-        <ConfirmationModal
-          visible={confirmVisible}
-          onClose={() => { setConfirmVisible(false); setConfirmTargetId(null); }}
-          title={'Remove Member'}
-          message={t('Are you sure you want to remove this member from the channel?')}
-          confirmLabel={'Remove'}
-          cancelLabel={'Cancel'}
-          onConfirm={async () => {
-            if (!confirmTargetId) return;
-            setConfirmVisible(false);
-            const target = confirmTargetId;
-            setConfirmTargetId(null);
-            setActionLoading(target);
-            try {
-              await messagingHttp.delete(`/channels/${channelId}/members/${target}`);
-              setMembers(prev => prev.filter(m => String(m._id) !== String(target)));
-              showAlert(t('Success'), t('Member removed successfully'));
-            } catch (err: any) {
-              console.warn('handleRemoveMember failed', err);
-              showAlert(t('Error'), err?.response?.data?.error || t('Failed to remove member'));
-            } finally {
-              setActionLoading(null);
-            }
-          }}
-          loading={false}
-          isDestructive={true}
-          theme={T}
-          isDark={isDark}
-          BlurView={BlurView}
-          t={t}
-          modalBg={modalBg}
-          overlayFallback={overlayFallback}
-        />
+      {/* Confirmation modal for removals */}
+      <ConfirmationModal
+        visible={confirmVisible}
+        onClose={() => { setConfirmVisible(false); setConfirmTargetId(null); }}
+        title={'Remove Member'}
+        message={t('Are you sure you want to remove this member from the channel?')}
+        confirmLabel={'Remove'}
+        cancelLabel={'Cancel'}
+        onConfirm={async () => {
+          if (!confirmTargetId) return;
+          setConfirmVisible(false);
+          const target = confirmTargetId;
+          setConfirmTargetId(null);
+          setActionLoading(target);
+          try {
+            await messagingHttp.delete(`/channels/${channelId}/members/${target}`);
+            setMembers(prev => prev.filter(m => String(m._id) !== String(target)));
+            showAlert(t('Success'), t('Member removed successfully'));
+          } catch (err: any) {
+            console.warn('handleRemoveMember failed', err);
+            showAlert(t('Error'), err?.response?.data?.error || t('Failed to remove member'));
+          } finally {
+            setActionLoading(null);
+          }
+        }}
+        loading={false}
+        isDestructive={true}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        modalBg={modalBg}
+        overlayFallback={overlayFallback}
+      />
 
-        {/* Info modal for success/error messages */}
-        <InfoModal
-          visible={infoVisible}
-          onClose={() => setInfoVisible(false)}
-          title={infoTitle}
-          message={infoMessage}
-          theme={T}
-          isDark={isDark}
-          BlurView={BlurView}
-          t={t}
-          modalBg={modalBg}
-          overlayFallback={overlayFallback}
-        />
+      {/* Info modal for success/error messages */}
+      <InfoModal
+        visible={infoVisible}
+        onClose={() => setInfoVisible(false)}
+        title={infoTitle}
+        message={infoMessage}
+        theme={T}
+        isDark={isDark}
+        BlurView={BlurView}
+        t={t}
+        modalBg={modalBg}
+        overlayFallback={overlayFallback}
+      />
     </SafeAreaView>
   );
 }

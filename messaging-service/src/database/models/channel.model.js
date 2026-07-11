@@ -73,6 +73,7 @@ const channelSchema = new Schema(
     isPrivate: { type: Boolean, default: true },
 
     participants:    [participantSchema],
+    bannedUsers:     { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
     lastMessage:     { type: lastMessageSchema, default: null },
     pinnedMessages:  { type: [pinnedMessageSchema], default: [] },
 

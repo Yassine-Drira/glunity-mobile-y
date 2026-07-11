@@ -4,6 +4,7 @@ import { useAuth } from '../../modules/auth/state/auth.context';
 import { TokenStore } from '../../core/storage/secure-store';
 import { API_BASE_URL } from '../../core/config/api.config';
 import { isJwtExpired, refreshAccessTokenIfNeeded } from '../../core/network/http.client';
+import { resolveMessagingServiceUrl } from '../../core/network/messaging-service-url';
 
 interface SocketContextValue {
   socket: Socket | null;
@@ -14,24 +15,7 @@ interface SocketContextValue {
 
 const SocketContext = createContext<SocketContextValue | undefined>(undefined);
 
-const resolveSocketUrl = (apiBaseUrl: string): string => {
-  let resolved = apiBaseUrl;
-  
-  // React Native's URL polyfill often ignores property mutations like url.port = '5001'.
-  // Using robust string replacement ensures it works identically on Web and physical devices.
-  if (/:\d+/.test(resolved)) {
-    resolved = resolved.replace(/:\d+/, ':5001');
-  } else {
-    // If no port exists (e.g., https://api.domain.com/api)
-    resolved = resolved.replace(/(https?:\/\/[^/]+)/, '$1:5001');
-  }
-
-  if (resolved.endsWith('/api')) resolved = resolved.slice(0, -4);
-  if (resolved.endsWith('/api/')) resolved = resolved.slice(0, -5);
-  return resolved;
-};
-
-const MSG_SERVICE_SOCKET_URL = resolveSocketUrl(API_BASE_URL);
+const MSG_SERVICE_SOCKET_URL = resolveMessagingServiceUrl(API_BASE_URL);
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();

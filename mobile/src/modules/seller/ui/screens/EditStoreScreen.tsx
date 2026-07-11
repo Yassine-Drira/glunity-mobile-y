@@ -266,6 +266,26 @@ function TimeWheel({ values, selected, onSelect, accentColor }: {
   const idx = values.indexOf(selected);
   const safeIdx = idx >= 0 ? idx : 0;
 
+  // Use useEffect to keep the list scrolled to the externally changed value
+  useEffect(() => {
+    const targetIdx = values.indexOf(selected);
+    if (targetIdx >= 0) {
+      try {
+        listRef.current?.scrollToIndex({ index: targetIdx, animated: true, viewPosition: 0.5 });
+      } catch (e) {}
+    }
+  }, [selected, values]);
+
+  const handleScrollEnd = (e: any) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_H);
+    const clamped = Math.max(0, Math.min(index, values.length - 1));
+    const val = values[clamped];
+    if (val && val !== selected) {
+      onSelect(val);
+    }
+  };
+
   return (
     <View style={{ height: ITEM_H * 3, overflow: 'hidden', position: 'relative' }}>
       {/* Top + bottom fades */}
@@ -279,8 +299,10 @@ function TimeWheel({ values, selected, onSelect, accentColor }: {
         keyExtractor={v => v}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_H}
+        snapToAlignment="center"
         decelerationRate="fast"
         contentContainerStyle={{ paddingVertical: ITEM_H }}
+        style={Platform.OS === 'web' ? { scrollSnapType: 'y mandatory' } as any : undefined}
         getItemLayout={(_, i) => ({ length: ITEM_H, offset: ITEM_H * i, index: i })}
         onLayout={() => {
           setTimeout(() => {
@@ -289,18 +311,26 @@ function TimeWheel({ values, selected, onSelect, accentColor }: {
             } catch (e) {}
           }, 80);
         }}
-        onScroll={e => {
-          const y = e.nativeEvent.contentOffset.y;
-          const index = Math.round(y / ITEM_H);
-          const clamped = Math.max(0, Math.min(index, values.length - 1));
-          const val = values[clamped];
-          if (val && val !== selected) {
-            onSelect(val);
-          }
-        }}
+        onMomentumScrollEnd={handleScrollEnd}
+        onScrollEndDrag={handleScrollEnd}
         scrollEventThrottle={16}
         renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => onSelect(item)} activeOpacity={0.7} style={{ height: ITEM_H, alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity
+            onPress={() => {
+              onSelect(item);
+              const targetIdx = values.indexOf(item);
+              if (targetIdx >= 0) {
+                try {
+                  listRef.current?.scrollToIndex({ index: targetIdx, animated: true, viewPosition: 0.5 });
+                } catch (e) {}
+              }
+            }}
+            activeOpacity={0.7}
+            style={[
+              { height: ITEM_H, alignItems: 'center', justifyContent: 'center' },
+              Platform.OS === 'web' ? { scrollSnapAlign: 'center' } as any : undefined
+            ]}
+          >
             <Text style={{ fontSize: item === selected ? 22 : 16, fontFamily: item === selected ? 'Poppins_700Bold' : 'Poppins_400Regular', color: item === selected ? accentColor : T.textMuted }}>
               {item}
             </Text>

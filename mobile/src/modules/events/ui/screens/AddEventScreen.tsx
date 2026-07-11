@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,10 @@ import {
   ActivityIndicator,
   Modal,
   Alert,
+  FlatList,
+  Platform,
+  Animated,
+  Easing,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -22,6 +26,7 @@ import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/modules/auth/state/auth.context';
+import { MapWebView } from '@/modules/map/ui/components/MapWebView';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'AddEvent'>;
 
@@ -33,6 +38,273 @@ const EVENT_TYPES = [
   { value: 'other', label: 'Other Event' },
 ];
 
+// ── Custom Wheel Picker Column ────────────────────────────────────────────────
+const ITEM_H = 44;
+
+interface WheelColumnProps {
+  values: string[];
+  selected: string;
+  onSelect: (v: string) => void;
+  accentColor: string;
+  width?: any;
+  labelExtractor?: (v: string) => string;
+}
+
+function WheelColumn({
+  values,
+  selected,
+  onSelect,
+  accentColor,
+  width,
+  labelExtractor,
+}: WheelColumnProps) {
+  const { theme: T } = useTheme();
+  const listRef = useRef<any>(null);
+  const idx = values.indexOf(selected);
+  const safeIdx = idx >= 0 ? idx : 0;
+
+  const lastSelectedByScrollRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (selected === lastSelectedByScrollRef.current) {
+      // Avoid scroll position fight loops when state matches scroll offset
+      return;
+    }
+    const targetIdx = values.indexOf(selected);
+    if (targetIdx >= 0 && targetIdx < values.length) {
+      try {
+        listRef.current?.scrollToIndex({ index: targetIdx, animated: true, viewPosition: 0.5 });
+      } catch (e) {}
+    }
+  }, [selected, values]);
+
+  const scrollTimeoutRef = useRef<any>(null);
+
+  const handleScroll = (e: any) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_H);
+    const clamped = Math.max(0, Math.min(index, values.length - 1));
+    const val = values[clamped];
+    
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    scrollTimeoutRef.current = setTimeout(() => {
+      if (val && val !== selected) {
+        lastSelectedByScrollRef.current = val;
+        onSelect(val);
+      }
+    }, 80);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleScrollEnd = (e: any) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_H);
+    const clamped = Math.max(0, Math.min(index, values.length - 1));
+    const val = values[clamped];
+    if (val && val !== selected) {
+      lastSelectedByScrollRef.current = val;
+      onSelect(val);
+    }
+  };
+
+  return (
+    <View style={{ height: ITEM_H * 3, overflow: 'hidden', position: 'relative', flex: width ? undefined : 1, width: width }}>
+      {/* Top + bottom fades */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H, backgroundColor: T.surface, opacity: 0.85, zIndex: 1 }} pointerEvents="none" />
+      <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H, backgroundColor: T.surface, opacity: 0.85, zIndex: 1 }} pointerEvents="none" />
+      {/* Selection highlight */}
+      <View style={{ position: 'absolute', top: ITEM_H, left: 0, right: 0, height: ITEM_H, borderRadius: 12, backgroundColor: `${accentColor}18`, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: `${accentColor}40`, zIndex: 0 }} pointerEvents="none" />
+      
+      <FlatList
+        ref={listRef}
+        data={values}
+        keyExtractor={v => v}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        snapToAlignment="center"
+        decelerationRate="fast"
+        contentContainerStyle={{ paddingVertical: ITEM_H }}
+        style={Platform.OS === 'web' ? { scrollSnapType: 'y mandatory' } as any : undefined}
+        getItemLayout={(_, i) => ({ length: ITEM_H, offset: ITEM_H * i, index: i })}
+        onLayout={() => {
+          setTimeout(() => {
+            try {
+              listRef.current?.scrollToIndex({ index: safeIdx, animated: false, viewPosition: 0.5 });
+            } catch (e) {}
+          }, 80);
+        }}
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleScrollEnd}
+        onScrollEndDrag={handleScrollEnd}
+        scrollEventThrottle={16}
+        renderItem={({ item }) => {
+          const isSelected = item === selected;
+          const displayLabel = labelExtractor ? labelExtractor(item) : item;
+          return (
+            <TouchableOpacity
+              onPress={() => {
+                lastSelectedByScrollRef.current = null;
+                onSelect(item);
+                const targetIdx = values.indexOf(item);
+                if (targetIdx >= 0) {
+                  try {
+                    listRef.current?.scrollToIndex({ index: targetIdx, animated: true, viewPosition: 0.5 });
+                  } catch (e) {}
+                }
+              }}
+              activeOpacity={0.7}
+              style={[
+                { height: ITEM_H, alignItems: 'center', justifyContent: 'center' },
+                Platform.OS === 'web' ? { scrollSnapAlign: 'center' } as any : undefined
+              ]}
+            >
+              <Text style={{
+                fontSize: isSelected ? 18 : 14,
+                fontFamily: isSelected ? 'Poppins_700Bold' : 'Poppins_400Regular',
+                color: isSelected ? accentColor : T.textMuted,
+              }}>
+                {displayLabel}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    </View>
+  );
+}
+
+// ── Custom Input Card (matching EditStore) ────────────────────────────────────
+interface InputCardProps {
+  icon: string;
+  iconColor?: string;
+  label: string;
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder?: string;
+  keyboardType?: 'default' | 'phone-pad' | 'email-address';
+  autoCapitalize?: 'none' | 'words' | 'sentences';
+  multiline?: boolean;
+  hint?: string;
+  suffix?: string;
+  rightElement?: React.ReactNode;
+}
+
+function InputCard({
+  icon,
+  iconColor,
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = 'default',
+  autoCapitalize = 'sentences',
+  multiline = false,
+  hint,
+  suffix,
+  rightElement,
+}: InputCardProps) {
+  const { theme: T } = useTheme();
+  const { t, isRTL } = useLanguage();
+  const [focused, setFocused] = useState(false);
+  const anim = useRef(new Animated.Value(0)).current;
+
+  const onFocus = () => {
+    setFocused(true);
+    Animated.timing(anim, { toValue: 1, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: false }).start();
+  };
+  const onBlur = () => {
+    setFocused(false);
+    Animated.timing(anim, { toValue: 0, duration: 200, easing: Easing.in(Easing.quad), useNativeDriver: false }).start();
+  };
+
+  const borderColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [T.border, iconColor ?? T.green],
+  });
+
+  return (
+    <View style={{ marginBottom: 20 }}>
+      <Text style={{
+        fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold',
+        color: focused ? (iconColor ?? T.green) : T.textMuted,
+        marginBottom: 8, letterSpacing: 0.8, textTransform: 'uppercase',
+        textAlign: isRTL ? 'right' : 'left', width: '100%',
+      }}>
+        {t(label)}
+      </Text>
+      <Animated.View style={{
+        borderWidth: 1.5, borderColor, borderRadius: 16, backgroundColor: T.surface,
+        overflow: 'hidden',
+        shadowColor: focused ? (iconColor ?? T.green) : '#000',
+        shadowOffset: { width: 0, height: focused ? 4 : 1 },
+        shadowOpacity: focused ? 0.15 : 0.04, shadowRadius: focused ? 8 : 3, elevation: focused ? 4 : 1,
+      }}>
+        <View style={{
+          flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: multiline ? 'flex-start' : 'center',
+          paddingHorizontal: 16, paddingVertical: multiline ? 14 : 0, minHeight: multiline ? 100 : 54,
+        }}>
+          <View style={{
+            width: 36, height: 36, borderRadius: 10,
+            backgroundColor: focused ? (iconColor ? `${iconColor}22` : `${T.green}22`) : T.surfaceAlt,
+            alignItems: 'center', justifyContent: 'center',
+            marginRight: isRTL ? 0 : 12,
+            marginLeft: isRTL ? 12 : 0,
+          }}>
+            <Feather name={icon as any} size={17} color={focused ? (iconColor ?? T.green) : T.textMuted} />
+          </View>
+          <TextInput
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={placeholder ? t(placeholder) : ''}
+            placeholderTextColor={T.textMuted}
+            keyboardType={keyboardType}
+            autoCapitalize={autoCapitalize}
+            multiline={multiline}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            style={{
+              flex: 1, fontSize: 15, color: T.text, fontFamily: 'Poppins_400Regular',
+              textAlign: isRTL ? 'right' : 'left',
+              textAlignVertical: multiline ? 'top' : 'center',
+              paddingVertical: multiline ? 0 : 16, lineHeight: multiline ? 22 : undefined,
+            }}
+          />
+          {suffix && !multiline && (
+            <Text style={{
+              fontSize: 12, color: T.textMuted, fontFamily: 'Poppins_400Regular',
+              marginLeft: isRTL ? 0 : 4,
+              marginRight: isRTL ? 4 : 0,
+            }}>
+              {t(suffix)}
+            </Text>
+          )}
+          {rightElement}
+        </View>
+      </Animated.View>
+      {hint && (
+        <Text style={{
+          fontSize: 10, color: T.textMuted, fontFamily: 'Poppins_400Regular', marginTop: 5,
+          marginLeft: isRTL ? 0 : 4,
+          marginRight: isRTL ? 4 : 0,
+          textAlign: isRTL ? 'right' : 'left',
+        }}>
+          {t(hint)}
+        </Text>
+      )}
+    </View>
+  );
+}
+
 export default function AddEventScreen({ navigation }: Props) {
   const { theme: T } = useTheme();
   const { user } = useAuth();
@@ -42,25 +314,34 @@ export default function AddEventScreen({ navigation }: Props) {
   const screenWidth = Math.min(windowWidth, 600);
   const bottomInset = Math.max(insets.bottom, 8) + 110;
 
+  // We can initialize to current local date
+  const initDate = useMemo(() => new Date(), []);
+  const defaultYear = useMemo(() => String(initDate.getFullYear()), [initDate]);
+  const defaultMonth = useMemo(() => String(initDate.getMonth() + 1).padStart(2, '0'), [initDate]);
+  const defaultDay = useMemo(() => String(initDate.getDate()).padStart(2, '0'), [initDate]);
+
   // Form State
   const [title, setTitle] = useState('');
   const [type, setType] = useState('meetup');
   const [description, setDescription] = useState('');
-  const [startsAt, setStartsAt] = useState('');
-  const [hour, setHour] = useState('11');
-  const [minute, setMinute] = useState('00');
-  const [ampm, setAmpm] = useState('AM');
-  const [hourError, setHourError] = useState(false);
-  const [minuteError, setMinuteError] = useState(false);
-  const [showHourDropdown, setShowHourDropdown] = useState(false);
-  const [showMinuteDropdown, setShowMinuteDropdown] = useState(false);
-  const [showAmPmDropdown, setShowAmPmDropdown] = useState(false);
-  const [locName, setLocName] = useState('');
+
+  // Date Wheel Picker States
+  const [selectedYear, setSelectedYear] = useState(defaultYear);
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
+  const [selectedDay, setSelectedDay] = useState(defaultDay);
+
+  // Time Wheel Picker States
+  const [selectedHour, setSelectedHour] = useState('11');
+  const [selectedMinute, setSelectedMinute] = useState('00');
+  const [selectedAmPm, setSelectedAmPm] = useState('AM');
+
+  // Location Details states (single address input box + map picker, matching EditStoreScreen)
   const [locAddress, setLocAddress] = useState('');
-  const [locNameError, setLocNameError] = useState(false);
   const [locAddressError, setLocAddressError] = useState(false);
-  const [locCity, setLocCity] = useState('');
-  const [locCountry, setLocCountry] = useState('Tunisia');
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [pickedLocation, setPickedLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // The rest of the states
   const [maxCapacity, setMaxCapacity] = useState('20');
   const [capacityError, setCapacityError] = useState(false);
   const [price, setPrice] = useState('0');
@@ -68,26 +349,49 @@ export default function AddEventScreen({ navigation }: Props) {
   const [eventImage, setEventImage] = useState<string | null>(null);
   const [imageError, setImageError] = useState(false);
 
-  // Ensure Starts At uses YYYY-MM-DD with hyphens as the user types.
-  function formatDateInput(input: string) {
-    if (!input) return '';
-    // Keep digits only
-    const digits = input.replace(/[^0-9]/g, '');
-    const parts: string[] = [];
-    if (digits.length <= 4) {
-      parts.push(digits);
-    } else if (digits.length <= 6) {
-      parts.push(digits.slice(0, 4));
-      parts.push(digits.slice(4));
-    } else {
-      parts.push(digits.slice(0, 4));
-      parts.push(digits.slice(4, 6));
-      parts.push(digits.slice(6, 8));
-    }
-    return parts.join('-').slice(0, 10);
-  }
+  // Static options
+  const MONTHS = useMemo(() => ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'], []);
+  const MONTH_NAMES: Record<string, string> = useMemo(() => ({
+    '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+    '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+    '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+  }), []);
+  const YEARS = useMemo(() => Array.from({ length: 11 }, (_, i) => String(parseInt(defaultYear, 10) + i)), [defaultYear]);
+  const HOURS_VALS = useMemo(() => Array.from({ length: 12 }, (_, i) => String(i + 1)), []);
+  const MINUTES_VALS = useMemo(() => Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')), []);
+  const AMPM_VALS = useMemo(() => ['AM', 'PM'], []);
 
-  
+  // Dynamic day calculation
+  const daysInSelectedMonth = useMemo(() => {
+    const y = parseInt(selectedYear, 10);
+    const m = parseInt(selectedMonth, 10);
+    return new Date(y, m, 0).getDate();
+  }, [selectedYear, selectedMonth]);
+
+  const DAYS = useMemo(() => {
+    return Array.from({ length: daysInSelectedMonth }, (_, i) => String(i + 1).padStart(2, '0'));
+  }, [daysInSelectedMonth]);
+
+  // Adjust selected day if it exceeds the new month's days
+  useEffect(() => {
+    const dayVal = parseInt(selectedDay, 10);
+    if (dayVal > daysInSelectedMonth) {
+      setSelectedDay(String(daysInSelectedMonth).padStart(2, '0'));
+    }
+  }, [daysInSelectedMonth, selectedDay]);
+
+  // Validation: Date/time in the future
+  const isFutureDateSelected = useMemo(() => {
+    let h = parseInt(selectedHour, 10);
+    if (selectedAmPm === 'PM' && h < 12) h += 12;
+    if (selectedAmPm === 'AM' && h === 12) h = 0;
+    const mins = parseInt(selectedMinute, 10);
+    const y = parseInt(selectedYear, 10);
+    const mm = parseInt(selectedMonth, 10);
+    const d = parseInt(selectedDay, 10);
+    const dt = new Date(y, mm - 1, d, h, mins, 0);
+    return dt.getTime() > Date.now();
+  }, [selectedYear, selectedMonth, selectedDay, selectedHour, selectedMinute, selectedAmPm]);
 
   // Status State
   const [titleError, setTitleError] = useState(false);
@@ -183,6 +487,33 @@ export default function AddEventScreen({ navigation }: Props) {
       marginBottom: 20,
       width: '100%',
     },
+    pickerContainerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: T.border,
+      borderRadius: 18,
+      backgroundColor: T.surface,
+      overflow: 'hidden',
+    },
+    pickerDivider: {
+      width: 1.5,
+      height: '60%',
+      backgroundColor: T.border,
+    },
+    mapModalContainer: { flex: 1, backgroundColor: T.bg },
+    mapModalHeader: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: T.border,
+      paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    },
+    mapModalTitle: { fontSize: 16, fontFamily: 'Poppins_700Bold', color: T.text },
+    mapModalConfirmBtn: { backgroundColor: T.green, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+    mapModalConfirmText: { color: '#FFF', fontFamily: 'Poppins_600SemiBold', fontSize: 13 },
     input: {
       width: '100%',
       height: 54,
@@ -368,12 +699,13 @@ export default function AddEventScreen({ navigation }: Props) {
 
   const canSubmit = React.useMemo(() => {
     if (!title.trim()) return false;
-    if (!startsAt.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(startsAt.trim())) return false;
+    if (!isFutureDateSelected) return false;
     if (user?.profileType === 'pro_commerce' && !eventImage) return false;
+    if (!locAddress.trim()) return false;
     if (maxCapacity && isNaN(Number(maxCapacity))) return false;
     if (price && isNaN(Number(price))) return false;
     return true;
-  }, [title, startsAt, eventImage, maxCapacity, price, user]);
+  }, [title, isFutureDateSelected, eventImage, maxCapacity, price, user, locAddress]);
 
   // Set default Unsplash image if none picked
   const getPresetImage = (eventCategory: string) => {
@@ -420,36 +752,22 @@ export default function AddEventScreen({ navigation }: Props) {
       setTitleError(true);
       ok = false;
     }
-    // date
-    if (!startsAt.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(startsAt.trim())) {
+    // date/time check
+    if (!isFutureDateSelected) {
       setDateError(true);
-      setDateErrorMsg('Date format is required (e.g. YYYY-MM-DD).');
+      setDateErrorMsg('Event start date/time must be in the future.');
       setShowDateErrorModal(true);
       ok = false;
     }
-    // time ranges
-    const h = parseInt(hour, 10);
-    const m = parseInt(minute, 10);
-    if (isNaN(h) || h < 1 || h > 12) {
-      setHourError(true);
+    // location is strictly required for all users
+    if (!locAddress.trim()) {
+      setLocAddressError(true);
       ok = false;
     }
-    if (isNaN(m) || m < 0 || m > 59) {
-      setMinuteError(true);
-      ok = false;
-    }
-    // pro user: require image and location fields
+    // pro user: require image
     if (user?.profileType === 'pro_commerce') {
       if (!eventImage) {
         setImageError(true);
-        ok = false;
-      }
-      if (!locName.trim()) {
-        setLocNameError(true);
-        ok = false;
-      }
-      if (!locAddress.trim()) {
-        setLocAddressError(true);
         ok = false;
       }
     }
@@ -467,7 +785,6 @@ export default function AddEventScreen({ navigation }: Props) {
   }
 
   const handleSubmit = async () => {
-    // validate all fields first
     setIsSubmitting(true);
     const ok = validateAll();
     if (!ok) {
@@ -476,40 +793,15 @@ export default function AddEventScreen({ navigation }: Props) {
     }
 
     try {
-      // Parse date (YYYY-MM-DD) and combine with selected time (hour/minute/AM-PM)
-      const dateMatch = startsAt.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (!dateMatch) {
-        setDateError(true);
-        setDateErrorMsg('Date format is required (e.g. YYYY-MM-DD).');
-        setShowDateErrorModal(true);
-        setIsSubmitting(false);
-        return;
-      }
-      const y = parseInt(dateMatch[1], 10);
-      const mm = parseInt(dateMatch[2], 10); // 1-based month
-      const d = parseInt(dateMatch[3], 10);
-      // validate month range
-      if (isNaN(mm) || mm < 1 || mm > 12) {
-        setDateError(true);
-        setDateErrorMsg('Month must be between 01 and 12.');
-        setShowDateErrorModal(true);
-        setIsSubmitting(false);
-        return;
-      }
-      // validate day range for the month (handles leap years)
-      const daysInMonth = new Date(y, mm, 0).getDate();
-      if (isNaN(d) || d < 1 || d > daysInMonth) {
-        setDateError(true);
-        setDateErrorMsg(`Day must be between 01 and ${String(daysInMonth).padStart(2, '0')}.`);
-        setShowDateErrorModal(true);
-        setIsSubmitting(false);
-        return;
-      }
-      let h = parseInt(hour, 10);
-      if (ampm === 'PM' && h < 12) h += 12;
-      if (ampm === 'AM' && h === 12) h = 0;
-      const mins = parseInt(minute, 10);
+      let h = parseInt(selectedHour, 10);
+      if (selectedAmPm === 'PM' && h < 12) h += 12;
+      if (selectedAmPm === 'AM' && h === 12) h = 0;
+      const mins = parseInt(selectedMinute, 10);
+      const y = parseInt(selectedYear, 10);
+      const mm = parseInt(selectedMonth, 10);
+      const d = parseInt(selectedDay, 10);
       const dt = new Date(y, mm - 1, d, h, mins, 0);
+
       if (isNaN(dt.getTime())) {
         setDateError(true);
         setDateErrorMsg('Invalid date.');
@@ -527,22 +819,21 @@ export default function AddEventScreen({ navigation }: Props) {
         return;
       }
 
-      // image requirement already validated by validateAll
-
       const payload = {
         title: title.trim(),
         type,
         description: description.trim(),
         startsAt: dt.toISOString(),
         location: {
-          name: locName.trim() || 'Tunis',
+          name: locAddress.trim() || 'Tunis',
           address: locAddress.trim() || 'Avenue Habib Bourguiba',
-          city: locCity.trim() || 'Tunis',
-          country: locCountry.trim() || 'Tunisia',
+          city: 'Tunis',
+          country: 'Tunisia',
+          lat: pickedLocation ? pickedLocation.lat : undefined,
+          lng: pickedLocation ? pickedLocation.lng : undefined,
         },
         maxCapacity: maxCapacity ? parseInt(maxCapacity, 10) : 0,
         price: price ? parseFloat(price) : 0,
-        // For pro users we already ensured eventImage exists; non-pros can use a preset image
         imageUrl: eventImage || getPresetImage(type),
       };
 
@@ -557,7 +848,7 @@ export default function AddEventScreen({ navigation }: Props) {
 
   React.useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      const isDirty = title.trim() || description.trim() || locName.trim() || locAddress.trim() || startsAt.trim();
+      const isDirty = title.trim() || description.trim() || locAddress.trim();
       if (!isDirty || isSubmitting || showSuccessModal) {
         return;
       }
@@ -576,7 +867,7 @@ export default function AddEventScreen({ navigation }: Props) {
       );
     });
     return unsubscribe;
-  }, [navigation, title, description, locName, locAddress, startsAt, hour, minute, ampm, isSubmitting, showSuccessModal]);
+  }, [navigation, title, description, locAddress, isSubmitting, showSuccessModal]);
 
   const handleSuccessClose = () => {
     setShowSuccessModal(false);
@@ -657,149 +948,95 @@ export default function AddEventScreen({ navigation }: Props) {
           )}
         </View>
 
-        {/* Date / Time */}
+        {/* Date / Time Wheel Pickers */}
         <View style={s.inputGroup}>
           <Text style={s.label}>Starts At *</Text>
-          <TextInput
-            placeholder="YYYY-MM-DD e.g. 2026-06-15"
-            placeholderTextColor={T.textMuted}
-            value={startsAt}
-            onChangeText={(v) => { setStartsAt(formatDateInput(v)); setDateError(false); setDateErrorMsg(''); setShowDateErrorModal(false); }}
-            style={[s.input, dateError ? s.inputError : null]}
-            maxLength={10}
-            keyboardType="number-pad"
-          />
-          {dateError && <Text style={s.errorText}>{dateErrorMsg || 'Date format is required (e.g. YYYY-MM-DD).'}</Text>}
-
-          {/* Time selectors: Hour / Minute / AM-PM */}
-          <View style={s.timeRow}>
-            <View style={s.timeCol}>
-              <Text style={s.label}>Hour</Text>
-              <TouchableOpacity
-                style={s.selectTrigger}
-                activeOpacity={0.85}
-                onPress={() => { setShowHourDropdown(!showHourDropdown); setShowMinuteDropdown(false); setShowAmPmDropdown(false); }}
-              >
-                <Text style={s.selectText}>{hour}</Text>
-                <Feather name={showHourDropdown ? 'chevron-up' : 'chevron-down'} size={18} color={T.text} />
-              </TouchableOpacity>
-              {showHourDropdown && (
-                <ScrollView style={s.dropdownList} nestedScrollEnabled={true}>
-                  {Array.from({ length: 12 }).map((_, i) => {
-                    const v = String(i + 1);
-                    return (
-                      <TouchableOpacity key={v} style={s.dropdownItem} onPress={() => { setHour(v); setHourError(false); setShowHourDropdown(false); }}>
-                        <Text style={s.dropdownItemText}>{v}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
-              {hourError && <Text style={s.errorText}>Please select a valid hour (1-12).</Text>}
-            </View>
-
-            <View style={{ width: 120 }}>
-              <Text style={s.label}>Minute</Text>
-              <TouchableOpacity
-                style={s.selectTrigger}
-                activeOpacity={0.85}
-                onPress={() => { setShowMinuteDropdown(!showMinuteDropdown); setShowHourDropdown(false); setShowAmPmDropdown(false); }}
-              >
-                <Text style={s.selectText}>{minute}</Text>
-                <Feather name={showMinuteDropdown ? 'chevron-up' : 'chevron-down'} size={18} color={T.text} />
-              </TouchableOpacity>
-              {showMinuteDropdown && (
-                <ScrollView style={s.dropdownList} nestedScrollEnabled={true}>
-                  {Array.from({ length: 60 }).map((_, i) => {
-                    const v = i < 10 ? `0${i}` : `${i}`;
-                    return (
-                      <TouchableOpacity key={v} style={s.dropdownItem} onPress={() => { setMinute(v); setMinuteError(false); setShowMinuteDropdown(false); setDateError(false); setDateErrorMsg(''); setShowDateErrorModal(false); }}>
-                        <Text style={s.dropdownItemText}>{v}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              )}
-              {minuteError && <Text style={s.errorText}>Please select a valid minute (00-59).</Text>}
-            </View>
-
-            <View style={{ width: 100 }}>
-              <Text style={s.label}>AM/PM</Text>
-              <TouchableOpacity
-                style={s.selectTrigger}
-                activeOpacity={0.85}
-                onPress={() => { setShowAmPmDropdown(!showAmPmDropdown); setShowHourDropdown(false); setShowMinuteDropdown(false); }}
-              >
-                <Text style={s.selectText}>{ampm}</Text>
-                <Feather name={showAmPmDropdown ? 'chevron-up' : 'chevron-down'} size={18} color={T.text} />
-              </TouchableOpacity>
-              {showAmPmDropdown && (
-                <ScrollView style={s.dropdownList} nestedScrollEnabled={true}>
-                  {['AM', 'PM'].map((a) => (
-                    <TouchableOpacity key={a} style={s.dropdownItem} onPress={() => { setAmpm(a); setShowAmPmDropdown(false); setDateError(false); setDateErrorMsg(''); setShowDateErrorModal(false); }}>
-                      <Text style={s.dropdownItemText}>{a}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              )}
-              
-            </View>
+          
+          <View style={[s.pickerContainerRow, (!isFutureDateSelected || dateError) ? s.inputError : null]}>
+            <WheelColumn
+              values={MONTHS}
+              selected={selectedMonth}
+              onSelect={setSelectedMonth}
+              accentColor={T.green}
+              labelExtractor={(v) => MONTH_NAMES[v]}
+            />
+            <View style={s.pickerDivider} />
+            <WheelColumn
+              values={DAYS}
+              selected={selectedDay}
+              onSelect={setSelectedDay}
+              accentColor={T.green}
+            />
+            <View style={s.pickerDivider} />
+            <WheelColumn
+              values={YEARS}
+              selected={selectedYear}
+              onSelect={setSelectedYear}
+              accentColor={T.green}
+            />
           </View>
+          
+          <View style={{ height: 12 }} />
+          
+          <View style={[s.pickerContainerRow, (!isFutureDateSelected || dateError) ? s.inputError : null]}>
+            <WheelColumn
+              values={HOURS_VALS}
+              selected={selectedHour}
+              onSelect={setSelectedHour}
+              accentColor={T.green}
+            />
+            <View style={s.pickerDivider} />
+            <WheelColumn
+              values={MINUTES_VALS}
+              selected={selectedMinute}
+              onSelect={setSelectedMinute}
+              accentColor={T.green}
+            />
+            <View style={s.pickerDivider} />
+            <WheelColumn
+              values={AMPM_VALS}
+              selected={selectedAmPm}
+              onSelect={setSelectedAmPm}
+              accentColor={T.green}
+            />
+          </View>
+          {!isFutureDateSelected && (
+            <Text style={s.errorText}>Event time cannot be in the past.</Text>
+          )}
+          {isFutureDateSelected && dateError && (
+            <Text style={s.errorText}>{dateErrorMsg || 'Event start date/time must be in the future.'}</Text>
+          )}
         </View>
 
-        {/* Location Section */}
-        <View style={s.locationGroup}>
-          <View style={s.locationHeader}>
-            <Ionicons name="location-outline" size={16} color={T.green} />
-            <Text style={s.locationTitle}>Location Details</Text>
-          </View>
-
-          <View style={s.inputGroup}>
-            <Text style={s.label}>Venue Name</Text>
-            <TextInput
-              placeholder="e.g. Green Bakery"
-              placeholderTextColor={T.textMuted}
-              value={locName}
-              onChangeText={(v) => { setLocName(v); setLocNameError(false); }}
-              style={s.input}
-            />
-            {locNameError && <Text style={s.errorText}>Venue name is required for pro accounts.</Text>}
-          </View>
-
-          <View style={s.inputGroup}>
-            <Text style={s.label}>Street Address</Text>
-            <TextInput
-              placeholder="e.g. 15 Avenue de Paris"
-              placeholderTextColor={T.textMuted}
-              value={locAddress}
-              onChangeText={(v) => { setLocAddress(v); setLocAddressError(false); }}
-              style={s.input}
-            />
-            {locAddressError && <Text style={s.errorText}>Street address is required for pro accounts.</Text>}
-          </View>
-
-          <View style={s.row}>
-            <View style={[s.inputGroup, s.col]}>
-              <Text style={s.label}>City</Text>
-              <TextInput
-                placeholder="Tunis"
-                placeholderTextColor={T.textMuted}
-                value={locCity}
-                onChangeText={setLocCity}
-                style={s.input}
-              />
-            </View>
-            <View style={[s.inputGroup, s.col]}>
-              <Text style={s.label}>Country</Text>
-              <TextInput
-                placeholder="Tunisia"
-                placeholderTextColor={T.textMuted}
-                value={locCountry}
-                onChangeText={setLocCountry}
-                style={s.input}
-              />
-            </View>
-          </View>
+        {/* Location Details (Store Address & Map Picker, matching EditStoreScreen) */}
+        <View style={{ marginBottom: 12 }}>
+          <InputCard 
+            icon="map-pin" 
+            iconColor="#EF4444" 
+            label="Store Address" 
+            value={locAddress} 
+            onChangeText={(v) => { setLocAddress(v); setLocAddressError(false); }} 
+            placeholder="e.g. 125 Rue Casablanca, Tunis" 
+            multiline 
+            hint="Enter event address manually or tap the map icon to pin it"
+            rightElement={
+              <TouchableOpacity 
+                onPress={() => setShowMapPicker(true)} 
+                style={{ 
+                  position: 'absolute', 
+                  left: isRTL ? 12 : undefined, 
+                  right: isRTL ? undefined : 12, 
+                  top: 12, 
+                  backgroundColor: '#EF444420', 
+                  padding: 8, 
+                  borderRadius: 8 
+                }}
+              >
+                <Feather name="map" size={16} color="#EF4444" />
+              </TouchableOpacity>
+            }
+          />
+          {locAddressError && <Text style={s.errorText}>Address is required.</Text>}
         </View>
 
         {/* Capacity and Price row */}
@@ -885,6 +1122,38 @@ export default function AddEventScreen({ navigation }: Props) {
             <TouchableOpacity style={s.okBtn} onPress={() => setShowDateErrorModal(false)} activeOpacity={0.85}>
               <Text style={s.okBtnText}>OK</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Map Picker Modal (matching EditStoreScreen) */}
+      <Modal visible={showMapPicker} animationType="slide" onRequestClose={() => setShowMapPicker(false)}>
+        <View style={s.mapModalContainer}>
+          <View style={s.mapModalHeader}>
+            <TouchableOpacity onPress={() => setShowMapPicker(false)}>
+              <Feather name="x" size={24} color={T.text} />
+            </TouchableOpacity>
+            <Text style={s.mapModalTitle}>Tap on the map</Text>
+            <TouchableOpacity 
+              style={[s.mapModalConfirmBtn, !pickedLocation && { opacity: 0.5 }]} 
+              disabled={!pickedLocation}
+              onPress={() => {
+                if (pickedLocation) {
+                  setLocAddress(`${pickedLocation.lat.toFixed(5)}, ${pickedLocation.lng.toFixed(5)}`);
+                  setLocAddressError(false);
+                }
+                setShowMapPicker(false);
+              }}
+            >
+              <Text style={s.mapModalConfirmText}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, backgroundColor: '#F6F5F3' }}>
+            <MapWebView 
+              locations={[]}
+              onMapPress={(lat, lng) => setPickedLocation({ lat, lng })}
+              userLocation={pickedLocation} 
+            />
           </View>
         </View>
       </Modal>

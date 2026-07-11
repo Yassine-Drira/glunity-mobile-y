@@ -6,17 +6,9 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api.config';
 import { TokenStore } from '../storage/secure-store';
+import { resolveMessagingServiceUrl } from './messaging-service-url';
 
-// Derive messaging-service base URL from the main API URL
-const MSG_SERVICE_URL = (() => {
-  let resolved = API_BASE_URL;
-  if (/:\d+/.test(resolved)) {
-    resolved = resolved.replace(/:\d+/, ':5001');
-  } else {
-    resolved = resolved.replace(/(https?:\/\/[^/]+)/, '$1:5001');
-  }
-  return resolved;
-})();
+const MSG_SERVICE_URL = resolveMessagingServiceUrl(API_BASE_URL);
 
 const messagingHttp = axios.create({
   baseURL: MSG_SERVICE_URL,

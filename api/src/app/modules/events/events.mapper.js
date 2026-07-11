@@ -27,6 +27,8 @@ function toEventDto(doc) {
 		maxCapacity: doc.maxCapacity || 0,
 		price: doc.price || 0,
 		currency: doc.currency || 'TND',
+		isCancelled: doc.isCancelled || false,
+		status: doc.status || 'active',
 		createdAt: doc.createdAt,
 		updatedAt: doc.updatedAt,
 	};
