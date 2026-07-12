@@ -19,6 +19,7 @@ import type { AppStackParamList } from '@/modules/auth/navigation/types';
 import { useAuth } from '@/modules/auth/state/auth.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
+import { Avatar } from '@/shared/components/Avatar';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 import { ReelsService, Reel } from '@/modules/reels/services/reels.service';
@@ -831,8 +832,10 @@ export default function SellerProProfileScreen({ navigation }: Props) {
         {/* ── Avatar + stats row ── */}
         <View style={s.headerSection}>
           <View style={s.avatarWrap}>
-            <Image
-              source={{ uri: user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
+            <Avatar
+              url={user?.avatarUrl}
+              name={user?.fullName || 'User'}
+              size={110}
               style={s.avatar}
             />
             <View style={s.checkBadge}>

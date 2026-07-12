@@ -39,6 +39,7 @@ import { Reel, ReelComment, ReelsService } from '../../services/reels.service';
 import { useReelComments } from '../../hooks/useReelComments';
 import { useAuth } from '../../../auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
+import { Avatar } from '@/shared/components/Avatar';
 
 function formatRelativeTime(dateString: string): string {
 	const now = new Date();
@@ -165,8 +166,10 @@ const ReplyItem = memo(({
 				onPress={() => onCommentPress(reply)}
 				style={styles.replyItem}
 			>
-				<Image
-					source={{ uri: reply.authorAvatar || reply.author.avatarUrl || DEFAULT_AVATAR_URL }}
+				<Avatar
+					url={reply.authorAvatar || reply.author.avatarUrl}
+					name={reply.authorUsername || 'User'}
+					size={24}
 					style={styles.replyAvatar}
 				/>
 				<View style={styles.commentTextContainer}>
@@ -278,8 +281,10 @@ const CommentItem = memo(({
 					onPress={() => onCommentPress(item)}
 					style={styles.commentItem}
 				>
-					<Image
-						source={{ uri: item.authorAvatar || item.author.avatarUrl || DEFAULT_AVATAR_URL }}
+					<Avatar
+						url={item.authorAvatar || item.author.avatarUrl}
+						name={item.authorUsername || 'User'}
+						size={36}
 						style={styles.commentAvatar}
 					/>
 					<View style={styles.commentTextContainer}>
@@ -1209,8 +1214,10 @@ function ReelPlayerItemComponent({
 			{/* Bottom info section */}
 			<View style={[styles.bottomInfo, { bottom: bottomInfoBottom }]}>
 				<View style={styles.authorRow}>
-					<Image
-						source={{ uri: reel.author.avatarUrl || DEFAULT_AVATAR_URL }}
+					<Avatar
+						url={reel.author.avatarUrl}
+						name={reel.author.fullName || 'User'}
+						size={32}
 						style={styles.authorAvatar}
 					/>
 					<Text style={styles.authorName}>@{reel.author.fullName.replace(/\s+/g, '').toLowerCase()}</Text>
@@ -1235,8 +1242,10 @@ function ReelPlayerItemComponent({
 			<View style={[styles.rightOverlay, { bottom: rightOverlayBottom }]}>
 				{/* Avatar */}
 				<View style={styles.avatarContainer}>
-					<Image
-						source={{ uri: reel.author.avatarUrl || DEFAULT_AVATAR_URL }}
+					<Avatar
+						url={reel.author.avatarUrl}
+						name={reel.author.fullName || 'User'}
+						size={46}
 						style={styles.avatar}
 					/>
 					<TouchableOpacity style={styles.followButton}>
@@ -1428,8 +1437,10 @@ function ReelPlayerItemComponent({
 								</View>
 							)}
 							<View style={styles.commentInputRow}>
-								<Image
-									source={{ uri: user?.avatarUrl || DEFAULT_AVATAR_URL }}
+								<Avatar
+									url={user?.avatarUrl}
+									name={user?.fullName || 'User'}
+									size={32}
 									style={styles.inputAvatar}
 								/>
 								<View style={[styles.commentInputContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>

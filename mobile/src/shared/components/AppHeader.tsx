@@ -21,6 +21,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import notificationsApi from '@/modules/notifications/api/notifications.api';
 import { useLanguage } from '../context/language.context';
 import { useSocket } from '../context/socket.context';
+import { Avatar } from './Avatar';
 
 let BlurView: any = null;
 try { BlurView = require('expo-blur').BlurView; } catch (e) { BlurView = null; }
@@ -204,9 +205,8 @@ export function AppHeader({
     };
   }, [socket, user]);
 
-  // Extract first name and default fallback avatar
+  // Extract first name
   const firstName = user?.fullName ? user.fullName.split(' ')[0] : 'Yassmine';
-  const avatarUrl = user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop';
 
   const s = useMemo(
     () =>
@@ -509,7 +509,7 @@ export function AppHeader({
           <>
             <TouchableOpacity style={s.mainLeft} onPress={handleProfilePress} activeOpacity={0.75} accessibilityRole="button">
               <View style={s.avatarWrap}>
-                <Image source={{ uri: avatarUrl }} style={s.avatar} />
+                <Avatar url={user?.avatarUrl} name={user?.fullName || 'User'} size={44} style={s.avatar} />
                 <View style={s.shieldBadge}>
                   <MaterialCommunityIcons name={roleBadgeIcon} size={10} color="#FFFFFF" />
                 </View>

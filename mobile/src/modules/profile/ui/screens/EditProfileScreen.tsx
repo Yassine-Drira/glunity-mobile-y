@@ -20,6 +20,7 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
+import { Avatar } from '@/shared/components/Avatar';
 import type { UpdateProfileDto } from '@/modules/auth/api/auth.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'EditProfile'>;
@@ -331,8 +332,10 @@ export default function EditProfileScreen({ navigation }: Props) {
           {/* ── Photo ──────────────────────────────────────────────────── */}
           <View style={[s.photoSection, { backgroundColor: T.bg }]}>
             <View style={s.photoWrap}>
-              <Image
-                source={{ uri: localAvatar || user?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
+              <Avatar
+                url={localAvatar || user?.avatarUrl}
+                name={fullName || user?.fullName || 'User'}
+                size={130}
                 style={s.photo}
               />
               <TouchableOpacity style={s.cameraBtn} id="edit-camera-btn" onPress={pickImage}>

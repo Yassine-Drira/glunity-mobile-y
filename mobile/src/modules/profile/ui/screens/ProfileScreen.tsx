@@ -20,6 +20,7 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
+import { Avatar } from '@/shared/components/Avatar';
 import { useLanguage } from '@/shared/context/language.context';
 import authApi from '@/modules/auth/api/auth.api';
 import http from '@/core/network/http.client';
@@ -1328,8 +1329,10 @@ export default function ProfileScreen({ navigation, route }: Props) {
       >
         <View style={s.headerSection}>
           <View style={s.avatarWrap}>
-            <Image
-              source={{ uri: profileUser?.avatarUrl || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop' }}
+            <Avatar
+              url={profileUser?.avatarUrl}
+              name={profileUser?.fullName || 'User'}
+              size={110}
               style={s.avatar}
             />
             <View style={[s.checkBadge, isPro && { backgroundColor: T.red }]}>

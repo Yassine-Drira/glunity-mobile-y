@@ -26,7 +26,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<LanguageCode>('en');
+  const [language, setLanguageState] = useState<LanguageCode>('fr');
 
   useEffect(() => {
     async function loadLanguage() {
@@ -54,7 +54,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const t = (key: string): string => {
     if (!key) return key;
     const cleanKey = key.trim();
-    return translations[language]?.[cleanKey] || translations[language]?.[key] || translations['en']?.[cleanKey] || key;
+    return translations[language]?.[cleanKey] || translations[language]?.[key] || translations['fr']?.[cleanKey] || key;
   };
 
   const isRTL = language === 'ar';
