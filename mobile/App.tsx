@@ -1,6 +1,12 @@
 import React from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { ActivityIndicator, StyleSheet, Text, TextInput, View, Platform } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, View, Platform, LogBox } from 'react-native';
+
+LogBox.ignoreLogs([
+  '[expo-av]: Expo AV has been deprecated',
+  'Listening to push token changes is not yet fully supported on web',
+  'TouchableWithoutFeedback is deprecated',
+]);
 import './src/shared/utils/text-scaling';
 import { AuthProvider } from './src/modules/auth/state/auth.context';
 import { SocketProvider } from './src/shared/context/socket.context';
