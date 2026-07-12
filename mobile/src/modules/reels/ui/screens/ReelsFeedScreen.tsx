@@ -12,6 +12,9 @@ import { useAuth } from '@/modules/auth/state/auth.context';
 import { useTheme } from '@/shared/context/theme.context';
 import http from '../../../../core/network/http.client';
 import messagingHttp from '../../../../core/network/messaging-http.client';
+import { ShareCacheService } from '../../services/share-cache.service';
+import { ShareBottomSheet } from '../components/share/ShareBottomSheet';
+
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 const AnimatedText = Animated.createAnimatedComponent(Text);
@@ -49,48 +52,7 @@ function CategoryPill({ cat, isActive, onPress }: CategoryPillProps) {
 	);
 }
 
-interface ContactAvatarProps {
-	item: any;
-	selected: boolean;
-	onToggle: (id: string) => void;
-}
-
-const ContactAvatar = React.memo(({ item, selected, onToggle }: ContactAvatarProps) => {
-	const { theme: T } = useTheme();
-	const avatarSize = 80;
-	const badgeScale = useSharedValue(selected ? 1 : 0);
-
-	useEffect(() => {
-		badgeScale.value = withTiming(selected ? 1 : 0, { duration: 220 });
-	}, [selected]);
-
-	const animatedBadgeStyle = useAnimatedStyle(() => ({
-		transform: [{ scale: badgeScale.value }],
-		opacity: badgeScale.value,
-	}));
-
-	return (
-		<TouchableOpacity
-			style={{ flex: 1 / 3, padding: 12, alignItems: 'center' }}
-			activeOpacity={0.8}
-			onPress={() => onToggle(item.id)}
-		>
-			<View style={{ width: avatarSize, height: avatarSize }}>
-				<Image
-					source={{ uri: item.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=fff&color=8A8A8E` }}
-					style={{ width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2, backgroundColor: '#fff', borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)' }}
-					resizeMode="cover"
-				/>
-				<Animated.View style={[styles.checkBadge, animatedBadgeStyle]} pointerEvents="none">
-					<View style={styles.checkBadgeInner}>
-						<Ionicons name="checkmark" size={14} color="#fff" />
-					</View>
-				</Animated.View>
-			</View>
-			<Text numberOfLines={1} style={[styles.contactName, { color: T.text }]}>{item.name}</Text>
-		</TouchableOpacity>
-	);
-});
+// ContactAvatar removed, logic moved to ShareItem.tsx
 
 export default function ReelsFeedScreen() {
 	const { theme: T, isDark } = useTheme();
@@ -200,217 +162,20 @@ export default function ReelsFeedScreen() {
 	// Share Sheet States
 	const [shareModalVisible, setShareModalVisible] = useState(false);
 	const [sharingReel, setSharingReel] = useState<any | null>(null);
-	const [shareSearchQuery, setShareSearchQuery] = useState('');
-	const [channels, setChannels] = useState<any[]>([]);
-	const [users, setUsers] = useState<any[]>([]);
-	const [userPage, setUserPage] = useState(0);
-	const [hasMoreUsers, setHasMoreUsers] = useState(true);
-	const [loadingShareData, setLoadingShareData] = useState(false);
-	const [loadingUsersPage, setLoadingUsersPage] = useState(false);
-	const [sendingToId, setSendingToId] = useState<string | null>(null);
-	const [sentRecipients, setSentRecipients] = useState<Set<string>>(new Set());
-	const [selectedRecipients, setSelectedRecipients] = useState<Set<string>>(new Set());
-	const [messageText, setMessageText] = useState<string>('');
 
-	// Composer slide animation (starts hidden)
-	const composerY = useSharedValue(200);
-
+	// Prefetch sharing targets on screen mount
 	useEffect(() => {
-		composerY.value = withTiming(selectedRecipients.size > 0 ? 0 : 200, { duration: 240 });
-	}, [selectedRecipients]);
-
-	const composerAnimatedStyle = useAnimatedStyle(() => ({
-		transform: [{ translateY: composerY.value }],
-	}));
-
-	const openShareSheet = async (reel: any) => {
-		setSharingReel(reel);
-		setShareModalVisible(true);
-		setShareSearchQuery('');
-		setSentRecipients(new Set());
-		setSelectedRecipients(new Set());
-		setMessageText('');
-		setUserPage(0);
-		setHasMoreUsers(true);
-        
-		setLoadingShareData(true);
-		try {
-			const channelsPromise = messagingHttp.get('/channels').catch(() => http.get('/channels'));
-			const usersPromise = http.get('/users', { params: { limit: 30, skip: 0 } });
-
-			const results = await Promise.allSettled([channelsPromise, usersPromise]);
-
-			const channelsRes = results[0].status === 'fulfilled' ? results[0].value : null;
-			const usersRes = results[1].status === 'fulfilled' ? results[1].value : null;
-			const channelsError = results[0].status === 'rejected' ? (results[0] as PromiseRejectedResult).reason : null;
-			const usersError = results[1].status === 'rejected' ? (results[1] as PromiseRejectedResult).reason : null;
-
-			if (channelsRes) {
-				const channelsList = channelsRes.data?.data || channelsRes.data || [];
-				setChannels(channelsList);
-			} else {
-				console.warn('Failed to load channels for share sheet:', channelsError);
-			}
-
-			if (usersRes) {
-				const usersList = usersRes.data?.data || usersRes.data || [];
-				setUsers(usersList);
-				setHasMoreUsers((usersList || []).length === 30);
-				setUserPage(1);
-			} else {
-				console.warn('Failed to load users for share sheet:', usersError);
-			}
-		} catch (err) {
-			console.warn('Failed to load share targets:', err);
-		} finally {
-			setLoadingShareData(false);
-		}
-	};
-
-	const loadMoreShareUsers = async () => {
-		if (!hasMoreUsers || loadingUsersPage) return;
-		setLoadingUsersPage(true);
-		try {
-			const res = await http.get('/users', { params: { limit: 30, skip: userPage * 30 } });
-			const usersList = res.data?.data || res.data || [];
-			if (usersList.length > 0) {
-				setUsers((prev) => [...prev, ...usersList]);
-				setUserPage((page) => page + 1);
-			}
-			if (usersList.length < 30) {
-				setHasMoreUsers(false);
-			}
-		} catch (err) {
-			console.warn('Failed to load more share users:', err);
-			setHasMoreUsers(false);
-		} finally {
-			setLoadingUsersPage(false);
-		}
-	};
-
-	const sendReelToTarget = async (target: any, isChannel: boolean, message?: string) => {
-		if (!sharingReel) return;
-		const targetId = target._id || target.id;
-		setSendingToId(targetId);
-		
-		try {
-			let destChannelId = targetId;
-			
-			if (!isChannel) {
-				let dmRes;
-				try {
-					dmRes = await messagingHttp.post('/channels/dm', { targetUserId: targetId });
-				} catch (e) {
-					dmRes = await http.post('/channels/direct', { userId: targetId });
-				}
-				const dmChannel = dmRes.data?.data || dmRes.data;
-				destChannelId = dmChannel._id || dmChannel.id;
-			}
-			const trimmedMessage = message && message.trim() ? message.trim() : '';
-			const reelId = sharingReel.id || sharingReel._id;
-			const thumbUrl = sharingReel.thumbnailUrl || sharingReel.thumbnail || (sharingReel.videoUrl ? sharingReel.videoUrl.replace(/\.[a-z0-9]+$/i, '.jpg') : '');
-
-			try {
-				await messagingHttp.post(`/channels/${destChannelId}/reels`, {
-					reelId,
-					caption: trimmedMessage || undefined,
-				});
-			} catch (e) {
-				await http.post(`/channels/${destChannelId}/messages`, {
-					content: trimmedMessage || undefined,
-					text: trimmedMessage || undefined,
-					type: 'reel',
-					reelRef: {
-						reelId,
-						thumbnailUrl: thumbUrl,
-						title: sharingReel.caption || 'Shared Reel',
-					},
-				});
-			}
-
-			// Increment share counter in database and local UI state
-			recordShare(sharingReel.id);
-
-			setSentRecipients(prev => {
-				const next = new Set(prev);
-				next.add(targetId);
-				return next;
-			});
-		} catch (err) {
-			console.warn('Failed to share reel:', err);
-			Alert.alert('Error', 'Failed to share reel to this recipient.');
-		} finally {
-			setSendingToId(null);
-		}
-	};
-
-	const filteredTargets = useMemo(() => {
-		const query = shareSearchQuery.toLowerCase().trim();
-		
-		const formattedChannels = channels.map(c => {
-			const name = c.name || c.description || 'Group Chat';
-			const avatarUrl = c.icon || c.avatarUrl || null;
-			return {
-				id: c._id || c.id,
-				name,
-				avatarUrl,
-				isChannel: true,
-				subtitle: c.type === 'direct' ? 'Direct Message' : 'Group Chat'
-			};
-		});
-		
-		const formattedUsers = users.map(u => ({
-			id: u._id || u.id,
-			name: u.fullName || u.name || 'User',
-			avatarUrl: u.avatarUrl || u.avatar?.url || null,
-			isChannel: false,
-			subtitle: `@${(u.fullName || '').replace(/\s+/g, '').toLowerCase()}`
-		}));
-		
-		const combined = [...formattedChannels, ...formattedUsers];
-		
-		if (!query) return combined;
-		return combined.filter(item => 
-			item.name.toLowerCase().includes(query) || 
-			item.subtitle.toLowerCase().includes(query)
-		);
-	}, [channels, users, shareSearchQuery]);
-
-	// Batch send to all selected recipients using existing sendReelToTarget logic
-	const sendToSelected = async () => {
-		if (!sharingReel) return;
-		const ids = Array.from(selectedRecipients);
-		for (const id of ids) {
-			const target = filteredTargets.find(t => t.id === id);
-			if (!target) continue;
-			// await each send to preserve order and reuse existing API handling
-			// pass optional messageText if provided
-			// eslint-disable-next-line no-await-in-loop
-			await sendReelToTarget(target, !!target.isChannel, messageText || undefined);
-		}
-		// Clear selections after sending
-		setSelectedRecipients(new Set());
-		setMessageText('');
-		setShareModalVisible(false);
-	};
-
-	// Small helper to toggle selection
-	const toggleSelection = useCallback((id: string) => {
-		setSelectedRecipients(prev => {
-			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
-			return next;
-		});
+		ShareCacheService.prefetch();
 	}, []);
 
-	const renderContactAvatar = useCallback(({ item }: { item: any }) => (
-		<ContactAvatar
-			item={item}
-			selected={selectedRecipients.has(item.id)}
-			onToggle={toggleSelection}
-		/>
-	), [selectedRecipients, toggleSelection]);
+	const openShareSheet = useCallback((reel: any) => {
+		setSharingReel(reel);
+		setShareModalVisible(true);
+	}, []);
+
+	const closeShareSheet = useCallback(() => {
+		setShareModalVisible(false);
+	}, []);
 
 	// Sync refs during render (NOT in useEffect!) so that renderItem
 	// always reads the latest value. useEffect runs AFTER render, which
@@ -570,68 +335,12 @@ export default function ReelsFeedScreen() {
 				}}
 			/>
 
-			<Modal
-				visible={shareModalVisible}
-				transparent
-				animationType="slide"
-				onRequestClose={() => setShareModalVisible(false)}
-			>
-				<View style={styles.shareOverlay}>
-					<View style={[styles.shareContainer, { backgroundColor: T.surface, borderColor: T.border }]}>
-						<View style={[styles.shareHeader, { borderBottomColor: T.divider }]}>
-							<Text style={[styles.shareTitle, { color: T.text }]}>Share Reel</Text>
-							<TouchableOpacity onPress={() => setShareModalVisible(false)}>
-								<Ionicons name="close" size={22} color={T.text} />
-							</TouchableOpacity>
-						</View>
-							<View style={styles.searchRow}>
-							<View style={[styles.shareSearchContainer, { backgroundColor: T.inputBg }]}>
-								<Ionicons name="search" size={18} color={T.textMuted} />
-								<TextInput
-									style={[styles.shareSearchInput, { color: T.text }]}
-									placeholder="Search"
-									placeholderTextColor={T.textMuted}
-									value={shareSearchQuery}
-									onChangeText={setShareSearchQuery}
-									returnKeyType="search"
-								/>
-							</View>
-						</View>
-						{loadingShareData ? (
-							<ActivityIndicator size="large" color="#6DAE3F" style={{ marginTop: 24 }} />
-						) : filteredTargets.length === 0 ? (
-							<Text style={[styles.emptyShareText, { color: T.textMuted }]}>No recipients found</Text>
-						) : (
-							<FlatList
-								data={filteredTargets}
-								keyExtractor={(i) => i.id}
-								renderItem={renderContactAvatar}
-								numColumns={3}
-								contentContainerStyle={styles.gridList}
-						onEndReached={loadMoreShareUsers}
-						onEndReachedThreshold={0.5}
-						ListFooterComponent={loadingUsersPage ? <ActivityIndicator size="small" color="#6DAE3F" style={{ marginTop: 16 }} /> : null}
-							/>
-						)}
-						<Animated.View style={[styles.composerContainer, composerAnimatedStyle, { backgroundColor: T.surface, shadowColor: T.shadow }]}>
-							<TextInput
-								style={[styles.composerInput, { backgroundColor: T.inputBg, color: T.text }]}
-								placeholder="Add a message (optional)"
-								placeholderTextColor={T.textMuted}
-								value={messageText}
-								onChangeText={setMessageText}
-							/>
-							<TouchableOpacity
-								style={[styles.sendButton, selectedRecipients.size === 0 && styles.sendButtonDisabled]}
-								disabled={selectedRecipients.size === 0}
-								onPress={sendToSelected}
-							>
-								<Text style={styles.sendButtonText}>{sendingToId ? 'Sending...' : 'Send'}</Text>
-							</TouchableOpacity>
-						</Animated.View>
-					</View>
-				</View>
-			</Modal>
+			<ShareBottomSheet
+				isVisible={shareModalVisible}
+				onClose={closeShareSheet}
+				reel={sharingReel}
+				onShareSuccess={recordShare}
+			/>
 			</View>
 	);
 }
