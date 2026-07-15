@@ -14,6 +14,10 @@ import { setTextMultiplier, loadTextMultiplier } from '@/shared/utils/text-scali
 import { ChatCacheService } from '../../community/services/chat-cache.service';
 
 function getAuthErrorMessage(err: any, fallback: string): string {
+  if (err?.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+    return err.response.data.errors.map((e: any) => `${e.field}: ${e.message}`).join(', ');
+  }
+
   if (err?.response?.data?.message) {
     return err.response.data.message;
   }
@@ -37,6 +41,7 @@ interface AuthContextValue extends AuthState {
   updateTextSize: (size: 'Small' | 'Medium' | 'Large') => Promise<void>;
   verify2Fa:     (userId: string, code: string) => Promise<any>;
   refreshUser:   () => Promise<void>;
+  oauthLogin:    (provider: 'google' | 'facebook', token: string) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -87,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Register push notifications when user is authenticated ──────────────────
-  const userId = state.user?._id || state.user?.id;
+  const userId = state.user?._id || (state.user as any)?.id;
   useEffect(() => {
     if (userId && state.user) {
       const { registerForPushNotificationsAsync } = require('../../../shared/utils/notifications');
@@ -232,6 +237,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const oauthLogin = useCallback(async (provider: 'google' | 'facebook', token: string) => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    try {
+      const res = await authApi.oauthLogin(provider, token);
+      if (res.data.isNewUser) {
+        dispatch({ type: 'SET_LOADING', payload: false });
+        return res.data;
+      }
+      if (res.data.user) {
+        dispatch({ type: 'SET_USER', payload: res.data.user });
+      }
+      return res.data;
+    } catch (err: any) {
+      const message = getAuthErrorMessage(err, 'OAuth sign in failed. Please try again.');
+      dispatch({ type: 'SET_ERROR', payload: message });
+      throw err;
+    }
+  }, []);
+
   const refreshUser = useCallback(async () => {
     try {
       const user = await authApi.getMe();
@@ -242,8 +266,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ...state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser }),
-    [state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser],
+    () => ({ ...state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser, oauthLogin }),
+    [state, login, register, logout, updateProfile, checkIn, clearError, textSize, updateTextSize, verify2Fa, refreshUser, oauthLogin],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

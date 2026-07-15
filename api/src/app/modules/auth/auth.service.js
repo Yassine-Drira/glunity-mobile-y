@@ -4,48 +4,234 @@ const crypto = require('crypto');
 
 const authRepository = require('./auth.repository');
 const { hashPassword, verifyPassword } = require('../../common/utils/password');
-const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../../common/utils/token');
+const {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+  signOauthSignupToken,
+  verifyOauthSignupToken,
+} = require('../../common/utils/token');
 const AppError = require('../../common/errors/app-error');
 const { AUTH } = require('../../config/constants');
 const env = require('../../config/env');
 const emailService = require('../../common/services/email.service');
 
+// Helper to verify google token
+async function verifyGoogleToken(token) {
+  try {
+    if (process.env.NODE_ENV !== 'production' && token.startsWith('mock_')) {
+      const id = token.replace('mock_', '');
+      return {
+        id,
+        email: `${id}@gmail.com`,
+        fullName: `Mock Google User ${id}`,
+        emailVerified: true,
+      };
+    }
+    const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${token}`);
+    if (!res.ok) {
+      throw AppError.unauthorized('Invalid Google token');
+    }
+    const payload = await res.json();
+    return {
+      id: payload.sub,
+      email: payload.email,
+      fullName: payload.name || `${payload.given_name || ''} ${payload.family_name || ''}`.trim(),
+      emailVerified: payload.email_verified === 'true' || payload.email_verified === true,
+    };
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw AppError.unauthorized('Failed to verify Google token: ' + err.message);
+  }
+}
+
+// Helper to verify facebook token
+async function verifyFacebookToken(token) {
+  try {
+    if (process.env.NODE_ENV !== 'production' && token.startsWith('mock_')) {
+      const id = token.replace('mock_', '');
+      return {
+        id,
+        email: `${id}@gmail.com`,
+        fullName: `Mock Facebook User ${id}`,
+        emailVerified: true,
+      };
+    }
+    const res = await fetch(`https://graph.facebook.com/me?fields=id,name,email,first_name,last_name&access_token=${token}`);
+    if (!res.ok) {
+      throw AppError.unauthorized('Invalid Facebook token');
+    }
+    const payload = await res.json();
+    return {
+      id: payload.id,
+      email: payload.email,
+      fullName: payload.name || `${payload.first_name || ''} ${payload.last_name || ''}`.trim(),
+      emailVerified: !!payload.email,
+    };
+  } catch (err) {
+    if (err instanceof AppError) throw err;
+    throw AppError.unauthorized('Failed to verify Facebook token: ' + err.message);
+  }
+}
+
 class AuthService {
   // ─── Register ──────────────────────────────────────────────────────────────
   async register(dto) {
-    const { fullName, email, phone, password, profileType, language } = dto;
+    const {
+      fullName,
+      email,
+      phone,
+      password,
+      profileType,
+      language,
+      birthDate,
+      location,
+      gender,
+      dietaryPreference,
+      consentVersion,
+      consentTimestamp,
+      celiacQuestionnaire,
+      storeInfo,
+      oauthSignupToken,
+    } = dto;
 
-    const existing = await authRepository.findByEmail(email);
+    let finalEmail = email;
+    let finalFullName = fullName;
+    let googleId = undefined;
+    let facebookId = undefined;
+    let isEmailVerified = false;
+
+    if (oauthSignupToken) {
+      const decoded = verifyOauthSignupToken(oauthSignupToken);
+      finalEmail = decoded.email;
+      if (decoded.provider === 'google') {
+        googleId = decoded.providerId;
+      } else if (decoded.provider === 'facebook') {
+        facebookId = decoded.providerId;
+      }
+      isEmailVerified = decoded.emailVerified;
+      // Allow the user to override their full name from the wizard
+      if (fullName) {
+        finalFullName = fullName;
+      } else {
+        finalFullName = decoded.fullName;
+      }
+    }
+
+    const existing = await authRepository.findByEmail(finalEmail);
     if (existing) {
       throw AppError.conflict('An account with this email already exists', 'EMAIL_TAKEN');
     }
 
-    const passwordHash = await hashPassword(password);
+    let passwordHash = undefined;
+    if (!oauthSignupToken) {
+      passwordHash = await hashPassword(password);
+    }
 
-    // Generate email verification token
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const emailVerificationToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+    let emailVerificationToken = undefined;
+    let emailVerificationExpires = undefined;
+    let rawToken = undefined;
+
+    if (!isEmailVerified) {
+      // Generate email verification token
+      rawToken = crypto.randomBytes(32).toString('hex');
+      emailVerificationToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+      emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+    }
 
     const user = await authRepository.create({
-      fullName,
-      email,
+      fullName: finalFullName,
+      email: finalEmail,
       phone,
       passwordHash,
+      googleId,
+      facebookId,
       profileType,
       language,
+      birthDate,
+      location,
+      gender,
+      dietaryPreference,
+      consentVersion,
+      consentTimestamp,
+      celiacQuestionnaire: profileType !== 'pro_commerce' ? {
+        diagnosisDate: celiacQuestionnaire?.diagnosisDate || null,
+        symptoms: celiacQuestionnaire?.symptoms || [],
+        severity: celiacQuestionnaire?.severity || '',
+        clinicalDiagnosis: !!celiacQuestionnaire?.clinicalDiagnosis,
+        familyHistory: !!celiacQuestionnaire?.familyHistory,
+      } : undefined,
+      storeInfo: profileType === 'pro_commerce' ? storeInfo : undefined,
+      emailVerified: isEmailVerified,
       emailVerificationToken,
       emailVerificationExpires,
     });
 
-    // Send verification email (non-blocking — don't throw if it fails)
-    const verifyUrl = `${env.APP_URL}/api/auth/verify-email/${rawToken}`;
-    emailService.sendVerificationEmail(email, verifyUrl).catch((err) => {
-      console.error('[email] Failed to send verification email:', err.message);
-    });
+    if (!isEmailVerified && rawToken) {
+      // Send verification email (non-blocking — don't throw if it fails)
+      const verifyUrl = `${env.APP_URL}/api/auth/verify-email/${rawToken}`;
+      emailService.sendVerificationEmail(finalEmail, verifyUrl).catch((err) => {
+        console.error('[email] Failed to send verification email:', err.message);
+      });
+    }
 
     const tokens = this._issueTokens(user);
     return { user: user.toPublic(), tokens };
+  }
+
+  async oauthLogin(provider, token) {
+    let profile;
+    if (provider === 'google') {
+      profile = await verifyGoogleToken(token);
+    } else if (provider === 'facebook') {
+      profile = await verifyFacebookToken(token);
+    } else {
+      throw AppError.badRequest('Unsupported OAuth provider');
+    }
+
+    const { id: providerId, email, fullName, emailVerified } = profile;
+
+    if (!email) {
+      throw AppError.badRequest('OAuth provider did not return an email address');
+    }
+
+    // Try finding user by provider ID
+    const query = provider === 'google' ? { googleId: providerId } : { facebookId: providerId };
+    let user = await authRepository.findByOAuthId(query);
+
+    if (user) {
+      if (!user.isActive) {
+        throw AppError.unauthorized('Account deactivated');
+      }
+      // Issue session tokens for existing user
+      const tokens = this._issueTokens(user);
+      return { user: user.toPublic(), tokens };
+    }
+
+    // Check if email already exists to prevent security leaks
+    user = await authRepository.findByEmail(email);
+    if (user) {
+      throw AppError.badRequest('An account with this email address already exists. Please log in using your original sign-in method.');
+    }
+
+    // This is a new user!
+    // Sign a temporary signup token to prevent tampering with the verified OAuth profile info
+    const oauthSignupToken = signOauthSignupToken({
+      email,
+      fullName,
+      provider,
+      providerId,
+      emailVerified,
+    });
+
+    return {
+      isNewUser: true,
+      oauthSignupToken,
+      prefill: {
+        email,
+        fullName,
+      },
+    };
   }
 
   // ─── Login ─────────────────────────────────────────────────────────────────

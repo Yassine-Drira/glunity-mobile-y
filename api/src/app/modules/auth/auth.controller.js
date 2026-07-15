@@ -13,6 +13,24 @@ const authController = {
     res.status(201).json(authMapper.toAuthResponse(result));
   }),
 
+  /** POST /api/auth/oauth */
+  oauthLogin: asyncHandler(async (req, res) => {
+    const { provider, token } = req.body;
+    const result = await authService.oauthLogin(provider, token);
+    if (result.isNewUser) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          isNewUser: true,
+          oauthSignupToken: result.oauthSignupToken,
+          prefill: result.prefill,
+        },
+      });
+    }
+    res.cookie(AUTH.COOKIE_NAME, result.tokens.refreshToken, AUTH.COOKIE_OPTIONS);
+    res.status(200).json(authMapper.toAuthResponse(result));
+  }),
+
   /** POST /api/auth/login */
   login: asyncHandler(async (req, res) => {
     const result = await authService.login(req.body);

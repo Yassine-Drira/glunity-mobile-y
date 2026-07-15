@@ -6,6 +6,7 @@ import SplashScreen          from '../modules/auth/ui/screens/SplashScreen';
 import IntroductionScreen    from '../modules/auth/ui/screens/IntroductionScreen';
 import WelcomeScreen         from '../modules/auth/ui/screens/WelcomeScreen';
 import LoginScreen           from '../modules/auth/ui/screens/LoginScreen';
+import RegisterMethodsScreen from '../modules/auth/ui/screens/RegisterMethodsScreen';
 import RegisterScreen        from '../modules/auth/ui/screens/RegisterScreen';
 import ForgotPasswordScreen  from '../modules/auth/ui/screens/ForgotPasswordScreen';
 import ResetPasswordScreen   from '../modules/auth/ui/screens/ResetPasswordScreen';
@@ -24,10 +25,11 @@ export function AuthNavigator() {
       <Stack.Screen name="Intro"  component={IntroductionScreen} />
 
       {/* ── Auth ───────────────────────────────────────────────────────── */}
-      <Stack.Screen name="Welcome"        component={WelcomeScreen}       options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="Login"          component={LoginScreen}         options={{ animation: 'slide_from_right', gestureEnabled: false }} />
-      <Stack.Screen name="Register"       component={RegisterScreen}      options={{ animation: 'slide_from_right', gestureEnabled: false }} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+      <Stack.Screen name="Welcome"         component={WelcomeScreen}       options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Login"           component={LoginScreen}         options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+      <Stack.Screen name="RegisterMethods" component={RegisterMethodsScreen} options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+      <Stack.Screen name="Register"        component={RegisterScreen}      options={{ animation: 'slide_from_right', gestureEnabled: false }} />
+      <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} options={{ animation: 'slide_from_right', gestureEnabled: false }} />
 
       {/* ── Deep-link targets (from email links) ───────────────────────── */}
       <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen}  options={{ animation: 'fade' }} />

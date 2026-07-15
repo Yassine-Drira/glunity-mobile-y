@@ -489,7 +489,14 @@ export default function MapScreen({
                     onPress={handleCopyPhone}
                   >
                     <Feather name={copied ? "check" : "copy"} size={16} color={copied ? T.green : T.text} />
-                    <Text style={[styles.contactBtnText, { color: T.text }]}>{copied ? t('Copied!') : t('Copy Number')}</Text>
+                    <Text 
+                      style={[styles.contactBtnText, { color: T.text }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
+                      {copied ? t('Copied!') : t('Copy Number')}
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -497,7 +504,14 @@ export default function MapScreen({
                     onPress={handleDialPhone}
                   >
                     <Feather name="phone-call" size={16} color="#FFFFFF" />
-                    <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>{t('Call Now')}</Text>
+                    <Text 
+                      style={[styles.contactBtnText, { color: '#FFFFFF' }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
+                      {t('Call Now')}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ) : null}

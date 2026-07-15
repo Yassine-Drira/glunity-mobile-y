@@ -4,7 +4,8 @@ export type AuthStackParamList = {
   Intro:          undefined;
   Welcome:        undefined;
   Login:          { successMessage?: string } | undefined;
-  Register:       undefined;
+  RegisterMethods: undefined;
+  Register:       { oauthSignupToken?: string; prefill?: { email: string; fullName: string } } | undefined;
   ForgotPassword: { email?: string } | undefined;
   ResetPassword:  { token: string };
   EmailVerified:  { success: boolean };

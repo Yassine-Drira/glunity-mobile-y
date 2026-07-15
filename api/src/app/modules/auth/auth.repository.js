@@ -16,6 +16,10 @@ const authRepository = {
     return User.findOne({ _id: id, isActive: true }).select('+twoFactorCode +twoFactorCodeExpires').populate('badges');
   },
 
+  findByOAuthId(query) {
+    return User.findOne({ ...query, isActive: true }).populate('badges');
+  },
+
   findByVerificationToken(hashedToken) {
     return User.findOne({
       emailVerificationToken:   hashedToken,
