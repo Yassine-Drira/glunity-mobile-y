@@ -183,17 +183,22 @@ http.interceptors.response.use(
 
               processQueue(null, accessToken);
               resolve(http(original));
-            } catch (err) {
+            } catch (err: any) {
               processQueue(err, null);
-              try {
-                await TokenStore.clearTokens();
-              } catch (e) {
-                console.warn('Failed to clear tokens during refresh failure:', e);
-              } finally {
-                if (onUnauthorizedCallback) {
-                  onUnauthorizedCallback();
-                }
+              const isNetworkError = err?.code === 'ERR_NETWORK' || /Network Error/i.test(err?.message || '');
+              if (isNetworkError) {
                 reject(err);
+              } else {
+                try {
+                  await TokenStore.clearTokens();
+                } catch (e) {
+                  console.warn('Failed to clear tokens during refresh failure:', e);
+                } finally {
+                  if (onUnauthorizedCallback) {
+                    onUnauthorizedCallback();
+                  }
+                  reject(err);
+                }
               }
             }
           })

@@ -77,13 +77,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const token = await TokenStore.getAccessToken();
         if (token) {
-          const user = await authApi.getMe();
-          dispatch({ type: 'SET_USER', payload: user });
+          try {
+            const user = await authApi.getMe();
+            await AsyncStorage.setItem('@pref_user_profile', JSON.stringify(user));
+            dispatch({ type: 'SET_USER', payload: user });
+          } catch (err: any) {
+            const isNetworkError = err?.code === 'ERR_NETWORK' || /Network Error/i.test(err?.message || '');
+            if (isNetworkError) {
+              const cached = await AsyncStorage.getItem('@pref_user_profile');
+              if (cached) {
+                const user = JSON.parse(cached);
+                dispatch({ type: 'SET_USER', payload: user });
+              } else {
+                dispatch({ type: 'SET_LOADING', payload: false });
+              }
+            } else {
+              await TokenStore.clearTokens();
+              await AsyncStorage.removeItem('@pref_user_profile');
+              dispatch({ type: 'SET_LOADING', payload: false });
+            }
+          }
         } else {
           dispatch({ type: 'SET_LOADING', payload: false });
         }
       } catch {
         await TokenStore.clearTokens();
+        await AsyncStorage.removeItem('@pref_user_profile');
         dispatch({ type: 'SET_LOADING', payload: false });
       } finally {
         dispatch({ type: 'SET_INITIALIZED', payload: true });
@@ -108,7 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setOnUnauthorized(() => {
       TokenStore.clearTokens()
         .catch((err) => console.warn('Failed to clear tokens on auto-logout:', err))
-        .finally(() => {
+        .finally(async () => {
+          await AsyncStorage.removeItem('@pref_user_profile');
           dispatch({ type: 'CLEAR_USER' });
         });
     });
@@ -135,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (res.data.user) {
+        await AsyncStorage.setItem('@pref_user_profile', JSON.stringify(res.data.user));
         dispatch({ type: 'SET_USER', payload: res.data.user });
       }
       return res.data;
@@ -163,7 +184,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('EMAIL_NOT_VERIFIED');
       }
 
-      dispatch({ type: 'SET_USER', payload: res.data.user });
+      if (res.data.user) {
+        await AsyncStorage.setItem('@pref_user_profile', JSON.stringify(res.data.user));
+        dispatch({ type: 'SET_USER', payload: res.data.user });
+      }
     } catch (err: any) {
       if (err?.message === 'EMAIL_NOT_VERIFIED') {
         throw err;
@@ -183,6 +207,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await ChatCacheService.clearCache().catch((err) =>
         console.warn('Failed to clear chat cache during logout:', err)
       );
+      await TokenStore.clearTokens();
+      await AsyncStorage.removeItem('@pref_user_profile');
       dispatch({ type: 'CLEAR_USER' });
     }
   }, []);
@@ -191,6 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const updatedUser = await authApi.updateProfile(dto);
+      await AsyncStorage.setItem('@pref_user_profile', JSON.stringify(updatedUser));
       dispatch({ type: 'UPDATE_USER', payload: updatedUser });
     } catch (err) {
       const message = getAuthErrorMessage(err, 'Failed to update profile.');
