@@ -47,25 +47,28 @@ function EventCard({ event, onPress }: Props) {
 
   const optimizedSource = event.imageUrl ? { uri: optimizedUrl(event.imageUrl, 600) || '' } : undefined;
 
-  function formatDate(d?: string | null) {
-    try {
-      const dt = d ? new Date(d) : null;
-      if (!dt) return event.date || '';
-      return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    } catch {
-      return event.date || '';
-    }
-  }
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-  function formatTime(d?: string | null) {
-    try {
-      const dt = d ? new Date(d) : null;
-      if (!dt) return '';
-      return dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    } catch {
-      return '';
-    }
-  }
+function formatDateFast(d?: string | null) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return String(d);
+  const month = MONTHS_SHORT[dt.getMonth()];
+  const day = dt.getDate();
+  return `${month} ${day}`;
+}
+
+function formatTimeFast(d?: string | null) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  let hours = dt.getHours();
+  const minutes = String(dt.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${hours}:${minutes} ${ampm}`;
+}
 
   const styles = React.useMemo(() => StyleSheet.create({
     card: {
@@ -133,7 +136,7 @@ function EventCard({ event, onPress }: Props) {
 
         <View style={styles.metaRow}>
           <Ionicons name="calendar-outline" size={16} color={T.green} style={styles.metaIcon} />
-          <Text style={[styles.cardMeta, { color: T.textSub }]}>{formatDate(event.startsAt)}{event.startsAt ? ` • ${formatTime(event.startsAt)}` : ''}</Text>
+          <Text style={[styles.cardMeta, { color: T.textSub }]}>{formatDateFast(event.startsAt)}{event.startsAt ? ` • ${formatTimeFast(event.startsAt)}` : ''}</Text>
         </View>
         {/* location moved to footer to match requested design */}
 

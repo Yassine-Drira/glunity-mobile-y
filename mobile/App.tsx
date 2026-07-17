@@ -177,8 +177,8 @@ function StartupPrefetch() {
 
         const urls: string[] = [];
 
-        if (events.status === 'fulfilled' && Array.isArray(events.value)) {
-          events.value.forEach((ev: any) => {
+        if (events.status === 'fulfilled' && events.value && Array.isArray(events.value.items)) {
+          events.value.items.forEach((ev: any) => {
             if (ev.imageUrl) urls.push(ev.imageUrl);
           });
         }

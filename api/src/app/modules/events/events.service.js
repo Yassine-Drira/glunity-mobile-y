@@ -6,11 +6,42 @@ const notificationsService = require('../notifications/notifications.service');
 
 const User = require('../../../database/models/user.model');
 const Notification = require('../../../database/models/notification.model');
+const Registration = require('../../../database/models/registration.model');
+
+// In-memory query cache for events
+const listCache = new Map();
+const CACHE_TTL = 30000; // 30 seconds
+
+function getCachedList(query) {
+	const key = JSON.stringify(query);
+	if (listCache.has(key)) {
+		const cached = listCache.get(key);
+		if (Date.now() - cached.timestamp < CACHE_TTL) {
+			return cached.data;
+		}
+		listCache.delete(key);
+	}
+	return null;
+}
+
+function setCachedList(query, data) {
+	const key = JSON.stringify(query);
+	listCache.set(key, { data, timestamp: Date.now() });
+}
+
+function clearCache() {
+	listCache.clear();
+}
 
 const eventsService = {
 	async list(query) {
+		const cached = getCachedList(query);
+		if (cached) return cached;
+
 		const { items, total } = await repo.findMany(query);
-		return { items, total };
+		const result = { items, total };
+		setCachedList(query, result);
+		return result;
 	},
 
 	async getById(id) {
@@ -51,6 +82,7 @@ const eventsService = {
 			}
 		})();
 
+		clearCache();
 		return eventObj;
 	},
 
@@ -78,6 +110,7 @@ const eventsService = {
 			console.warn('Failed to create join notification', err && err.message);
 			/* eslint-enable no-console */
 		}
+		clearCache();
 		return updated;
 	},
 
@@ -109,6 +142,7 @@ const eventsService = {
 			}
 		}
 
+		clearCache();
 		return updated;
 	},
 
@@ -141,6 +175,7 @@ const eventsService = {
 			}
 		}
 
+		clearCache();
 		return updated;
 	},
 
@@ -179,7 +214,367 @@ const eventsService = {
 			console.warn('Failed to notify organizer about leave', err && err.message);
 		}
 
+		clearCache();
 		return updated;
+	},
+
+	// ── Registration Services ──────────────────────────────────────────────────
+	async registerAttendee(eventId, userId, dto) {
+		const doc = await repo.findById(eventId);
+		if (!doc) throw AppError.notFound('Event');
+
+		const form = dto.registrationForm || dto;
+		const { firstName, lastName, email, phone, gender, dateOfBirth, address, city, country, notes } = form;
+		
+		if (!firstName || !lastName || !email || !phone || !gender) {
+			throw AppError.badRequest('Required fields: First Name, Last Name, Email, Phone, Gender');
+		}
+
+		// Enforce unique phone per event check
+		const existingReg = await Registration.findOne({
+			eventId,
+			phone: phone.trim()
+		});
+		if (existingReg) {
+			throw AppError.badRequest('This phone number is already registered for this event.');
+		}
+
+		// Every participant can register for only one ticket per event
+		const finalTicketCount = 1;
+		
+		const attendeesCount = (doc.attendees || []).length;
+		if (doc.maxCapacity && attendeesCount + finalTicketCount > doc.maxCapacity) {
+			throw AppError.badRequest('Not enough spots available');
+		}
+
+		let status = 'APPROVED';
+		let paymentMethod = undefined;
+		if (doc.price > 0) {
+			status = 'WAITING_PAYMENT';
+			paymentMethod = doc.paymentMethod || 'presentiel';
+		}
+
+		const cleanForm = {
+			firstName,
+			lastName,
+			email,
+			phone: phone.trim(),
+			gender,
+			dateOfBirth: dateOfBirth || '',
+			address: address || '',
+			city: city || '',
+			country: country || '',
+			ticketCount: finalTicketCount,
+			notes: notes || ''
+		};
+
+		const reg = await Registration.create({
+			eventId,
+			userId,
+			fullName: `${firstName} ${lastName}`,
+			email,
+			phone,
+			ticketsCount: finalTicketCount,
+			ticketCount: finalTicketCount,
+			notes: notes || '',
+			status,
+			paymentMethod,
+			registrationForm: cleanForm
+		});
+
+		const organizerId = doc.organizer && doc.organizer.organizerId ? doc.organizer.organizerId : doc.createdBy;
+
+		if (status === 'APPROVED') {
+			await repo.join(eventId, userId);
+			try {
+				await notificationsService.create({
+					userId,
+					title: `Registration Approved! 🎉`,
+					body: `Your registration for "${cleanForm.firstName} ${cleanForm.lastName}" has been approved.`,
+					type: 'event',
+					metadata: { eventId, registrationId: String(reg._id), kind: 'joined' },
+				});
+			} catch (e) {}
+		} else {
+			// Notify organizer about new request
+			try {
+				await notificationsService.create({
+					userId: organizerId,
+					title: `Event Registration Requests 🔔`,
+					body: `${cleanForm.firstName} ${cleanForm.lastName} requested to join "${doc.title}".`,
+					type: 'registration_request',
+					metadata: { eventId, registrationId: String(reg._id), kind: 'pending' },
+				});
+			} catch (e) {}
+
+			// Notify user registration submitted
+			try {
+				await notificationsService.create({
+					userId,
+					title: `Registration submitted successfully.`,
+					body: `Waiting for organizer approval.`,
+					type: 'event',
+					metadata: { eventId, registrationId: String(reg._id), kind: 'submitted' },
+				});
+			} catch (e) {}
+		}
+
+		// Emit socket events to update counts/badges in real-time
+		const io = require('../../bootstrap/socket.bootstrap').getIO();
+		if (io) {
+			io.to(String(organizerId)).emit('registration:change', { eventId, status });
+			io.to(String(userId)).emit('registration:change', { eventId, status });
+		}
+
+		clearCache();
+		return reg;
+	},
+
+	async getRegistrations(eventId, userId) {
+		const doc = await repo.findById(eventId);
+		if (!doc) throw AppError.notFound('Event');
+		
+		const organizerId = doc.organizer && doc.organizer.organizerId ? String(doc.organizer.organizerId) : String(doc.createdBy);
+		if (String(userId) !== organizerId) {
+			throw AppError.forbidden('Only the event organizer can view registrations');
+		}
+
+		return Registration.find({ eventId }).populate('userId', 'fullName avatar email phone').sort({ createdAt: -1 }).lean();
+	},
+
+	async getRegistrationDetails(eventId, regId, userId) {
+		const doc = await repo.findById(eventId);
+		if (!doc) throw AppError.notFound('Event');
+		
+		const organizerId = doc.organizer && doc.organizer.organizerId ? String(doc.organizer.organizerId) : String(doc.createdBy);
+		const reg = await Registration.findById(regId).populate('userId', 'fullName avatar email phone').lean();
+		if (!reg) throw AppError.notFound('Registration');
+
+		if (String(userId) !== organizerId && String(userId) !== String(reg.userId)) {
+			throw AppError.forbidden('Not authorized to view this registration');
+		}
+
+		return reg;
+	},
+
+	async getMyRegistration(eventId, userId) {
+		return Registration.findOne({ eventId, userId }).lean();
+	},
+
+	async approveRegistration(regId, userId) {
+		const reg = await Registration.findById(regId);
+		if (!reg) throw AppError.notFound('Registration');
+
+		const doc = await repo.findById(reg.eventId);
+		if (!doc) throw AppError.notFound('Event');
+
+		const organizerId = doc.organizer && doc.organizer.organizerId ? String(doc.organizer.organizerId) : String(doc.createdBy);
+		if (String(userId) !== organizerId) {
+			throw AppError.forbidden('Only the event organizer can approve registrations');
+		}
+
+		reg.status = 'APPROVED';
+		reg.paidAt = new Date();
+		reg.approvedAt = new Date();
+		reg.approvedBy = userId;
+		await reg.save();
+
+		await repo.join(reg.eventId, reg.userId);
+
+		try {
+			await notificationsService.create({
+				userId: reg.userId,
+				title: `Registration approved.`,
+				body: `Your registration has been approved.`,
+				type: 'event',
+				metadata: { eventId: String(doc._id), kind: 'confirmed' },
+			});
+		} catch (e) {}
+
+		// Emit socket update
+		const io = require('../../bootstrap/socket.bootstrap').getIO();
+		if (io) {
+			io.to(String(reg.userId)).emit('registration:change', { eventId: String(doc._id), status: 'APPROVED' });
+			io.to(String(organizerId)).emit('registration:change', { eventId: String(doc._id), status: 'APPROVED' });
+		}
+
+		clearCache();
+		return reg;
+	},
+
+	async rejectRegistration(regId, userId, reason) {
+		const reg = await Registration.findById(regId);
+		if (!reg) throw AppError.notFound('Registration');
+
+		const doc = await repo.findById(reg.eventId);
+		if (!doc) throw AppError.notFound('Event');
+
+		const organizerId = doc.organizer && doc.organizer.organizerId ? String(doc.organizer.organizerId) : String(doc.createdBy);
+		if (String(userId) !== organizerId) {
+			throw AppError.forbidden('Only the event organizer can reject registrations');
+		}
+
+		reg.status = 'REJECTED';
+		reg.rejectedReason = reason || '';
+		await reg.save();
+
+		try {
+			await notificationsService.create({
+				userId: reg.userId,
+				title: `Registration rejected.`,
+				body: `Your registration has been rejected.`,
+				type: 'event',
+				metadata: { eventId: String(doc._id), kind: 'rejected', reason },
+			});
+		} catch (e) {}
+
+		// Emit socket update
+		const io = require('../../bootstrap/socket.bootstrap').getIO();
+		if (io) {
+			io.to(String(reg.userId)).emit('registration:change', { eventId: String(doc._id), status: 'REJECTED' });
+			io.to(String(organizerId)).emit('registration:change', { eventId: String(doc._id), status: 'REJECTED' });
+		}
+
+		clearCache();
+		return reg;
+	},
+
+	async confirmRegistration(regId, userId) {
+		return this.approveRegistration(regId, userId);
+	},
+
+	async cancelRegistration(regId, userId) {
+		const reg = await Registration.findById(regId);
+		if (!reg) throw AppError.notFound('Registration');
+
+		const doc = await repo.findById(reg.eventId);
+		if (!doc) throw AppError.notFound('Event');
+
+		const organizerId = doc.organizer && doc.organizer.organizerId ? String(doc.organizer.organizerId) : String(doc.createdBy);
+		const isAttendee = String(userId) === String(reg.userId);
+		const isOrganizer = String(userId) === organizerId;
+
+		if (!isAttendee && !isOrganizer) {
+			throw AppError.forbidden('Not allowed to cancel this registration');
+		}
+
+		reg.status = 'CANCELLED';
+		await reg.save();
+
+		await repo.leave(reg.eventId, reg.userId);
+
+		try {
+			if (isOrganizer) {
+				await notificationsService.create({
+					userId: reg.userId,
+					title: `Registration Cancelled`,
+					body: `Your registration for ${doc.title} has been cancelled by the organizer.`,
+					type: 'event',
+					metadata: { eventId: String(doc._id), kind: 'cancelled' },
+				});
+			} else {
+				await notificationsService.create({
+					userId: organizerId,
+					title: `Attendee Cancelled`,
+					body: `${reg.fullName} has cancelled their registration for ${doc.title}.`,
+					type: 'event',
+					metadata: { eventId: String(doc._id), kind: 'cancelled' },
+				});
+			}
+		} catch (e) {}
+
+		// Emit socket update
+		const io = require('../../bootstrap/socket.bootstrap').getIO();
+		if (io) {
+			io.to(String(reg.userId)).emit('registration:change', { eventId: String(doc._id), status: 'CANCELLED' });
+			io.to(String(organizerId)).emit('registration:change', { eventId: String(doc._id), status: 'CANCELLED' });
+		}
+
+		clearCache();
+		return reg;
+	},
+
+	async getOwnerRegistrationNotifications(userId) {
+		const Event = require('../../../database/models/event.model');
+		const ownerEvents = await Event.find({
+			$or: [
+				{ 'organizer.organizerId': userId },
+				{ createdBy: userId }
+			],
+			isPublished: true,
+			isCancelled: false
+		}).lean();
+
+		const eventIds = ownerEvents.map(e => e._id);
+
+		const regs = await Registration.find({
+			eventId: { $in: eventIds },
+			status: { $in: ['WAITING_PAYMENT', 'waiting_payment'] }
+		})
+		.populate('userId', 'fullName avatar')
+		.sort({ createdAt: -1 })
+		.lean();
+
+		const groupedMap = new Map();
+		for (const reg of regs) {
+			const evId = String(reg.eventId);
+			if (!groupedMap.has(evId)) {
+				groupedMap.set(evId, []);
+			}
+			groupedMap.get(evId).push(reg);
+		}
+
+		const result = [];
+		for (const ev of ownerEvents) {
+			const evId = String(ev._id);
+			const eventRegs = groupedMap.get(evId) || [];
+			if (eventRegs.length > 0) {
+				result.push({
+					eventId: evId,
+					title: ev.title,
+					coverImage: ev.images && ev.images[0] ? ev.images[0].url : (ev.imageUrl || ''),
+					startsAt: ev.startsAt,
+					pendingCount: eventRegs.length,
+					pendingUsers: eventRegs.map(r => ({
+						registrationId: r._id,
+						userId: r.userId?._id,
+						fullName: r.userId?.fullName || r.fullName,
+						avatarUrl: r.userId?.avatar?.url || '',
+						createdAt: r.createdAt
+					}))
+				});
+			}
+		}
+
+		return result;
+	},
+
+	async getOwnerStats(userId) {
+		const Event = require('../../../database/models/event.model');
+		const ownerEvents = await Event.find({
+			$or: [
+				{ 'organizer.organizerId': userId },
+				{ createdBy: userId }
+			]
+		}).lean();
+
+		const eventIds = ownerEvents.map(e => e._id);
+
+		const upcomingEventsCount = ownerEvents.filter(e => !e.isCancelled && !e.isFinished && new Date(e.startsAt) >= new Date()).length;
+
+		const allRegs = await Registration.find({ eventId: { $in: eventIds } }).lean();
+
+		const pendingRegistrationsCount = allRegs.filter(r => r.status === 'WAITING_PAYMENT' || r.status === 'waiting_payment').length;
+		const approvedParticipantsCount = allRegs.filter(r => r.status === 'APPROVED' || r.status === 'confirmed').length;
+		const rejectedRequestsCount = allRegs.filter(r => r.status === 'REJECTED' || r.status === 'cancelled').length;
+
+		return {
+			upcomingEvents: upcomingEventsCount,
+			pendingRegistrations: pendingRegistrationsCount,
+			approvedParticipants: approvedParticipantsCount,
+			rejectedRequests: rejectedRequestsCount,
+			revenue: 0
+		};
 	},
 };
 

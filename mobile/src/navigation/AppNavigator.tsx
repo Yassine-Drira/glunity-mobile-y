@@ -199,6 +199,16 @@ export function AppNavigator() {
       <Stack.Screen name="ReelEdit" component={EditScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ReelShare" component={ShareScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ReelAddCover" component={AddCoverScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen 
+        name="EventRegistrationRequests" 
+        component={require('../modules/events/ui/screens/EventRegistrationRequestsScreen').default} 
+        options={{ animation: 'slide_from_right' }} 
+      />
+      <Stack.Screen 
+        name="ViewRegistrationForm" 
+        component={require('../modules/events/ui/screens/ViewRegistrationFormScreen').default} 
+        options={{ animation: 'slide_from_bottom' }} 
+      />
     </Stack.Navigator>
   );
 }

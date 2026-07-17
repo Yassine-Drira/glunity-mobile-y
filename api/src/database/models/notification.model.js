@@ -13,7 +13,8 @@ const NOTIFICATION_TYPES = [
 	'REEL_COMMENT',
 	'REEL_SHARE',
 	'COMMENT_LIKE',
-	'COMMENT_REPLY'
+	'COMMENT_REPLY',
+	'registration_request'
 ];
 
 const notificationSchema = new Schema(
@@ -30,6 +31,7 @@ const notificationSchema = new Schema(
 		type: { type: String, enum: NOTIFICATION_TYPES, default: 'system', index: true },
 		isRead: { type: Boolean, default: false, index: true },
 		readAt: { type: Date, default: null },
+		isArchived: { type: Boolean, default: false, index: true },
 		metadata: { type: Schema.Types.Mixed },
 	},
 	{

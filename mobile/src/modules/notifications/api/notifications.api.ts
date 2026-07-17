@@ -79,6 +79,14 @@ const notificationsApi = {
     const { data } = await http.delete<{ success: boolean }>('/notifications');
     return data;
   },
+  async patchRead(ids?: string[]): Promise<any> {
+    const { data } = await http.patch('/notifications/read', { ids });
+    return data;
+  },
+  async patchArchive(ids: string[]): Promise<any> {
+    const { data } = await http.patch('/notifications/archive', { ids });
+    return data;
+  },
 };
 
 export default notificationsApi;

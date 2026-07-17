@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Register push notifications when user is authenticated ──────────────────
-  const userId = state.user?._id || state.user?.id;
+  const userId = state.user?._id || (state.user as any)?.id;
   useEffect(() => {
     if (userId && state.user) {
       const { registerForPushNotificationsAsync } = require('../../../shared/utils/notifications');

@@ -138,8 +138,10 @@ http.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
+    const url = (original?.url || '').toString();
+    const isAuthRoute = url.startsWith('/auth') || url.includes('/auth/');
 
-    if (error.response?.status === 401 && !original._retry) {
+    if (error.response?.status === 401 && !isAuthRoute && !original._retry) {
       if (isRefreshing) {
         return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });

@@ -28,7 +28,27 @@ export default function EventsCalendarScreen({ navigation }: any) {
   const { isRTL, t } = useLanguage();
   const [events, setEvents] = React.useState<GlunityEvent[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState('All');
+  const [stats, setStats] = React.useState<any>(null);
+  const [loadingStats, setLoadingStats] = React.useState(false);
+
+  const fetchStats = React.useCallback(async () => {
+    if (user?.profileType !== 'pro_commerce') return;
+    setLoadingStats(true);
+    try {
+      const res = await eventsApi.getOwnerStats();
+      setStats(res);
+    } catch (e) {
+      console.warn('Failed to load stats', e);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   // Search State
   const [searchOpen, setSearchOpen] = React.useState(false);
@@ -85,9 +105,10 @@ export default function EventsCalendarScreen({ navigation }: any) {
     return () => clearTimeout(handler);
   }, [searchVal]);
 
-  const fetchEvents = React.useCallback(async (pageNum = 1, isRefresh = false) => {
+  const fetchEvents = React.useCallback(async (pageNum = 1, isRefresh = false, signal?: AbortSignal) => {
     if (pageNum === 1) {
       if (!isRefresh) setIsLoading(true);
+      setError(null);
     } else {
       setLoadingMore(true);
     }
@@ -100,12 +121,16 @@ export default function EventsCalendarScreen({ navigation }: any) {
         search: searchQuery.trim() || undefined,
         limit: LIMIT,
         skip,
-      });
+      }, { signal });
 
       setEvents(items);
       setTotalPages(Math.max(1, Math.ceil(total / LIMIT)));
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        return; // Request was aborted, ignore it
+      }
       console.error('[EventsCalendar] fetch error:', err);
+      setError(err.message || 'Failed to load events.');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -114,15 +139,20 @@ export default function EventsCalendarScreen({ navigation }: any) {
   }, [filter, searchQuery]);
 
   React.useEffect(() => {
+    const controller = new AbortController();
     setPage(1);
-    fetchEvents(1);
+    fetchEvents(1, false, controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [filter, searchQuery, fetchEvents]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     setPage(1);
     fetchEvents(1, true);
-  }, [fetchEvents]);
+    fetchStats();
+  }, [fetchEvents, fetchStats]);
 
   const filtered = React.useMemo(() => events, [events]);
 
@@ -270,10 +300,77 @@ export default function EventsCalendarScreen({ navigation }: any) {
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
     },
+    statsContainer: {
+      paddingHorizontal: 6,
+      marginTop: 10,
+      marginBottom: 16,
+    },
+    statsHeaderTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      fontFamily: 'Poppins_700Bold',
+      color: T.text,
+      marginBottom: 10,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    statsGrid: {
+      flexDirection: isRTL ? 'row-reverse' : 'row',
+      flexWrap: 'wrap',
+      gap: 10,
+    },
+    statsCard: {
+      flex: 1,
+      minWidth: '45%',
+      borderRadius: 16,
+      borderWidth: 1,
+      padding: 14,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.03,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    statsValue: {
+      fontSize: 22,
+      fontWeight: '700',
+      fontFamily: 'Poppins_700Bold',
+      marginBottom: 2,
+    },
+    statsLabel: {
+      fontSize: 11,
+      fontFamily: 'Poppins_400Regular',
+      textAlign: 'center',
+    },
   }), [T, insets, isRTL]);
 
   const ListHeader = React.useMemo(() => (
     <View style={{ backgroundColor: T.bg }}>
+      {user?.profileType === 'pro_commerce' && stats && (
+        <View style={styles.statsContainer}>
+          <Text style={styles.statsHeaderTitle}>{t('Organizer Dashboard')}</Text>
+          <View style={styles.statsGrid}>
+            <View style={[styles.statsCard, { backgroundColor: T.surface, borderColor: T.border }]}>
+              <Text style={[styles.statsValue, { color: T.green }]}>{stats.upcomingEvents}</Text>
+              <Text style={[styles.statsLabel, { color: T.textSub }]}>{t('Upcoming Events')}</Text>
+            </View>
+            <View style={[styles.statsCard, { backgroundColor: T.surface, borderColor: T.border }]}>
+              <Text style={[styles.statsValue, { color: '#F57F17' }]}>{stats.pendingRegistrations}</Text>
+              <Text style={[styles.statsLabel, { color: T.textSub }]}>{t('Pending Registrations')}</Text>
+            </View>
+            <View style={[styles.statsCard, { backgroundColor: T.surface, borderColor: T.border }]}>
+              <Text style={[styles.statsValue, { color: T.green }]}>{stats.approvedParticipants}</Text>
+              <Text style={[styles.statsLabel, { color: T.textSub }]}>{t('Approved Participants')}</Text>
+            </View>
+            <View style={[styles.statsCard, { backgroundColor: T.surface, borderColor: T.border }]}>
+              <Text style={[styles.statsValue, { color: T.red }]}>{stats.rejectedRequests}</Text>
+              <Text style={[styles.statsLabel, { color: T.textSub }]}>{t('Rejected Requests')}</Text>
+            </View>
+          </View>
+        </View>
+      )}
       <Animated.View style={[styles.searchWrap, { height: searchHeight, opacity: searchOpacity }]}>
         <View style={styles.searchInner}>
           <Feather name="search" size={16} color={T.textMuted} />
@@ -315,7 +412,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
         })}
       </ScrollView>
     </View>
-  ), [filter, searchHeight, searchOpacity, searchVal, T, styles, t]);
+  ), [filter, searchHeight, searchOpacity, searchVal, T, styles, t, stats, user]);
 
   return (
     <AppScaffold
@@ -329,67 +426,82 @@ export default function EventsCalendarScreen({ navigation }: any) {
       <View style={[styles.root, { backgroundColor: T.bg }] }>
         {/* FlatList header will render filter and will be sticky */}
 
-        <FlatList
-          data={isLoading ? ([{ id: 'sk-1' }, { id: 'sk-2' }, { id: 'sk-3' }] as any) : filtered}
-          keyExtractor={(it) => it.id}
-          ListHeaderComponent={ListHeader}
-          stickyHeaderIndices={[0]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[T.green]}
-              tintColor={T.green}
-            />
-          }
-          ListEmptyComponent={() => (
-            <View style={{ padding: 24, alignItems: 'center' }}>
-              <Text style={{ color: T.textSub, fontSize: 15 }}>{t('No events to display.')}</Text>
-            </View>
-          )}
-          style={{ flex: 1 }}
-          renderItem={({ item }) => {
-            if (isLoading) {
-              return <EventCardSkeleton />;
-            }
-            return (
-              <EventCard
-                event={item}
-                onPress={async () => {
-                  try {
-                    const url = item.imageUrl;
-                    if (url) {
-                      Image.prefetch(url).catch(() => {});
-                    }
-                  } catch (e) { /* ignore */ }
-                  navigation.navigate('EventDetail', { eventId: item.id });
-                }}
+        {error ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+            <Ionicons name="alert-circle-outline" size={48} color={T.red || '#EF4444'} style={{ marginBottom: 12 }} />
+            <Text style={{ color: T.text, fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>{t('Failed to load events')}</Text>
+            <Text style={{ color: T.textSub, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>{t(error)}</Text>
+            <TouchableOpacity
+              onPress={() => fetchEvents(page)}
+              style={{ backgroundColor: T.green, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>{t('Try Again')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={isLoading ? ([{ id: 'sk-1' }, { id: 'sk-2' }, { id: 'sk-3' }] as any) : filtered}
+            keyExtractor={(it) => it.id}
+            ListHeaderComponent={ListHeader}
+            stickyHeaderIndices={[0]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[T.green]}
+                tintColor={T.green}
               />
-            );
-          }}
-          contentContainerStyle={styles.list}
-          initialNumToRender={6}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          updateCellsBatchingPeriod={50}
-          removeClippedSubviews
-          ListFooterComponent={() => (
-            isLoading ? null : (
-              <View style={{ paddingBottom: 116 + insets.bottom }}>
-                <PaginationBar
-                  page={page}
-                  totalPages={totalPages}
-                  loading={loadingMore}
-                  onPageChange={(p) => {
-                    setPage(p);
-                    fetchEvents(p);
+            }
+            ListEmptyComponent={() => (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: T.textSub, fontSize: 15 }}>{t('No events to display.')}</Text>
+              </View>
+            )}
+            style={{ flex: 1 }}
+            renderItem={({ item }) => {
+              if (isLoading) {
+                return <EventCardSkeleton />;
+              }
+              return (
+                <EventCard
+                  event={item}
+                  onPress={async () => {
+                    try {
+                      const url = item.imageUrl;
+                      if (url) {
+                        Image.prefetch(url).catch(() => {});
+                      }
+                    } catch (e) { /* ignore */ }
+                    navigation.navigate('EventDetail', { eventId: item.id });
                   }}
                 />
-              </View>
-            )
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        />
+              );
+            }}
+            contentContainerStyle={styles.list}
+            initialNumToRender={6}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews
+            ListFooterComponent={() => (
+              isLoading ? null : (
+                <View style={{ paddingBottom: 116 + insets.bottom }}>
+                  <PaginationBar
+                    page={page}
+                    totalPages={totalPages}
+                    loading={loadingMore}
+                    onPageChange={(p) => {
+                      setPage(p);
+                      fetchEvents(p);
+                    }}
+                  />
+                </View>
+              )
+            )}
+            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          />
+        )}
         {user?.profileType === 'pro_commerce' && (
           <TouchableOpacity
             style={styles.fab}

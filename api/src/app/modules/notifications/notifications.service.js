@@ -59,6 +59,34 @@ const notificationsService = {
 		
 		return doc;
 	},
+
+	async markMultipleAsRead(ids, userId) {
+		if (!ids || ids.length === 0) {
+			await repository.markAllAsRead(userId);
+		} else {
+			for (const id of ids) {
+				try {
+					await repository.markAsRead(id, userId);
+				} catch (e) {}
+			}
+		}
+		notificationEvents.emit('notification:badgeUpdate', { userId });
+		return { success: true };
+	},
+
+	async archiveMultiple(ids, userId) {
+		if (!ids || ids.length === 0) {
+			await repository.archiveAll(userId);
+		} else {
+			for (const id of ids) {
+				try {
+					await repository.archive(id, userId);
+				} catch (e) {}
+			}
+		}
+		notificationEvents.emit('notification:badgeUpdate', { userId });
+		return { success: true };
+	},
 };
 
 module.exports = notificationsService;

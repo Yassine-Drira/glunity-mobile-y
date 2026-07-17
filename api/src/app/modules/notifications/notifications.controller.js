@@ -103,6 +103,20 @@ const notificationsController = {
 
 		res.status(200).json({ success: !!result, result });
 	}),
+
+	markMultipleAsRead: asyncHandler(async (req, res) => {
+		const userId = req.user?._id;
+		const { ids } = req.body;
+		const result = await service.markMultipleAsRead(ids, userId);
+		res.status(200).json(result);
+	}),
+
+	archiveMultiple: asyncHandler(async (req, res) => {
+		const userId = req.user?._id;
+		const { ids } = req.body;
+		const result = await service.archiveMultiple(ids, userId);
+		res.status(200).json(result);
+	}),
 };
 
 module.exports = notificationsController;

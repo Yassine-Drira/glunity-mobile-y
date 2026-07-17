@@ -683,7 +683,6 @@ const en = {
   'Allergy': 'Allergy',
   'Pro': 'Pro',
   'This user has not set a bio yet.': 'This user has not set a bio yet.',
-  'Living gluten-free for 12 years 🌿': 'Living gluten-free for 12 years 🌿',
   'Empowering the gluten-free community 🏆': 'Empowering the gluten-free community 🏆',
   'Pro User': 'Pro User',
   'Anonymous': 'Anonymous',

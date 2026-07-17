@@ -689,7 +689,6 @@ const ar = {
   'Allergy': 'حساسية أخرى',
   'Pro': 'حساب تجاري',
   'This user has not set a bio yet.': 'هذا المستخدم لم يقم بإعداد نبذة شخصية بعد.',
-  'Living gluten-free for 12 years 🌿': 'أعيش بدون غلوتين منذ 12 عاماً 🌿',
   'Empowering the gluten-free community 🏆': 'دعم مجتمع الخالي من الغلوتين 🏆',
   'Pro User': 'حساب احترافي',
   'Anonymous': 'مجهول',

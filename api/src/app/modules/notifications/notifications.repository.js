@@ -4,7 +4,7 @@ const Notification = require('../../../database/models/notification.model');
 
 const notificationsRepository = {
 	findManyByUser(userId, { limit = 50, skip = 0 } = {}) {
-		return Notification.find({ $or: [{ userId }, { recipientId: userId }] })
+		return Notification.find({ $or: [{ userId }, { recipientId: userId }], isArchived: { $ne: true } })
 			.populate('actorId', 'fullName avatar')
 			.populate('reelId', 'thumbnailUrl')
 			.populate('commentId', 'text')
@@ -48,6 +48,26 @@ const notificationsRepository = {
 		);
 	},
 
+	archive(id, userId) {
+		return Notification.findOneAndUpdate(
+			{ _id: id, $or: [{ userId }, { recipientId: userId }] },
+			{ $set: { isArchived: true } },
+			{ returnDocument: 'after' }
+		)
+		.populate('actorId', 'fullName avatar')
+		.populate('reelId', 'thumbnailUrl')
+		.populate('commentId', 'text')
+		.populate('replyId', 'text')
+		.lean();
+	},
+
+	archiveAll(userId) {
+		return Notification.updateMany(
+			{ $or: [{ userId }, { recipientId: userId }], isArchived: { $ne: true } },
+			{ $set: { isArchived: true } }
+		);
+	},
+
 	delete(id, userId) {
 		return Notification.findOneAndDelete({ _id: id, $or: [{ userId }, { recipientId: userId }] });
 	},
@@ -59,7 +79,8 @@ const notificationsRepository = {
 	countUnread(recipientId) {
 		return Notification.countDocuments({
 			$or: [{ userId: recipientId }, { recipientId }],
-			isRead: false
+			isRead: false,
+			isArchived: { $ne: true }
 		});
 	},
 };

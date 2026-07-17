@@ -10,19 +10,26 @@ type Props = {
   onPress?: () => void;
 };
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatEventDateFast(iso?: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  const weekday = WEEKDAYS[d.getDay()];
+  const month = MONTHS_SHORT[d.getMonth()];
+  const day = d.getDate();
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${weekday}, ${month} ${day} · ${hours}:${minutes} ${ampm}`;
+}
+
 const HomeEventCard = React.memo(({ event, onPress }: Props) => {
   const { theme: T } = useTheme();
-
-  function formatEventDate(iso?: string | null) {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return String(iso);
-    const weekday = d.toLocaleDateString(undefined, { weekday: 'short' });
-    const month = d.toLocaleDateString(undefined, { month: 'short' });
-    const day = d.getDate();
-    const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: 'numeric' });
-    return `${weekday}, ${month} ${day} · ${time}`;
-  }
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.card, { backgroundColor: T.surface }]}>
@@ -41,7 +48,7 @@ const HomeEventCard = React.memo(({ event, onPress }: Props) => {
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={12} color={'#C8102E'} />
             <Text style={[styles.metaText, { color: T.textSub }]} numberOfLines={1}>
-              {formatEventDate(event.startsAt || event.date)}
+              {formatEventDateFast(event.startsAt || event.date)}
             </Text>
           </View>
         </View>
