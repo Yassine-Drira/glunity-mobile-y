@@ -57,10 +57,34 @@ const userSchema = new Schema(
 
     storeInfo: storeSchema,
 
+    googleId: { type: String, unique: true, sparse: true },
+    facebookId: { type: String, unique: true, sparse: true },
+
+    birthDate: { type: Date, default: null },
+    location: { type: String, trim: true, default: '' },
+    gender: { type: String, enum: ['male', 'female', 'other', ''], default: '' },
+    dietaryPreference: { type: String, enum: ['strict_gluten_free', 'gluten_reduced', 'seeking_diagnosis', ''], default: '' },
+
+    consentVersion: { type: String, default: null },
+    consentTimestamp: { type: Date, default: null },
+
+    celiacQuestionnaire: {
+      diagnosisDate: { type: Date, default: null },
+      symptoms: [{ type: String }],
+      severity: { type: String, default: '' },
+      clinicalDiagnosis: { type: Boolean, default: false },
+      familyHistory: { type: Boolean, default: false },
+    },
+
     // ── Security ─────────────────────────────────────────────────────────────
     passwordHash: {
       type: String,
-      required: [true, 'Password hash is required'],
+      required: [
+        function () {
+          return !this.googleId && !this.facebookId;
+        },
+        'Password hash is required',
+      ],
       select: false, // never returned in queries by default
     },
 
@@ -207,6 +231,8 @@ const userSchema = new Schema(
 // Note: email unique index is defined inline above (unique: true)
 userSchema.index({ profileType: 1, isActive: 1 });
 userSchema.index({ isActive: 1, points: -1 });
+userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+userSchema.index({ facebookId: 1 }, { unique: true, sparse: true });
 userSchema.index({ pushToken: 1 }, { sparse: true });
 
 // ─── Virtuals ─────────────────────────────────────────────────────────────────
@@ -237,6 +263,9 @@ userSchema.methods.toPublic = function () {
     storeInfo: this.storeInfo,
     profileType: this.profileType,
     avatarUrl: this.avatarUrl,
+    gender: this.gender,
+    dietaryPreference: this.dietaryPreference,
+    celiacQuestionnaire: this.celiacQuestionnaire,
     streakDays: this.streakDays,
     points: this.points,
     lastCheckInAt: this.lastCheckInAt,

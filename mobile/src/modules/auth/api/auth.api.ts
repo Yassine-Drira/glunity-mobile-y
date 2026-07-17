@@ -8,12 +8,30 @@ export interface LoginDto {
 
 export type RegisterProfileType = 'celiac' | 'proche' | 'pro_commerce' | 'pro_health';
 
+export interface CeliacQuestionnaire {
+  diagnosisDate?: string | null;
+  symptoms?: string[];
+  severity?: string;
+  clinicalDiagnosis?: boolean;
+  familyHistory?: boolean;
+}
+
 export interface RegisterDto {
   fullName: string;
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
   profileType: RegisterProfileType;
   language?: string;
+  phone?: string;
+  birthDate: string;
+  location: string;
+  gender?: string;
+  dietaryPreference?: string;
+  consentVersion: string;
+  consentTimestamp: string;
+  celiacQuestionnaire?: CeliacQuestionnaire;
+  storeInfo?: StoreInfo;
+  oauthSignupToken?: string;
 }
 
 export interface StoreInfo {
@@ -112,12 +130,26 @@ export interface AuthResponse {
     expiresIn?: number;
     twoFactorRequired?: boolean;
     userId?: string;
+    isNewUser?: boolean;
+    oauthSignupToken?: string;
+    prefill?: {
+      email: string;
+      fullName: string;
+    };
   };
 }
 
 const authApi = {
   async login(dto: LoginDto): Promise<AuthResponse> {
     const { data } = await http.post<AuthResponse>('/auth/login', dto);
+    if (data.data && data.data.accessToken && data.data.refreshToken) {
+      await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
+    }
+    return data;
+  },
+
+  async oauthLogin(provider: 'google' | 'facebook', token: string): Promise<AuthResponse> {
+    const { data } = await http.post<AuthResponse>('/auth/oauth', { provider, token });
     if (data.data && data.data.accessToken && data.data.refreshToken) {
       await TokenStore.setTokens(data.data.accessToken, data.data.refreshToken);
     }

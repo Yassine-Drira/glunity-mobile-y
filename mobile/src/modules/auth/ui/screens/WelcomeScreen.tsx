@@ -130,7 +130,7 @@ export default function WelcomeScreen({ navigation }: Props) {
           <AuthButton
             label={t('Creer un compte')}
             variant="outlined"
-            onPress={() => navigation.navigate('Register')}
+            onPress={() => navigation.navigate('RegisterMethods')}
           />
         </View>
       </View>

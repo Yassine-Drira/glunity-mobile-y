@@ -19,14 +19,33 @@ const registerSchema = [
 
   body('email')
     .trim()
-    .notEmpty().withMessage('Email is required')
-    .isEmail().withMessage('Invalid email address')
-    .normalizeEmail(),
+    .custom((value, { req }) => {
+      if (!req.body.oauthSignupToken) {
+        if (!value) {
+          throw new Error('Email is required');
+        }
+        if (!/\S+@\S+\.\S+/.test(value)) {
+          throw new Error('Invalid email address');
+        }
+      }
+      return true;
+    }),
 
   body('password')
-    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
-    .matches(/[A-Z]/).withMessage('Password must contain at least one uppercase letter')
-    .matches(/[0-9]/).withMessage('Password must contain at least one number'),
+    .custom((value, { req }) => {
+      if (!req.body.oauthSignupToken) {
+        if (!value || value.length < 8) {
+          throw new Error('Password must be at least 8 characters');
+        }
+        if (!/[A-Z]/.test(value)) {
+          throw new Error('Password must contain at least one uppercase letter');
+        }
+        if (!/[0-9]/.test(value)) {
+          throw new Error('Password must contain at least one number');
+        }
+      }
+      return true;
+    }),
 
   body('phone')
     .optional({ checkFalsy: true })
@@ -42,6 +61,47 @@ const registerSchema = [
     .optional()
     .isIn(Object.values(LANGUAGES))
     .withMessage(`language must be one of: ${Object.values(LANGUAGES).join(', ')}`),
+
+  body('birthDate')
+    .notEmpty().withMessage('Birth date is required')
+    .isISO8601().withMessage('Birth date must be a valid ISO8601 date'),
+
+  body('location')
+    .trim()
+    .notEmpty().withMessage('Location is required'),
+
+  body('gender')
+    .optional({ checkFalsy: true })
+    .isIn(['male', 'female', 'other', ''])
+    .withMessage('Invalid gender value'),
+
+  body('dietaryPreference')
+    .optional({ checkFalsy: true })
+    .isIn(['strict_gluten_free', 'gluten_reduced', 'seeking_diagnosis', ''])
+    .withMessage('Invalid dietary preference value'),
+
+  body('consentVersion')
+    .notEmpty().withMessage('Consent version is required'),
+
+  body('consentTimestamp')
+    .notEmpty().withMessage('Consent timestamp is required')
+    .isISO8601().withMessage('Consent timestamp must be a valid ISO8601 date'),
+
+  body('celiacQuestionnaire')
+    .optional()
+    .isObject().withMessage('celiacQuestionnaire must be an object'),
+
+  body('storeInfo')
+    .optional()
+    .isObject().withMessage('storeInfo must be an object'),
+];
+
+const oauthSchema = [
+  body('provider')
+    .notEmpty().withMessage('Provider is required')
+    .isIn(['google', 'facebook']).withMessage('Provider must be google or facebook'),
+  body('token')
+    .notEmpty().withMessage('Token is required'),
 ];
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -122,4 +182,5 @@ module.exports = {
   verifyEmailSchema,
   resendVerificationSchema,
   verify2FaSchema,
+  oauthSchema,
 };

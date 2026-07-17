@@ -53,4 +53,32 @@ function verifyRefreshToken(token) {
   });
 }
 
-module.exports = { signAccessToken, signRefreshToken, verifyAccessToken, verifyRefreshToken };
+/**
+ * Sign a short-lived temporary OAuth signup token.
+ */
+function signOauthSignupToken(payload) {
+  return jwt.sign(payload, env.jwt.accessSecret, {
+    expiresIn: '15m',
+    issuer:    'glunity-api',
+    audience:  'glunity-mobile',
+  });
+}
+
+/**
+ * Verify a short-lived temporary OAuth signup token.
+ */
+function verifyOauthSignupToken(token) {
+  return jwt.verify(token, env.jwt.accessSecret, {
+    issuer:   'glunity-api',
+    audience: 'glunity-mobile',
+  });
+}
+
+module.exports = {
+  signAccessToken,
+  signRefreshToken,
+  verifyAccessToken,
+  verifyRefreshToken,
+  signOauthSignupToken,
+  verifyOauthSignupToken,
+};

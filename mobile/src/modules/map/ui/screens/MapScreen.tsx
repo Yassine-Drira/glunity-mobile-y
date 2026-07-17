@@ -24,6 +24,7 @@ import { PlaceCard } from '../components/PlaceCard';
 import { MapWebView, MapWebViewHandle } from '../components/MapWebView';
 import { locationsApi } from '../../api/locations.api';
 import type { LocationCategory, LocationFilters, MapLocation } from '../../domain/location.types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface MapScreenProps {
   userName?: string;
@@ -297,9 +298,38 @@ export default function MapScreen({
         limit: 100,
       });
       setItems(data);
+      // Cache the full online list for offline use
+      if (!f.category || f.category === 'all') {
+        await AsyncStorage.setItem('@pref_cached_locations', JSON.stringify(data));
+      }
     } catch (err: any) {
-      setItems([]);
-      setError(err?.message || 'Could not load map locations');
+      try {
+        const cached = await AsyncStorage.getItem('@pref_cached_locations');
+        if (cached) {
+          const cachedData: MapLocation[] = JSON.parse(cached);
+          // Apply active filters locally
+          const filtered = cachedData.filter((it) => {
+            if (f.category && f.category !== 'all' && it.category !== f.category) return false;
+            if (f.certified && !it.certified) return false;
+            if (f.glutenFree && !it.glutenFree) return false;
+            if (f.search) {
+              const term = f.search.toLowerCase();
+              return (
+                (it.name || '').toLowerCase().includes(term) ||
+                (it.address || '').toLowerCase().includes(term)
+              );
+            }
+            return true;
+          });
+          setItems(filtered);
+        } else {
+          setItems([]);
+          setError(err?.message || 'Could not load map locations');
+        }
+      } catch {
+        setItems([]);
+        setError(err?.message || 'Could not load map locations');
+      }
     } finally {
       setLoading(false);
     }
@@ -489,7 +519,14 @@ export default function MapScreen({
                     onPress={handleCopyPhone}
                   >
                     <Feather name={copied ? "check" : "copy"} size={16} color={copied ? T.green : T.text} />
-                    <Text style={[styles.contactBtnText, { color: T.text }]}>{copied ? t('Copied!') : t('Copy Number')}</Text>
+                    <Text 
+                      style={[styles.contactBtnText, { color: T.text }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
+                      {copied ? t('Copied!') : t('Copy Number')}
+                    </Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -497,7 +534,14 @@ export default function MapScreen({
                     onPress={handleDialPhone}
                   >
                     <Feather name="phone-call" size={16} color="#FFFFFF" />
-                    <Text style={[styles.contactBtnText, { color: '#FFFFFF' }]}>{t('Call Now')}</Text>
+                    <Text 
+                      style={[styles.contactBtnText, { color: '#FFFFFF' }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.75}
+                    >
+                      {t('Call Now')}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ) : null}

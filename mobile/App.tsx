@@ -10,6 +10,8 @@ LogBox.ignoreLogs([
 import './src/shared/utils/text-scaling';
 import { AuthProvider } from './src/modules/auth/state/auth.context';
 import { SocketProvider } from './src/shared/context/socket.context';
+import { NetworkProvider } from './src/shared/context/network.context';
+import { OfflineBanner } from './src/shared/components/OfflineBanner';
 import { PresenceProvider } from './src/shared/hooks/usePresence';
 import { LanguageProvider } from './src/shared/context/language.context';
 import { ThemeProvider } from './src/shared/context/theme.context';
@@ -114,17 +116,19 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <AuthProvider>
-        <SocketProvider>
-          <PresenceProvider>
-            <LanguageProvider>
-              <ThemeProvider>
-                <AppContent />
-              </ThemeProvider>
-            </LanguageProvider>
-          </PresenceProvider>
-        </SocketProvider>
-      </AuthProvider>
+      <NetworkProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <PresenceProvider>
+              <LanguageProvider>
+                <ThemeProvider>
+                  <AppContent />
+                </ThemeProvider>
+              </LanguageProvider>
+            </PresenceProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </NetworkProvider>
     </GestureHandlerRootView>
   );
 }
@@ -143,11 +147,14 @@ function AppContent() {
   }
 
   return (
-    <ThemedNavigationContainer linking={linking as any}>
-      <RootNavigator />
-      <StartupPrefetch />
-      <StartupPermissions />
-    </ThemedNavigationContainer>
+    <View style={styles.root}>
+      <OfflineBanner />
+      <ThemedNavigationContainer linking={linking as any}>
+        <RootNavigator />
+        <StartupPrefetch />
+        <StartupPermissions />
+      </ThemedNavigationContainer>
+    </View>
   );
 }
 
