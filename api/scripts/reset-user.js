@@ -22,48 +22,47 @@ async function main() {
     process.exit(2);
   }
 
-  try {
-    await mongoose.connect(uri);
-    console.log('[db] connected');
+  await mongoose.connect(uri);
+  console.log('[db] connected');
 
-    const users = mongoose.connection.collection('users');
-    const user = await users.findOne({ email });
+  const users = mongoose.connection.collection('users');
+  const user = await users.findOne({ email });
 
-    if (!user) {
-      console.error(`User with email ${email} not found!`);
-      process.exit(1);
-    }
-
-    const passwordHash = await hashPassword(newPassword);
-
-    const res = await users.updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          emailVerified: true,
-          passwordHash,
-          isActive: true,
-        },
-        $unset: {
-          emailVerificationToken: '',
-          emailVerificationExpires: '',
-          twoFactorCode: '',
-          twoFactorCodeExpires: '',
-        },
-      }
-    );
-
-    console.log('[db] update result:', res);
-    console.log(`User ${email} has been reset:`);
-    console.log('- Status: verified and active');
-    console.log(`- Password set to: "${newPassword}"`);
-    process.exit(0);
-  } catch (err) {
-    console.error(err);
+  if (!user) {
+    console.error(`User with email ${email} not found!`);
+    await mongoose.disconnect();
     process.exit(1);
-  } finally {
-    await mongoose.disconnect().catch(() => {});
   }
+
+  const passwordHash = await hashPassword(newPassword);
+
+  const res = await users.updateOne(
+    { _id: user._id },
+    {
+      $set: {
+        emailVerified: true,
+        passwordHash: passwordHash,
+        isActive: true
+      },
+      $unset: {
+        emailVerificationToken: '',
+        emailVerificationExpires: '',
+        twoFactorCode: '',
+        twoFactorCodeExpires: ''
+      }
+    }
+  );
+
+  console.log('[db] update result:', res);
+  console.log(`User ${email} has been reset:`);
+  console.log(`- Status: verified and active`);
+  console.log(`- Password set to: "${newPassword}"`);
+
+  await mongoose.disconnect();
+  process.exit(0);
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -46,25 +46,54 @@ if (Platform.OS === 'web') {
   document.head.appendChild(style);
 }
 
-// Deep-link / URL mapping
+// ── React Navigation Deep Link Configuration ──────────────────────────────────
+//
+// Handles all three link entry scenarios automatically:
+//   1. Cold start   – app was closed; Linking.getInitialURL() is polled by RN
+//   2. Background   – app is suspended; OS delivers the intent/URL on resume
+//   3. Foreground   – app is open; Linking event listener fires
+//
+// React Navigation manages all three cases via the `linking` prop on
+// NavigationContainer — no manual Linking.addEventListener() needed.
 const linking = {
+  // ── URL prefixes the app can handle ────────────────────────────────────────
   prefixes: [
+    // Production HTTPS (App Links / Universal Links)
+    'https://myapp.com',
+    'https://www.myapp.com',
+    // Custom URI scheme (dev + fallback)
+    'glunity://',
+    // Local dev expo servers
     'http://localhost:8081',
     'http://localhost:8082',
     'http://localhost:8083',
     'http://localhost:8090',
-    'glunity://',
   ],
+
+  // ── Route → Screen mapping ─────────────────────────────────────────────────
   config: {
     screens: {
-      ResetPassword: { path: 'reset-password', parse: { token: (t: string) => t } },
-      EmailVerified: { path: 'email-verified', parse: { success: (v: string) => v !== '0' && v !== 'false' } },
-      Login: 'login',
-      Register: 'register',
+      // ── Auth screens ──────────────────────────────────────────────────────
+      ResetPassword:  { path: 'reset-password', parse: { token: (t: string) => t } },
+      EmailVerified:  { path: 'email-verified',  parse: { success: (v: string) => v !== '0' && v !== 'false' } },
+      Login:          'login',
+      Register:       'register',
       ForgotPassword: 'forgot-password',
-      Welcome: 'welcome',
-      Community: 'Community',
-      CommunityChat: 'CommunityChat/:initialChannelId?',
+      Welcome:        'welcome',
+
+      // ── Community ─────────────────────────────────────────────────────────
+      Community:      'Community',
+      CommunityChat:  'CommunityChat/:initialChannelId?',
+
+      // ── Reel Deep Link ────────────────────────────────────────────────────
+      // https://myapp.com/reel/:reelId  →  ReelDetail screen
+      // ReelDetailScreen immediately replaces itself with ReelsFeed(autoOpenReelId)
+      ReelDetail: {
+        path: 'reel/:reelId',
+        parse: {
+          reelId: (id: string) => id,
+        },
+      },
     },
   },
 };

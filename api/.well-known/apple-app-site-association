@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.com.islemhammami.glunitymobile",
+        "paths": [
+          "/reel/*",
+          "/reset-password*",
+          "/email-verified*"
+        ]
+      }
+    ]
+  }
+}

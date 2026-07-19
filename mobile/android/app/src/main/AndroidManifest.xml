@@ -21,9 +21,32 @@
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|smallestScreenSize" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
+      <!-- App launcher -->
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+
+      <!-- ── Android App Links (HTTPS deep links) ─────────────────────────────
+           android:autoVerify="true" makes Android verify domain ownership via
+           https://myapp.com/.well-known/assetlinks.json before handling the URL.
+           This enables tapping a shared reel link to open the app directly.
+      ──────────────────────────────────────────────────────────────────────── -->
+      <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <!-- Production HTTPS reel links -->
+        <data android:scheme="https" android:host="myapp.com" android:pathPrefix="/reel/"/>
+        <data android:scheme="https" android:host="www.myapp.com" android:pathPrefix="/reel/"/>
+      </intent-filter>
+
+      <!-- ── Custom URI scheme (fallback for environments without App Links) ── -->
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="glunity"/>
       </intent-filter>
     </activity>
   </application>

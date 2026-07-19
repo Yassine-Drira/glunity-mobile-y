@@ -8,10 +8,48 @@
       "expo-secure-store",
       "expo-font",
       "expo-image",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "associatedDomains": ["applinks:myapp.com", "applinks:www.myapp.com"]
+          }
+        }
+      ]
     ],
     "android": {
-      "package": "com.islemhammami.glunitymobile"
-    }
+      "package": "com.islemhammami.glunitymobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "myapp.com",
+              "pathPrefix": "/reel/"
+            },
+            {
+              "scheme": "https",
+              "host": "www.myapp.com",
+              "pathPrefix": "/reel/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        },
+        {
+          "action": "VIEW",
+          "data": [{ "scheme": "glunity" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.islemhammami.glunitymobile",
+      "associatedDomains": ["applinks:myapp.com", "applinks:www.myapp.com"]
+    },
+    "scheme": "glunity"
   }
 }
+
