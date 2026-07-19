@@ -291,6 +291,7 @@ const en = {
   'Your Badges': 'Your Badges',
   'No Badges Unlocked Yet': 'No Badges Unlocked Yet',
   'Earn points by interacting with the community to unlock badges.': 'Earn points by interacting with the community to unlock badges.',
+  'New badge unlocked!': 'New badge unlocked!',
   'Bronze Initiator': 'Bronze Initiator',
   'Unlock at 150 XP to start your journey.': 'Unlock at 150 XP to start your journey.',
   'Active Contributor': 'Active Contributor',
@@ -736,6 +737,18 @@ const en = {
   'Empowering the gluten-free community 🏆': 'Empowering the gluten-free community 🏆',
   'Pro User': 'Pro User',
   'Anonymous': 'Anonymous',
+  'Withdraw Request': 'Withdraw Request',
+  "Voulez-vous retirer votre demande d'inscription ?": "Do you want to withdraw your registration request?",
+  "Votre demande d'inscription en attente sera annulée.": "Your pending registration request will be cancelled.",
+  "Non, garder ma demande": "No, keep my request",
+  "Oui, retirer ma demande": "Yes, withdraw my request",
+  'WAITING PAYMENT': 'Pending Payment',
+  'PENDING': 'Pending Payment',
+  'APPROVED': 'Registration Confirmed',
+  'CONFIRMED': 'Registration Confirmed',
+  'CANCELLED': 'User Cancelled',
+  'REJECTED': 'User Cancelled',
+  'Accept Payment': 'Accept Payment',
 };
 
 export default en;

@@ -1,8 +1,8 @@
 'use strict';
 
-const mongoose   = require('mongoose');
+const mongoose = require('mongoose');
 const repository = require('./channels.repository');
-const logger     = require('../../bootstrap/logger.bootstrap');
+const logger = require('../../bootstrap/logger.bootstrap');
 
 // Roles that can be assigned via the API (owner is set at creation time only)
 const ASSIGNABLE_ROLES = ['admin', 'writer', 'member'];
@@ -95,11 +95,11 @@ const channelsService = {
           const profile = userMap.get(p.userId?.toString());
           return profile
             ? {
-                ...p,
-                fullName:  profile.fullName ?? null,
-                // User model stores avatar as { url, publicId } — flatten to string
-                avatarUrl: profile.avatar?.url ?? null,
-              }
+              ...p,
+              fullName: profile.fullName ?? null,
+              // User model stores avatar as { url, publicId } — flatten to string
+              avatarUrl: profile.avatar?.url ?? null,
+            }
             : p;
         });
 
@@ -139,14 +139,14 @@ const channelsService = {
 
     const participants = uniqueIds.map((uid) => ({
       userId: new mongoose.Types.ObjectId(uid),
-      role:   uid === userId.toString() ? 'owner' : 'member',
+      role: uid === userId.toString() ? 'owner' : 'member',
     }));
 
     return repository.create({
-      name:        name.trim(),
+      name: name.trim(),
       description: description?.trim() || undefined,
-      type:        'group',
-      isPrivate:   true,
+      type: 'group',
+      isPrivate: true,
       participants,
       createdById: userId,
     });
@@ -162,12 +162,12 @@ const channelsService = {
     }
     const channel = await repository.findById(channelId);
     if (!channel) throw createError('Channel not found', 404, 'NOT_FOUND');
-    
+
     const reqIdStr = String(requesterId);
     if (channel.bannedUsers && channel.bannedUsers.some(bId => String(bId) === reqIdStr)) {
       throw createError('You are banned from this channel', 403, 'FORBIDDEN');
     }
-    
+
     const isMember = channel.participants && channel.participants.some((p) => {
       if (!p) return false;
       const pId = p.userId ? String(p.userId) : String(p);
@@ -220,10 +220,10 @@ const channelsService = {
     }
 
     const channel = await repository.create({
-      type:        'direct',
-      isPrivate:   true,
+      type: 'direct',
+      isPrivate: true,
       participants: [
-        { userId: new mongoose.Types.ObjectId(String(userId)),       role: 'member' },
+        { userId: new mongoose.Types.ObjectId(String(userId)), role: 'member' },
         { userId: new mongoose.Types.ObjectId(String(targetUserId)), role: 'member' },
       ],
       createdById: userId,
@@ -363,7 +363,7 @@ const channelsService = {
     const Channel = require('../../database/models/channel.model');
     const updated = await Channel.findByIdAndUpdate(
       channelId,
-      { 
+      {
         $push: { participants: { $each: toAdd } },
         $pullAll: { bannedUsers: toAdd.map(p => p.userId) }
       },
@@ -450,7 +450,7 @@ const channelsService = {
     const Channel = require('../../database/models/channel.model');
     const updated = await Channel.findByIdAndUpdate(
       channelId,
-      { 
+      {
         $pull: { participants: { userId: new mongoose.Types.ObjectId(String(targetUserId)) } },
         $addToSet: { bannedUsers: new mongoose.Types.ObjectId(String(targetUserId)) }
       },
@@ -479,7 +479,7 @@ const channelsService = {
       (p) => p.userId.toString() === userId.toString()
     );
     if (!participant) throw createError('Forbidden', 403, 'FORBIDDEN');
-    
+
     const isChannelOwner = channel.createdById && channel.createdById.toString() === userId.toString();
     const hasAdminRights = ['owner', 'admin'].includes(participant.role) || isChannelOwner;
     if (!hasAdminRights) {
@@ -599,16 +599,16 @@ const channelsService = {
 
     const participants = [{
       userId: new mongoose.Types.ObjectId(userId),
-      role:   'owner',
+      role: 'owner',
     }];
 
     return repository.create({
-      name:        name.trim(),
+      name: name.trim(),
       description: description?.trim() || undefined,
-      avatarUrl:   avatarUrl?.trim() || undefined,
+      avatarUrl: avatarUrl?.trim() || undefined,
       coverImageUrl: coverImageUrl?.trim() || undefined,
-      type:        'channel',
-      isPrivate:   false,
+      type: 'channel',
+      isPrivate: false,
       participants,
       createdById: userId,
     });

@@ -54,7 +54,13 @@ const badgesService = {
 					title: `New Badge Unlocked: ${badge.name}! 🛡️`,
 					body: `Congratulations! You unlocked the "${badge.name}" badge. ${badge.description}`,
 					type: 'achievement',
-					isRead: false
+					isRead: false,
+					metadata: {
+						badgeId: badge._id.toString(),
+						badgeName: badge.name,
+						badgeIcon: badge.icon,
+						pointsRequired: badge.pointsRequired
+					}
 				});
 			}
 		}

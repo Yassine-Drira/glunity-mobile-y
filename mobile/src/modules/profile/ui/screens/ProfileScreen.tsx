@@ -22,6 +22,7 @@ import { useTheme } from '@/shared/context/theme.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { Avatar } from '@/shared/components/Avatar';
 import { useLanguage } from '@/shared/context/language.context';
+import { useBadgeUnlock } from '@/shared/context/badge-unlock.context';
 import authApi from '@/modules/auth/api/auth.api';
 import http from '@/core/network/http.client';
 import { ReelsService, Reel } from '@/modules/reels/services/reels.service';
@@ -94,6 +95,7 @@ export default function ProfileScreen({ navigation, route }: Props) {
   const { user: currentUser, logout, checkIn, refreshUser } = useAuth();
   const { theme: T } = useTheme();
   const { isRTL, t } = useLanguage();
+  const { triggerUnlock } = useBadgeUnlock();
   const insets = useSafeAreaInsets();
 
   const targetUserId = route?.params?.userId;
@@ -1550,7 +1552,9 @@ export default function ProfileScreen({ navigation, route }: Props) {
 
             {/* Badges Grid Section */}
             <View style={s.sectionWrap}>
-              <Text style={s.sectionLabel}>{isPro ? t('Your Medals') : t('Your Badges')}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={[s.sectionLabel, { marginBottom: 0 }]}>{isPro ? t('Your Medals') : t('Your Badges')}</Text>
+              </View>
               <View style={s.badgesGrid}>
                 {currentBadges.map((badge) => {
                   const isUnlocked = isBadgeUnlocked(badge.id);

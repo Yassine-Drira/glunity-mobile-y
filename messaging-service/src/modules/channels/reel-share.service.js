@@ -22,13 +22,13 @@
  */
 
 const mongoose = require('mongoose');
-const Message  = require('../../database/models/message.model');
-const Channel  = require('../../database/models/channel.model');
+const Message = require('../../database/models/message.model');
+const Channel = require('../../database/models/channel.model');
 
 // ── Lazy reel-DB connection ───────────────────────────────────────────────────
 
 let _reelConnection = null;
-let _ReelModel      = null;
+let _ReelModel = null;
 
 /**
  * Minimal Reel schema mirroring api/src/database/models/reel.model.js.
@@ -36,11 +36,11 @@ let _ReelModel      = null;
  */
 const reelRefSchema = new mongoose.Schema(
   {
-    authorId:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    videoUrl:     String,
+    authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    videoUrl: String,
     thumbnailUrl: String,
-    caption:      String,
-    duration:     Number,
+    caption: String,
+    duration: Number,
   },
   { collection: 'reels', versionKey: false }
 );
@@ -51,7 +51,7 @@ const reelRefSchema = new mongoose.Schema(
 async function getReelModel() {
   if (_ReelModel) return _ReelModel;
 
-  const uri    = process.env.MONGO_URI;
+  const uri = process.env.MONGO_URI;
   const dbName = process.env.REEL_DB_NAME || null; // null = use URI default db
 
   _reelConnection = await mongoose.createConnection(uri, {
@@ -117,10 +117,10 @@ const reelShareService = {
     const thumb = reel.thumbnailUrl || (reel.videoUrl ? reel.videoUrl.replace(/\.[a-z0-9]+$/i, '.jpg') : null);
 
     return {
-      reelId:       reel._id,
+      reelId: reel._id,
       thumbnailUrl: thumb,
-      title:        reel.caption      ?? '',   // caption is used as the display title
-      duration:     reel.duration     ?? 0,
+      title: reel.caption ?? '',   // caption is used as the display title
+      duration: reel.duration ?? 0,
       ownerName,
       ownerAvatar,
     };
@@ -144,9 +144,9 @@ const reelShareService = {
   async shareReel(channelId, senderId, reelId, caption = '') {
     // ── 1. Channel access check ───────────────────────────────────────────
     const channel = await Channel.findOne({
-      _id:                   channelId,
+      _id: channelId,
       'participants.userId': senderId,
-      deletedAt:             null,
+      deletedAt: null,
     }).lean();
 
     if (!channel) {
@@ -164,15 +164,15 @@ const reelShareService = {
     const message = await Message.create({
       channelId,
       senderId,
-      content:  caption.trim().slice(0, 4000),
-      type:     'reel',
-      reelRef:  {
-        reelId:       reelMeta.reelId,
+      content: caption.trim().slice(0, 4000),
+      type: 'reel',
+      reelRef: {
+        reelId: reelMeta.reelId,
         thumbnailUrl: reelMeta.thumbnailUrl,
-        title:        reelMeta.title,
-        duration:     reelMeta.duration,
-        ownerName:    reelMeta.ownerName,
-        ownerAvatar:  reelMeta.ownerAvatar,
+        title: reelMeta.title,
+        duration: reelMeta.duration,
+        ownerName: reelMeta.ownerName,
+        ownerAvatar: reelMeta.ownerAvatar,
       },
     });
 

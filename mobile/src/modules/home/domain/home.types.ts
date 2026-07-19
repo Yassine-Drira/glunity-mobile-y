@@ -37,6 +37,9 @@ export interface GlunityEvent {
   currency?: string;
   isCancelled?: boolean;
   status?: string;
+  ownerId?: string;
+  createdBy?: string;
+  pendingRequestsCount?: number;
 }
 
 export interface HomeScreenProps {

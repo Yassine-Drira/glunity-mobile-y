@@ -292,6 +292,7 @@ const ar = {
   'Your Badges': 'شاراتك',
   'No Badges Unlocked Yet': 'لم يتم فتح أي شارات بعد',
   'Earn points by interacting with the community to unlock badges.': 'اكسب النقاط من خلال التفاعل مع المجتمع لفتح الشارات.',
+  'New badge unlocked!': 'تم فتح شارة جديدة!',
   'Bronze Initiator': 'مبتدئ برونزي',
   'Unlock at 150 XP to start your journey.': 'احصل على 150 نقطة لبدء رحلتك.',
   'Active Contributor': 'مساهم نشط',

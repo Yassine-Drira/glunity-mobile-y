@@ -148,6 +148,7 @@ export function AppHeader({
           setUnreadCount(unread);
           isFirstLoad = false;
         }
+
       } catch (err) {
         // Ignore expected auth failures to avoid noisy logs on session expiry.
         if (!isExpectedAuthError(err)) {
@@ -199,6 +200,7 @@ export function AppHeader({
     socket.on('notification:badge', onBadge);
     socket.on('notification:new', onNotification);
 
+    // Listen for registration updates to reload requests count
     return () => {
       socket.off('notification:badge', onBadge);
       socket.off('notification:new', onNotification);
@@ -310,6 +312,27 @@ export function AppHeader({
           backgroundColor: '#FF3B30', // Vibrant Red
           borderWidth: 1.5,
           borderColor: C.surface,
+        },
+        badgeCount: {
+          position: 'absolute',
+          top: -4,
+          right: -4,
+          minWidth: 14,
+          height: 14,
+          borderRadius: 7,
+          backgroundColor: '#FF3B30',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 2,
+          borderWidth: 1,
+          borderColor: C.surface,
+        },
+        badgeCountText: {
+          color: '#FFFFFF',
+          fontSize: 7.5,
+          fontWeight: '700',
+          lineHeight: 9,
+          fontFamily: F.bold,
         },
         // ── Detail Screen Headers (Back Button + Title) ──
         detailRow: {
@@ -537,7 +560,7 @@ export function AppHeader({
                     onPress={() => navigation.navigate('Notifications')}
                   >
                     <View style={{ position: 'relative' }}>
-                      <Feather name="bell" size={20} color={C.text} />
+                      <MaterialCommunityIcons name="bell-outline" size={20} color={C.text} />
                       {unreadCount > 0 && <View style={s.badgeDot} />}
                     </View>
                   </TouchableOpacity>

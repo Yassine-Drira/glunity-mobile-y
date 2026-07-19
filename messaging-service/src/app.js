@@ -83,6 +83,21 @@ app.use('/api/conversations', channelsRoutes);
 //   DELETE /api/messages/:id
 app.use('/api/messages', messagesRoutesStandalone);
 
+// Internal socket bridge endpoint (called by the main api service to propagate events to the clients connected here)
+app.post('/api/internal/socket/emit', (req, res) => {
+  const { room, event, payload } = req.body;
+  const io = req.app.get('io');
+  if (io) {
+    if (room) {
+      io.to(room).emit(event, payload);
+    } else {
+      io.emit(event, payload);
+    }
+    return res.status(200).json({ success: true, message: `Emitted to room ${room}` });
+  }
+  return res.status(500).json({ success: false, message: 'Socket.IO instance not found' });
+});
+
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({

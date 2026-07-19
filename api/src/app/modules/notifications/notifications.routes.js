@@ -9,6 +9,8 @@ const { notificationIdSchema } = require('./notifications.schema');
 const router = Router();
 
 router.get('/', authMiddleware, controller.list);
+router.patch('/read', authMiddleware, controller.markMultipleAsRead);
+router.patch('/archive', authMiddleware, controller.archiveMultiple);
 router.post('/test-push', authMiddleware, controller.testPush);
 router.post('/read-all', authMiddleware, controller.markAllAsRead);
 router.post('/:id/read', authMiddleware, notificationIdSchema, validate, controller.markAsRead);

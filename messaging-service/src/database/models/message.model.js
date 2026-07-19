@@ -7,41 +7,41 @@ const { Schema, model } = mongoose;
 
 const attachmentSchema = new Schema(
   {
-    url:       { type: String, required: true },
-    type:      {
-      type:     String,
-      enum:     ['image', 'video', 'file', 'audio'],
+    url: { type: String, required: true },
+    type: {
+      type: String,
+      enum: ['image', 'video', 'file', 'audio'],
       required: true,
     },
-    filename:  { type: String },
-    size:      { type: Number },          // bytes
+    filename: { type: String },
+    size: { type: Number },          // bytes
     thumbnail: { type: String },          // pre-generated thumbnail URL
-    duration:  { type: Number },          // seconds (video / audio only)
-    mimeType:  { type: String },
+    duration: { type: Number },          // seconds (video / audio only)
+    mimeType: { type: String },
   },
   { _id: false }
 );
 
 const reelRefSchema = new Schema(
   {
-    reelId:       { type: Schema.Types.ObjectId },
+    reelId: { type: Schema.Types.ObjectId },
     thumbnailUrl: { type: String },
-    title:        { type: String, maxlength: 200 },
-    duration:     { type: Number },
-    ownerName:    { type: String },
-    ownerAvatar:  { type: String },
-    isDeleted:    { type: Boolean, default: false },
+    title: { type: String, maxlength: 200 },
+    duration: { type: Number },
+    ownerName: { type: String },
+    ownerAvatar: { type: String },
+    isDeleted: { type: Boolean, default: false },
   },
   { _id: false }
 );
 
 const replyToSchema = new Schema(
   {
-    messageId:  { type: Schema.Types.ObjectId, ref: 'Message' },
-    senderId:   { type: Schema.Types.ObjectId, ref: 'User' },
+    messageId: { type: Schema.Types.ObjectId, ref: 'Message' },
+    senderId: { type: Schema.Types.ObjectId, ref: 'User' },
     senderName: { type: String },
     /** First ~80 characters of the parent message, for inline preview. */
-    preview:    { type: String, maxlength: 100 },
+    preview: { type: String, maxlength: 100 },
   },
   { _id: false }
 );
@@ -51,27 +51,27 @@ const replyToSchema = new Schema(
 const messageSchema = new Schema(
   {
     channelId: {
-      type:     Schema.Types.ObjectId,
-      ref:      'Channel',
+      type: Schema.Types.ObjectId,
+      ref: 'Channel',
       required: true,
     },
     senderId: {
-      type:     Schema.Types.ObjectId,
-      ref:      'User',
+      type: Schema.Types.ObjectId,
+      ref: 'User',
       required: true,
     },
 
     /** Up to 4 000 characters of UTF-8 text (emoji-safe). */
     content: {
-      type:      String,
-      trim:      true,
-      default:   '',
+      type: String,
+      trim: true,
+      default: '',
       maxlength: [4000, 'Message content cannot exceed 4000 characters'],
     },
 
     type: {
-      type:    String,
-      enum:    ['text', 'media', 'reel', 'system'],
+      type: String,
+      enum: ['text', 'media', 'reel', 'system'],
       default: 'text',
     },
 
@@ -88,14 +88,14 @@ const messageSchema = new Schema(
     /** Updated atomically via Reaction model hooks (findOneAndUpdate + $inc).
      *  Avoids a real-time aggregate query on every render. */
     reactionCounts: {
-      type:    Map,
-      of:      Number,
+      type: Map,
+      of: Number,
       default: {},
     },
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
-    pinned:    { type: Boolean, default: false, index: true },
-    editedAt:  { type: Date, default: null },
+    pinned: { type: Boolean, default: false, index: true },
+    editedAt: { type: Date, default: null },
     deletedAt: { type: Date, default: null },   // null = not deleted (soft delete)
   },
   {
@@ -151,10 +151,10 @@ messageSchema.index({ 'reelRef.reelId': 1 }, { sparse: true });
  * called from an async context, causing "next is not a function" errors.
  */
 messageSchema.pre('validate', async function () {
-  const hasContent     = this.content && this.content.trim().length > 0;
-  const hasAttachment  = this.attachments && this.attachments.length > 0;
-  const hasReel        = this.reelRef && this.reelRef.reelId;
-  const isSystemMsg    = this.type === 'system';
+  const hasContent = this.content && this.content.trim().length > 0;
+  const hasAttachment = this.attachments && this.attachments.length > 0;
+  const hasReel = this.reelRef && this.reelRef.reelId;
+  const isSystemMsg = this.type === 'system';
 
   if (!hasContent && !hasAttachment && !hasReel && !isSystemMsg) {
     throw new Error('A message must contain content, at least one attachment, or a reel reference');

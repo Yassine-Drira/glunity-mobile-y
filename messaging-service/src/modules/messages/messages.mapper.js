@@ -4,28 +4,28 @@ const toMessageResponse = (msg) => {
   if (!msg) return null;
   const sender = msg.senderId;
   return {
-    id:              (msg._id || msg.id).toString(),
-    channelId:       msg.channelId?.toString(),
-    senderId:        sender?._id?.toString() ?? msg.senderId?.toString(),
-    senderName:      sender?.fullName ?? 'Unknown',
+    id: (msg._id || msg.id).toString(),
+    channelId: msg.channelId?.toString(),
+    senderId: sender?._id?.toString() ?? msg.senderId?.toString(),
+    senderName: sender?.fullName ?? 'Unknown',
     senderAvatarUrl: sender?.avatar?.url ?? null,
-    content:         msg.deletedAt ? null : msg.content,
-    type:            msg.type ?? 'text',
-    attachments:     msg.attachments ?? [],
-    reelRef:         msg.reelRef ?? null,
-    replyTo:         (msg.replyTo && msg.replyTo.messageId) ? {
+    content: msg.deletedAt ? null : msg.content,
+    type: msg.type ?? 'text',
+    attachments: msg.attachments ?? [],
+    reelRef: msg.reelRef ?? null,
+    replyTo: (msg.replyTo && msg.replyTo.messageId) ? {
       messageId: msg.replyTo.messageId.toString(),
       senderName: msg.replyTo.senderName ?? 'User',
       preview: msg.replyTo.preview ?? null,
     } : null,
-    reactionCounts:  msg.reactionCounts
+    reactionCounts: msg.reactionCounts
       ? Object.fromEntries(
-          msg.reactionCounts instanceof Map
-            ? msg.reactionCounts
-            : Object.entries(msg.reactionCounts)
-        )
+        msg.reactionCounts instanceof Map
+          ? msg.reactionCounts
+          : Object.entries(msg.reactionCounts)
+      )
       : {},
-    editedAt:  msg.editedAt  ?? null,
+    editedAt: msg.editedAt ?? null,
     deletedAt: msg.deletedAt ?? null,
     createdAt: msg.createdAt,
   };
@@ -35,11 +35,11 @@ const toMessageListResponse = (items, { cursor, hasMore } = {}) => {
   const mapped = items.map(toMessageResponse);
   return {
     success: true,
-    data:    mapped,
+    data: mapped,
     messages: mapped,
     hasMore: hasMore ?? false,
     nextCursor: cursor ?? null,
-    meta:    { cursor: cursor ?? null, hasMore: hasMore ?? false },
+    meta: { cursor: cursor ?? null, hasMore: hasMore ?? false },
   };
 };
 

@@ -83,10 +83,10 @@ const reelsService = {
 	async getFeed({ userId, page = 0, limit = 20, category, authorId }) {
 		const skip = page * limit;
 		const reels = await reelsRepository.findFeed({ limit, skip, category, authorId });
-		
+
 		const reelIds = reels.map(r => r._id);
 		const likesMap = userId ? await reelsRepository.hasLikedMany(reelIds, userId) : {};
-		
+
 		return reelsMapper.toReelListResponse(reels, likesMap, userId);
 	},
 
@@ -139,7 +139,7 @@ const reelsService = {
 		if (!reel) {
 			throw AppError.notFound('Reel');
 		}
-		
+
 		const authorIdStr = reel.authorId?._id?.toString() || reel.authorId?.toString();
 		if (authorIdStr !== userId.toString()) {
 			throw AppError.forbidden('You are not authorized to update this reel');
@@ -150,7 +150,7 @@ const reelsService = {
 		if (taggedUserIds !== undefined) {
 			updateData.taggedUsers = taggedUserIds;
 		}
-		
+
 		const updatedReel = await reelsRepository.updateReel(reelId, updateData);
 
 		// Send notifications to newly tagged users
@@ -189,7 +189,7 @@ const reelsService = {
 		if (!reel) {
 			throw AppError.notFound('Reel');
 		}
-		
+
 		const authorIdStr = reel.authorId?._id?.toString() || reel.authorId?.toString();
 		const isAdmin = currentUser.profileType === 'admin';
 		if (authorIdStr !== currentUser._id.toString() && !isAdmin) {
@@ -688,15 +688,15 @@ const reelsService = {
 			const timestamp = Math.round(new Date().getTime() / 1000);
 			const folder = 'glunity/reels';
 			const eager = 'w_720,h_1280,c_limit,q_auto,f_mp4|w_480,h_854,c_limit,q_auto:low,f_mp4';
-			
+
 			const paramsToSign = {
 				timestamp,
 				folder,
 				eager,
 			};
-			
+
 			const signature = cloudinary.utils.api_sign_request(paramsToSign, env.cloudinary.apiSecret);
-			
+
 			return {
 				isLocalFallback: false,
 				signature,
@@ -707,7 +707,7 @@ const reelsService = {
 				cloudName: env.cloudinary.cloudName,
 			};
 		}
-		
+
 		// Fallback for local development when Cloudinary is not configured
 		return {
 			isLocalFallback: true,
@@ -718,16 +718,16 @@ const reelsService = {
 		if (!file) {
 			throw AppError.badRequest('No file provided for upload');
 		}
-		
+
 		const opts = {
 			resource_type: 'video',
 			folder: 'glunity/reels',
 			filename: file.originalname,
 			mimetype: file.mimetype,
 		};
-		
+
 		const result = await cloudinaryClient.uploadBuffer(file.buffer, opts);
-		
+
 		return {
 			videoUrl: result.secure_url || result.url,
 			thumbnailUrl: (result.secure_url || result.url).replace(/\.[^.]+$/, '.jpg'),

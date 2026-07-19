@@ -9,25 +9,28 @@ import type { GlunityEvent } from '../../../home/domain/home.types';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import EventCard from '../../components/EventCard';
 import { useAuth } from '@/modules/auth/state/auth.context';
+import { useSocket } from '@/shared/context/socket.context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLanguage } from '@/shared/context/language.context';
 import PaginationBar from '@/shared/components/PaginationBar';
 import { EventCardSkeleton } from '@/shared/components/SkeletonLoader';
 
 const FILTER_KEYS = [
-  { key: 'All',       label: 'All',       icon: 'apps-outline'          as const },
-  { key: 'Meetups',   label: 'Meetups',   icon: 'people-outline'        as const },
-  { key: 'Classes',   label: 'Workshops', icon: 'school-outline'        as const },
-  { key: 'Markets',   label: 'Markets',   icon: 'storefront-outline'    as const },
+  { key: 'All', label: 'All', icon: 'apps-outline' as const },
+  { key: 'Meetups', label: 'Meetups', icon: 'people-outline' as const },
+  { key: 'Classes', label: 'Workshops', icon: 'school-outline' as const },
+  { key: 'Markets', label: 'Markets', icon: 'storefront-outline' as const },
 ];
 
 export default function EventsCalendarScreen({ navigation }: any) {
   const { theme: T } = useTheme();
   const { user } = useAuth();
+  const { socket } = useSocket();
   const insets = useSafeAreaInsets();
   const { isRTL, t } = useLanguage();
   const [events, setEvents] = React.useState<GlunityEvent[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [filter, setFilter] = React.useState('All');
 
   // Search State
@@ -85,9 +88,10 @@ export default function EventsCalendarScreen({ navigation }: any) {
     return () => clearTimeout(handler);
   }, [searchVal]);
 
-  const fetchEvents = React.useCallback(async (pageNum = 1, isRefresh = false) => {
+  const fetchEvents = React.useCallback(async (pageNum = 1, isRefresh = false, signal?: AbortSignal) => {
     if (pageNum === 1) {
       if (!isRefresh) setIsLoading(true);
+      setError(null);
     } else {
       setLoadingMore(true);
     }
@@ -100,12 +104,16 @@ export default function EventsCalendarScreen({ navigation }: any) {
         search: searchQuery.trim() || undefined,
         limit: LIMIT,
         skip,
-      });
+      }, { signal });
 
       setEvents(items);
       setTotalPages(Math.max(1, Math.ceil(total / LIMIT)));
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        return; // Request was aborted, ignore it
+      }
       console.error('[EventsCalendar] fetch error:', err);
+      setError(err.message || 'Failed to load events.');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -114,8 +122,12 @@ export default function EventsCalendarScreen({ navigation }: any) {
   }, [filter, searchQuery]);
 
   React.useEffect(() => {
+    const controller = new AbortController();
     setPage(1);
-    fetchEvents(1);
+    fetchEvents(1, false, controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [filter, searchQuery, fetchEvents]);
 
   const onRefresh = React.useCallback(() => {
@@ -270,6 +282,11 @@ export default function EventsCalendarScreen({ navigation }: any) {
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
     },
+    statsLabel: {
+      fontSize: 11,
+      fontFamily: 'Poppins_400Regular',
+      textAlign: 'center',
+    },
   }), [T, insets, isRTL]);
 
   const ListHeader = React.useMemo(() => (
@@ -315,7 +332,7 @@ export default function EventsCalendarScreen({ navigation }: any) {
         })}
       </ScrollView>
     </View>
-  ), [filter, searchHeight, searchOpacity, searchVal, T, styles, t]);
+  ), [filter, searchHeight, searchOpacity, searchVal, T, styles, t, user]);
 
   return (
     <AppScaffold
@@ -326,70 +343,85 @@ export default function EventsCalendarScreen({ navigation }: any) {
       searchIcon={searchOpen ? 'x' : 'search'}
       contentStyle={{ backgroundColor: T.bg, paddingBottom: 0 }}
     >
-      <View style={[styles.root, { backgroundColor: T.bg }] }>
+      <View style={[styles.root, { backgroundColor: T.bg }]}>
         {/* FlatList header will render filter and will be sticky */}
 
-        <FlatList
-          data={isLoading ? ([{ id: 'sk-1' }, { id: 'sk-2' }, { id: 'sk-3' }] as any) : filtered}
-          keyExtractor={(it) => it.id}
-          ListHeaderComponent={ListHeader}
-          stickyHeaderIndices={[0]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[T.green]}
-              tintColor={T.green}
-            />
-          }
-          ListEmptyComponent={() => (
-            <View style={{ padding: 24, alignItems: 'center' }}>
-              <Text style={{ color: T.textSub, fontSize: 15 }}>{t('No events to display.')}</Text>
-            </View>
-          )}
-          style={{ flex: 1 }}
-          renderItem={({ item }) => {
-            if (isLoading) {
-              return <EventCardSkeleton />;
-            }
-            return (
-              <EventCard
-                event={item}
-                onPress={async () => {
-                  try {
-                    const url = item.imageUrl;
-                    if (url) {
-                      Image.prefetch(url).catch(() => {});
-                    }
-                  } catch (e) { /* ignore */ }
-                  navigation.navigate('EventDetail', { eventId: item.id });
-                }}
+        {error ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+            <Ionicons name="alert-circle-outline" size={48} color={T.red || '#EF4444'} style={{ marginBottom: 12 }} />
+            <Text style={{ color: T.text, fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 8 }}>{t('Failed to load events')}</Text>
+            <Text style={{ color: T.textSub, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>{t(error)}</Text>
+            <TouchableOpacity
+              onPress={() => fetchEvents(page)}
+              style={{ backgroundColor: T.green, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>{t('Try Again')}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={isLoading ? ([{ id: 'sk-1' }, { id: 'sk-2' }, { id: 'sk-3' }] as any) : filtered}
+            keyExtractor={(it) => it.id}
+            ListHeaderComponent={ListHeader}
+            stickyHeaderIndices={[0]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[T.green]}
+                tintColor={T.green}
               />
-            );
-          }}
-          contentContainerStyle={styles.list}
-          initialNumToRender={6}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          updateCellsBatchingPeriod={50}
-          removeClippedSubviews
-          ListFooterComponent={() => (
-            isLoading ? null : (
-              <View style={{ paddingBottom: 116 + insets.bottom }}>
-                <PaginationBar
-                  page={page}
-                  totalPages={totalPages}
-                  loading={loadingMore}
-                  onPageChange={(p) => {
-                    setPage(p);
-                    fetchEvents(p);
+            }
+            ListEmptyComponent={() => (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: T.textSub, fontSize: 15 }}>{t('No events to display.')}</Text>
+              </View>
+            )}
+            style={{ flex: 1 }}
+            renderItem={({ item }) => {
+              if (isLoading) {
+                return <EventCardSkeleton />;
+              }
+              return (
+                <EventCard
+                  event={item}
+                  onPress={async () => {
+                    try {
+                      const url = item.imageUrl;
+                      if (url) {
+                        Image.prefetch(url).catch(() => { });
+                      }
+                    } catch (e) { /* ignore */ }
+                    navigation.navigate('EventDetail', { eventId: item.id });
                   }}
                 />
-              </View>
-            )
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-        />
+              );
+            }}
+            contentContainerStyle={styles.list}
+            initialNumToRender={6}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            updateCellsBatchingPeriod={50}
+            removeClippedSubviews
+            ListFooterComponent={() => (
+              isLoading ? null : (
+                <View style={{ paddingBottom: 116 + insets.bottom }}>
+                  <PaginationBar
+                    page={page}
+                    totalPages={totalPages}
+                    loading={loadingMore}
+                    onPageChange={(p) => {
+                      setPage(p);
+                      fetchEvents(p);
+                    }}
+                  />
+                </View>
+              )
+            )}
+            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          />
+        )}
         {user?.profileType === 'pro_commerce' && (
           <TouchableOpacity
             style={styles.fab}

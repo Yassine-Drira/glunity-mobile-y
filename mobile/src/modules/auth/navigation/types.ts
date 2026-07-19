@@ -48,5 +48,7 @@ export type AppStackParamList = {
   ReelEdit:        undefined;
   ReelShare:       undefined;
   ReelAddCover:    undefined;
+  EventRegistrationRequests: { eventId: string; title: string };
+  ViewRegistrationForm: { eventId: string; registrationId: string };
 };
 

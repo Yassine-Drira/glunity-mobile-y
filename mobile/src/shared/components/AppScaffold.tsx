@@ -54,7 +54,7 @@ export function AppScaffold({
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const bottomPadding = 60 + Math.max(insets.bottom, 12);
+  const bottomPadding = showBottomNav ? (60 + Math.max(insets.bottom, 12)) : 0;
 
   const handleHome = onPressHome || (() => navigation.navigate('Home'));
   const handleEvents = onPressEvents || (() => navigation.navigate('Events'));

@@ -10,6 +10,7 @@ import RecipesScreen     from '../modules/recipes/ui/screens/RecipesScreen';
 import RecipeDetailScreen from '../modules/recipes/ui/screens/RecipeDetailScreen';
 import recipesApi from '../modules/recipes/api/recipes.api';
 import { useAuth } from '../modules/auth/state/auth.context';
+import { useSocket } from '../shared/context/socket.context';
 import ProfileScreen     from '../modules/profile/ui/screens/ProfileScreen';
 import SettingsScreen    from '../modules/profile/ui/screens/SettingsScreen';
 import PrivacyScreen     from '../modules/profile/ui/screens/PrivacyScreen';
@@ -94,21 +95,31 @@ function HomeScreenContainer() {
   }, []);
 
   const [events, setEvents] = React.useState(homeScreenMockProps.events);
+  const { socket } = useSocket();
+
+  const fetchEvents = React.useCallback(async () => {
+    try {
+      const { items: list } = await eventsApi.list();
+      const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
+      setEvents(withHandlers);
+    } catch (err) {
+      // Keep mock events on error
+    }
+  }, [navigation]);
 
   React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { items: list } = await eventsApi.list();
-        if (!mounted) return;
-        const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
-        setEvents(withHandlers);
-      } catch (err) {
-        // Keep mock events on error
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
+    fetchEvents();
+  }, [fetchEvents]);
+
+  // Listen for registration updates and refresh events list
+  React.useEffect(() => {
+    if (!socket) return;
+    const onRegChange = () => {
+      fetchEvents();
+    };
+    socket.on('registration:change', onRegChange);
+    return () => { socket.off('registration:change', onRegChange); };
+  }, [socket, fetchEvents]);
 
   const handleProfileNavigation = () => {
     if (user?.profileType === 'pro_commerce') {
@@ -199,6 +210,16 @@ export function AppNavigator() {
       <Stack.Screen name="ReelEdit" component={EditScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ReelShare" component={ShareScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ReelAddCover" component={AddCoverScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen 
+        name="EventRegistrationRequests" 
+        component={require('../modules/events/ui/screens/EventRegistrationRequestsScreen').default} 
+        options={{ animation: 'slide_from_right' }} 
+      />
+      <Stack.Screen 
+        name="ViewRegistrationForm" 
+        component={require('../modules/events/ui/screens/ViewRegistrationFormScreen').default} 
+        options={{ animation: 'slide_from_bottom' }} 
+      />
     </Stack.Navigator>
   );
 }

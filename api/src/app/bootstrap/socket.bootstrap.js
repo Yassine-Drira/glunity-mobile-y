@@ -118,8 +118,76 @@ async function attachRedisAdapter(io) {
 	logger.info('[api:socket.io] Redis adapter attached successfully ✓');
 }
 
+const http = require('http');
+
+function propagateSocketEmit(room, event, payload) {
+	const body = JSON.stringify({ room, event, payload });
+	const msgServiceUrl = process.env.MSG_SERVICE_URL || 'http://localhost:5002';
+	
+	try {
+		const url = new URL(msgServiceUrl);
+		const req = http.request({
+			hostname: url.hostname,
+			port: url.port || 80,
+			path: '/api/internal/socket/emit',
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'Content-Length': Buffer.byteLength(body),
+			}
+		}, (res) => {
+			res.resume();
+		});
+		
+		req.on('error', (e) => {
+			console.warn('[SocketBridge] Failed to propagate socket event:', e.message);
+		});
+		
+		req.write(body);
+		req.end();
+	} catch (err) {
+		console.warn('[SocketBridge] Invalid MSG_SERVICE_URL or error:', err.message);
+	}
+}
+
 function getIO() {
-	return ioInstance;
+	if (!ioInstance) {
+		return {
+			to(room) {
+				return {
+					emit(event, payload) {
+						propagateSocketEmit(room, event, payload);
+					}
+				};
+			},
+			emit(event, payload) {
+				propagateSocketEmit(null, event, payload);
+			}
+		};
+	}
+
+	return new Proxy(ioInstance, {
+		get(target, prop) {
+			if (prop === 'to') {
+				return function (room) {
+					const originalRoom = target.to(room);
+					return {
+						emit(event, payload) {
+							originalRoom.emit(event, payload);
+							propagateSocketEmit(room, event, payload);
+						}
+					};
+				};
+			}
+			if (prop === 'emit') {
+				return function (event, payload) {
+					target.emit(event, payload);
+					propagateSocketEmit(null, event, payload);
+				};
+			}
+			return target[prop];
+		}
+	});
 }
 
 module.exports = {

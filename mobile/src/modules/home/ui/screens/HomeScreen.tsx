@@ -453,6 +453,16 @@ export function HomeScreen({
 
   const [homeEvents, setHomeEvents] = React.useState<GlunityEvent[]>(events || []);
 
+  const renderRecipeItem = React.useCallback(({ item }: { item: any }) => (
+    <HomeRecipeCard item={item} T={T} styles={styles} />
+  ), [T, styles]);
+
+  const renderEventItem = React.useCallback(({ item }: { item: GlunityEvent }) => (
+    <View style={[styles.eventCard, { marginRight: 12 }]}> 
+      <HomeEventCard event={item} onPress={item.onPress} />
+    </View>
+  ), [styles.eventCard]);
+
   const optimizedEvents = React.useMemo(
     () => homeEvents.map((item) => ({ ...item, imageUrl: optimizeUnsplashImage(item.imageUrl, 420, 320) })),
     [homeEvents],
@@ -706,9 +716,7 @@ export function HomeScreen({
             maxToRenderPerBatch={3}
             windowSize={5}
             removeClippedSubviews={Platform.OS !== 'web'}
-            renderItem={({ item }) => (
-              <HomeRecipeCard item={item} T={T} styles={styles} />
-            )}
+            renderItem={renderRecipeItem}
           />
         ) : (
           <View style={styles.emptyStateWrap}>
@@ -736,11 +744,7 @@ export function HomeScreen({
             maxToRenderPerBatch={2}
             windowSize={5}
             removeClippedSubviews={Platform.OS !== 'web'}
-            renderItem={({ item }) => (
-              <View style={[styles.eventCard, { marginRight: 12 }]}> 
-                <HomeEventCard event={item} onPress={item.onPress} />
-              </View>
-            )}
+            renderItem={renderEventItem}
           />
         ) : (
           <View style={styles.emptyStateWrap}>

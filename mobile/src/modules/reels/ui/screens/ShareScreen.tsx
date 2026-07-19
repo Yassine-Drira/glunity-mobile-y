@@ -200,7 +200,7 @@ export default function ShareScreen() {
 
 			// 3. Create Reel document in DB
 			setProgress('Saving reel metadata...');
-			
+
 			let coverToUpload = finalThumbnailUrl;
 
 			if (reelData.selectedCover) {
@@ -208,7 +208,7 @@ export default function ShareScreen() {
 				try {
 					const coverForm = new FormData();
 					const coverFilename = reelData.selectedCover.split('/').pop() || 'cover.jpg';
-					
+
 					if (Platform.OS === 'web' || (typeof reelData.selectedCover === 'string' && reelData.selectedCover.startsWith('blob:'))) {
 						const blobResp = await fetch(reelData.selectedCover);
 						const blob = await blobResp.blob();
@@ -239,7 +239,7 @@ export default function ShareScreen() {
 					console.warn('[Upload Cover] Failed, using generated thumbnail fallback:', coverErr);
 				}
 			}
-			
+
 			const createRes = await ReelsService.createReel({
 				videoUrl: finalVideoUrl,
 				thumbnailUrl: coverToUpload,
@@ -281,7 +281,7 @@ export default function ShareScreen() {
 			{/* Header */}
 			<View style={styles.header}>
 				<TouchableOpacity onPress={() => navigation.goBack()}>
-				<Ionicons name="close" size={28} color="#1A1A1A" />
+					<Ionicons name="close" size={28} color="#1A1A1A" />
 				</TouchableOpacity>
 				<Text style={styles.headerTitle}>Share Reel</Text>
 				<View style={{ width: 28 }} />

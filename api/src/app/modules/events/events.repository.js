@@ -1,6 +1,7 @@
 'use strict';
 
 const Event = require('../../../database/models/event.model');
+const Registration = require('../../../database/models/registration.model');
 
 const eventsRepository = {
 	async findMany({ search, type, limit = 50, skip = 0, includeUnpublished = false } = {}) {
@@ -18,8 +19,32 @@ const eventsRepository = {
 			{ $sort: { startsAt: 1 } },
 			{ $skip: skip },
 			{ $limit: limit },
-			{ $addFields: { attendeesCount: { $size: { $ifNull: ['$attendees', []] } } } },
-			{ $project: { attendees: 0 } },
+			{
+				$lookup: {
+					from: 'registrations',
+					let: { eventId: '$_id' },
+					pipeline: [
+						{
+							$match: {
+								$expr: {
+									$and: [
+										{ $eq: ['$eventId', '$$eventId'] },
+										{ $in: ['$status', ['WAITING_PAYMENT', 'waiting_payment', 'pending']] }
+									]
+								}
+							}
+						}
+					],
+					as: 'pendingRequests'
+				}
+			},
+			{
+				$addFields: {
+					attendeesCount: { $size: { $ifNull: ['$attendees', []] } },
+					pendingRequestsCount: { $size: '$pendingRequests' }
+				}
+			},
+			{ $project: { attendees: 0, pendingRequests: 0 } },
 		];
 
 		const [items, total] = await Promise.all([
@@ -29,8 +54,15 @@ const eventsRepository = {
 		return { items, total };
 	},
 
-	findById(id) {
-		return Event.findById(id).lean();
+	async findById(id) {
+		const doc = await Event.findById(id).lean();
+		if (doc) {
+			doc.pendingRequestsCount = await Registration.countDocuments({
+				eventId: id,
+				status: { $in: ['WAITING_PAYMENT', 'waiting_payment', 'pending'] }
+			});
+		}
+		return doc;
 	},
 
 	create(payload) {
