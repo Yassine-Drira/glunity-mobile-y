@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { AppStackParamList } from '../modules/auth/navigation/types';
 
 import HomeScreen        from '../modules/home/ui/screens/HomeScreen';
@@ -42,6 +42,23 @@ import CaptureScreen from '../modules/reels/ui/screens/CaptureScreen';
 import EditScreen from '../modules/reels/ui/screens/EditScreen';
 import ShareScreen from '../modules/reels/ui/screens/ShareScreen';
 import AddCoverScreen from '../modules/reels/ui/screens/AddCoverScreen';
+
+// ── Deep-link redirect screen ──────────────────────────────────────────────────
+// When the app receives https://myapp.com/reel/:reelId, React Navigation routes
+// it here. We immediately replace with ReelsFeed passing the autoOpenReelId so
+// the feed scrolls to and starts playing that reel.
+function ReelDetailScreen() {
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const { reelId } = route.params || {};
+
+  React.useEffect(() => {
+    // Replace so pressing Back doesn't return to the empty redirect screen
+    navigation.replace('ReelsFeed', { autoOpenReelId: reelId });
+  }, [reelId, navigation]);
+
+  return null;
+}
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -206,6 +223,8 @@ export function AppNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="PatientResources" component={PatientResourcesScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ReelsFeed" component={ReelsFeedScreen} options={{ animation: 'slide_from_bottom' }} />
+      {/* Deep-link entry point: /reel/:reelId navigates here then redirects to ReelsFeed */}
+      <Stack.Screen name="ReelDetail" component={ReelDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ReelCapture" component={CaptureScreen} options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen name="ReelEdit" component={EditScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="ReelShare" component={ShareScreen} options={{ animation: 'slide_from_right' }} />

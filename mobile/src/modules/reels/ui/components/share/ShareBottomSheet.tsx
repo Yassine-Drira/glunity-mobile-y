@@ -26,6 +26,7 @@ import { GroupList } from './GroupList';
 import { ChannelList } from './ChannelList';
 import { UserList } from './UserList';
 import { ShareItem } from './ShareItem';
+import { shareReel } from '../../../services/shareReel';
 
 interface ShareBottomSheetProps {
   isVisible: boolean;
@@ -346,6 +347,37 @@ export const ShareBottomSheet = React.memo(({
             onChangeQuery={setShareSearchQuery}
           />
 
+          {/* ── External Share Row ─────────────────────────────────────────────────
+           *  Opens the native iOS Share Sheet / Android Share Intent so the user
+           *  can share to WhatsApp, Instagram, Messenger, X, Telegram, etc.
+           *  Generates a canonical https://myapp.com/reel/{id} URL with OG preview.
+           * ─────────────────────────────────────────────────────────────────── */}
+          <TouchableOpacity
+            style={[styles.externalShareRow, { borderBottomColor: T.divider }]}
+            onPress={async () => {
+              if (!reel) return;
+              onClose();
+              // Small delay so bottom sheet closes before native share sheet pops
+              setTimeout(() => {
+                shareReel({
+                  reelId: reel.id || (reel as any)._id,
+                  caption: reel.caption,
+                  authorName: reel.author?.fullName,
+                });
+              }, 300);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.externalShareIcon}>
+              <Ionicons name="share-outline" size={20} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.externalShareTitle, { color: T.text }]}>Share to apps</Text>
+              <Text style={[styles.externalShareSubtitle, { color: T.textMuted }]}>WhatsApp, Instagram, Messenger…</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={T.textMuted} />
+          </TouchableOpacity>
+
           {/* Content Lists */}
           {loading ? (
             <ActivityIndicator size="large" color="#6DAE3F" style={styles.mainLoader} />
@@ -476,5 +508,30 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontWeight: '700',
     fontSize: 15,
+  },
+  // ── External Share Row ─────────────────────────────────────────────────────
+  externalShareRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  externalShareIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#6DAE3F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  externalShareTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  externalShareSubtitle: {
+    fontSize: 12,
   },
 });

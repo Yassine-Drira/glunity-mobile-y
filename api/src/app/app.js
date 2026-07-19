@@ -26,6 +26,7 @@ const channelsRoutes = require('./modules/channels/channels.routes');
 const patientResourcesRoutes = require('./modules/patient-resources/patient-resources.routes');
 const uploadsRoutes = require('./modules/uploads/uploads.routes');
 const reelsRoutes = require('./modules/reels/reels.routes');
+const reelPreviewRoutes = require('./modules/reels/reels.preview.routes');
 
 const app = express();
 
@@ -102,6 +103,20 @@ app.use('/uploads', (req, res, next) => {
   });
 });
 
+// ── Well-Known files (App Links / Universal Links verification) ──────────────
+// Serves /.well-known/assetlinks.json (Android) and
+// /.well-known/apple-app-site-association (iOS) as public static files.
+app.use(
+  '/.well-known',
+  express.static(path.join(__dirname, '..', '..', '..', '.well-known'), {
+    setHeaders(res, filePath) {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    },
+  })
+);
+
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) =>
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() }),
@@ -123,6 +138,11 @@ app.use('/api/conversations', channelsRoutes);
 app.use('/api/patient-resources', patientResourcesRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/reels', reelsRoutes);
+
+// ── Reel Preview (Open Graph / social share) ──────────────────────────────────
+// Public route: GET /reel/:id → returns server-rendered HTML with OG meta tags.
+// Must be mounted AFTER API routes so /api/... is never shadowed.
+app.use('/reel', reelPreviewRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {

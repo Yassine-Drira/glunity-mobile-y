@@ -44,6 +44,7 @@ export type AppStackParamList = {
   CreateGroup:     undefined;
   CreateChannel:   undefined;
   ReelsFeed:       { refresh?: boolean; autoOpenReelId?: string } | undefined;
+  ReelDetail:      { reelId: string };
   ReelCapture:     undefined;
   ReelEdit:        undefined;
   ReelShare:       undefined;

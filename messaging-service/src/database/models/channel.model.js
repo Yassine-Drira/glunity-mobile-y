@@ -113,7 +113,7 @@ channelSchema.index({ 'participants.userId': 1, type: 1 });
 channelSchema.index({ 'lastMessage.createdAt': -1 });
 
 /** Soft-delete filter (future). */
-channelSchema.index({ deletedAt: 1 }, { sparse: true });
+channelSchema.index({ deletedAt: 1 }, { sparse: true, name: 'deletedAt_sparse_1' });
 
 // ── Statics ───────────────────────────────────────────────────────────────────
 

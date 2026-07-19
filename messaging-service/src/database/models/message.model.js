@@ -120,7 +120,7 @@ messageSchema.index({ channelId: 1, createdAt: -1, _id: -1 });
  * Allows the driver to use a partial index scan when filtering out deleted
  * messages. The sparse flag keeps it small (only documents with deletedAt ≠ null).
  */
-messageSchema.index({ deletedAt: 1 }, { sparse: true });
+messageSchema.index({ deletedAt: 1 }, { sparse: true, name: 'deletedAt_sparse_1' });
 
 /**
  * PINNED MESSAGES LOOKUP
