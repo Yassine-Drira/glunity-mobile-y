@@ -17,6 +17,7 @@ import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import FastImage from "@/shared/components/FastImageWrapper";
 import EventCard from '@/modules/events/components/EventCard';
 import HomeEventCard from '../../components/HomeEventCard';
+import { HomeEventCardSkeleton } from '@/shared/components/SkeletonLoader';
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../theme/colors";
 import { homeScreenText } from "../../state/homeData";
@@ -62,6 +63,7 @@ export function HomeScreen({
   recipes,
   onPressRecipesSeeAll,
   events,
+  isLoadingEvents = false,
   onPressEventsSeeAll,
   onPressProfilePhoto,
   onPressNavHome,
@@ -451,8 +453,6 @@ export function HomeScreen({
     [recipes],
   );
 
-  const [homeEvents, setHomeEvents] = React.useState<GlunityEvent[]>(events || []);
-
   const renderRecipeItem = React.useCallback(({ item }: { item: any }) => (
     <HomeRecipeCard item={item} T={T} styles={styles} />
   ), [T, styles]);
@@ -464,25 +464,9 @@ export function HomeScreen({
   ), [styles.eventCard]);
 
   const optimizedEvents = React.useMemo(
-    () => homeEvents.map((item) => ({ ...item, imageUrl: optimizeUnsplashImage(item.imageUrl, 420, 320) })),
-    [homeEvents],
+    () => (events || []).map((item) => ({ ...item, imageUrl: optimizeUnsplashImage(item.imageUrl, 420, 320) })),
+    [events],
   );
-
-
-  React.useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const { items: list } = await eventsApi.list();
-        if (!mounted) return;
-        const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
-        setHomeEvents(withHandlers);
-      } catch (err) {
-        // failed to fetch events; keep existing homeEvents
-      }
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   React.useEffect(() => {
     Animated.loop(
@@ -733,7 +717,16 @@ export function HomeScreen({
           </TouchableOpacity>
         </View>
 
-        {filteredEvents.length > 0 ? (
+        {isLoadingEvents ? (
+          <FlatList
+            horizontal
+            data={[{ id: 'sk-1' }, { id: 'sk-2' }, { id: 'sk-3' }]}
+            keyExtractor={(item) => item.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.eventsList}
+            renderItem={() => <HomeEventCardSkeleton />}
+          />
+        ) : filteredEvents.length > 0 ? (
           <FlatList
             horizontal
             data={filteredEvents}

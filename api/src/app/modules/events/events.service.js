@@ -33,6 +33,35 @@ function clearCache() {
 	listCache.clear();
 }
 
+const cloudinaryClient = require('../../integrations/cloudinary/cloudinary.client');
+
+function parseBase64DataUri(dataUri) {
+	if (!dataUri || typeof dataUri !== 'string' || !dataUri.startsWith('data:')) return null;
+	const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+	if (!match) return null;
+	return {
+		mimetype: match[1],
+		base64Data: match[2]
+	};
+}
+
+async function uploadBase64IfPresent(url) {
+	const parsed = parseBase64DataUri(url);
+	if (!parsed) return url;
+	try {
+		const buffer = Buffer.from(parsed.base64Data, 'base64');
+		const uploadRes = await cloudinaryClient.uploadBuffer(buffer, {
+			resource_type: 'image',
+			mimetype: parsed.mimetype,
+			folder: 'events'
+		});
+		return uploadRes.secure_url || uploadRes.url;
+	} catch (err) {
+		console.error('[events.service] Failed to upload base64 image:', err);
+		return url;
+	}
+}
+
 const eventsService = {
 	async list(query) {
 		const cached = getCachedList(query);
@@ -51,12 +80,24 @@ const eventsService = {
 	},
 
 	async create(payload, userId) {
+		if (payload && payload.imageUrl) {
+			payload.imageUrl = await uploadBase64IfPresent(payload.imageUrl);
+		}
+		if (payload && payload.images && payload.images.length > 0) {
+			for (let i = 0; i < payload.images.length; i++) {
+				if (payload.images[i] && payload.images[i].url) {
+					payload.images[i].url = await uploadBase64IfPresent(payload.images[i].url);
+				}
+			}
+		}
+
 		// Normalize incoming imageUrl into images array so the mapper can read images[0].url
 		const images = [];
 		if (payload && payload.imageUrl) images.push({ url: payload.imageUrl });
 		const createPayload = { ...payload, images: images.length ? images : payload.images || undefined, createdBy: userId || undefined };
 		const doc = await repo.create(createPayload);
 		const eventObj = doc.toObject();
+
 
 		// Dispatch notification to other users in background
 		(async () => {

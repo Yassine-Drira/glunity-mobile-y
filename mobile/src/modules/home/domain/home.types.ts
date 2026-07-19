@@ -56,6 +56,7 @@ export interface HomeScreenProps {
   recipes: Recipe[];
   onPressRecipesSeeAll: () => void;
   events: GlunityEvent[];
+  isLoadingEvents?: boolean;
   onPressEventsSeeAll: () => void;
   onPressNavHome?: () => void;
   onPressNavEvents?: () => void;

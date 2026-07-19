@@ -153,3 +153,37 @@ export function EventCardSkeleton() {
   );
 }
 
+export function HomeEventCardSkeleton() {
+  const { theme: T } = useTheme();
+  return (
+    <View
+      style={{
+        width: 260,
+        borderRadius: 14,
+        overflow: 'hidden',
+        backgroundColor: T.surface,
+        borderWidth: 1,
+        borderColor: T.border,
+        marginRight: 12,
+        minHeight: 230,
+      }}
+    >
+      <SkeletonLoader width="100%" height={128} borderRadius={0} />
+      <View style={{ paddingHorizontal: 10, paddingVertical: 10, gap: 8, flex: 1, justifyContent: 'space-between' }}>
+        <SkeletonLoader width="80%" height={14} borderRadius={4} />
+        <View style={{ gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <SkeletonLoader width={12} height={12} borderRadius={6} />
+            <SkeletonLoader width="60%" height={11} borderRadius={4} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <SkeletonLoader width={12} height={12} borderRadius={6} />
+            <SkeletonLoader width="70%" height={11} borderRadius={4} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+

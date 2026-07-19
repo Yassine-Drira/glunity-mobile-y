@@ -95,15 +95,19 @@ function HomeScreenContainer() {
   }, []);
 
   const [events, setEvents] = React.useState(homeScreenMockProps.events);
+  const [isLoadingEvents, setIsLoadingEvents] = React.useState(true);
   const { socket } = useSocket();
 
   const fetchEvents = React.useCallback(async () => {
     try {
+      setIsLoadingEvents(true);
       const { items: list } = await eventsApi.list();
       const withHandlers = list.map(ev => ({ ...ev, onPress: () => navigation.navigate('EventDetail', { eventId: ev.id }) }));
       setEvents(withHandlers);
     } catch (err) {
       // Keep mock events on error
+    } finally {
+      setIsLoadingEvents(false);
     }
   }, [navigation]);
 
@@ -136,6 +140,7 @@ function HomeScreenContainer() {
       quickAccessItems={dynamicQuickAccessItems}
       recipes={recipes}
       events={events}
+      isLoadingEvents={isLoadingEvents}
       onPressRecipesSeeAll={() => navigation.navigate('Recipes')}
       onPressEventsSeeAll={() => navigation.navigate('Events')}
       onPressProfilePhoto={handleProfileNavigation}

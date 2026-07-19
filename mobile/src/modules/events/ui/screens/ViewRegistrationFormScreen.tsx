@@ -92,16 +92,6 @@ export default function ViewRegistrationFormScreen({ route, navigation }: any) {
       const result = await eventsApi.confirmRegistration(eventId, registrationId);
       console.log('[PAYMENT] Success response:', result);
       Alert.alert(t('Success'), t('Payment confirmed successfully.'));
-      
-      try {
-        navigation.navigate({
-          name: 'EventRegistrationRequests',
-          params: { statusChanged: true },
-          merge: true,
-        } as any);
-      } catch (navErr) {
-        console.warn('[NAVIGATION] Failed to update parent screen stateChanged param:', navErr);
-      }
 
       fetchDetails(true);
     } catch (err: any) {
@@ -154,7 +144,7 @@ export default function ViewRegistrationFormScreen({ route, navigation }: any) {
   
   // Format registration date
   const regDate = registration.createdAt ? new Date(registration.createdAt).toLocaleDateString() : '-';
-
+ 
   return (
     <AppScaffold
       title={t('Registration Details')}
@@ -187,56 +177,56 @@ export default function ViewRegistrationFormScreen({ route, navigation }: any) {
             {form.firstName || registration.fullName} {form.lastName || ''}
           </Text>
         </View>
-
+ 
         {/* Detailed Fields List */}
         <View style={[s.infoContainer, { backgroundColor: T.surface, borderColor: T.border }]}>
           <Text style={[s.sectionTitle, { color: T.text }]}>{t('Registration Information')}</Text>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('First Name')}</Text>
             <Text style={[s.value, { color: T.text }]}>{form.firstName || '-'}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Last Name')}</Text>
             <Text style={[s.value, { color: T.text }]}>{form.lastName || '-'}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Phone Number')}</Text>
             <Text style={[s.value, { color: T.text }]}>{form.phone || registration.phone || '-'}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Email Address')}</Text>
             <Text style={[s.value, { color: T.text }]}>{form.email || registration.email || '-'}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Gender')}</Text>
             <Text style={[s.value, { color: T.text }]}>{t(form.gender || 'Male')}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Address')}</Text>
             <Text style={[s.value, { color: T.text }]}>{form.address || '-'}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('City')}</Text>
             <Text style={[s.value, { color: T.text }]}>{form.city || '-'}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Country')}</Text>
             <Text style={[s.value, { color: T.text }]}>{form.country || '-'}</Text>
           </View>
-
+ 
           <View style={[s.infoRow, { borderBottomColor: T.border }]}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Registration Date')}</Text>
             <Text style={[s.value, { color: T.text }]}>{regDate}</Text>
           </View>
-
+ 
           <View style={s.infoRow}>
             <Text style={[s.label, { color: T.textMuted }]}>{t('Current Status')}</Text>
             <Text style={[
@@ -245,7 +235,7 @@ export default function ViewRegistrationFormScreen({ route, navigation }: any) {
                 fontWeight: '700',
                 color: isPending 
                   ? T.textSub 
-                  : (registration.status === 'APPROVED' || registration.status === 'confirmed' ? T.green : T.red)
+                  : (['APPROVED', 'CONFIRMED', 'PAID'].includes(normalizedStatus) ? T.green : T.red)
               }
             ]}>
               {t(registration.status?.toUpperCase().replace('_', ' '))}

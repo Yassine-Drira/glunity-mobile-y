@@ -96,6 +96,7 @@ const registrationSchema = new Schema(
 );
 
 registrationSchema.index({ eventId: 1, phone: 1 });
+registrationSchema.index({ eventId: 1, status: 1 });
 
 // Backward compatibility pre-save hook
 registrationSchema.pre('validate', function() {
