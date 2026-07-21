@@ -153,10 +153,11 @@ export default function RegisterMethodsScreen({ navigation }: Props) {
     },
     flex: {
       flex: 1,
+      marginBottom: 140,
     },
     scroll: {
       flexGrow: 1,
-      paddingBottom: 160,
+      paddingBottom: 24,
     },
     header: {
       flexDirection: 'row',
@@ -288,6 +289,7 @@ export default function RegisterMethodsScreen({ navigation }: Props) {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        scrollEnabled={false}
       >
         {/* Top Header */}
         <View style={styles.header}>
