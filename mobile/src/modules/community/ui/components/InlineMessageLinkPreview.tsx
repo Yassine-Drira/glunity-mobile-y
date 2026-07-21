@@ -113,7 +113,7 @@ export default React.memo(function InlineMessageLinkPreview({
     const skBar = (w: number | string, h = 9) => (
       <Animated.View
         style={{
-          width: w,
+          width: w as any,
           height: h,
           borderRadius: 5,
           backgroundColor: isMe ? 'rgba(255,255,255,0.25)' : T.border,

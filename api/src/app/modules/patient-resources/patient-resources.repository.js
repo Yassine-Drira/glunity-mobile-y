@@ -23,12 +23,28 @@ const patientResourcesRepository = {
       .lean();
   },
 
-  findById(id) {
-    return PatientResource.findById(id).lean();
+  async findById(id) {
+    const item = await PatientResource.findById(id);
+    if (item) {
+      await PatientResource.findByIdAndUpdate(id, { $inc: { viewsCount: 1 } });
+    }
+    return item ? item.toObject() : null;
+  },
+
+  incrementClick(id) {
+    return PatientResource.findByIdAndUpdate(id, { $inc: { clicksCount: 1 } }, { new: true }).lean();
   },
 
   create(payload) {
     return PatientResource.create(payload);
+  },
+
+  update(id, payload) {
+    return PatientResource.findByIdAndUpdate(id, payload, { new: true }).lean();
+  },
+
+  delete(id) {
+    return PatientResource.findByIdAndDelete(id);
   },
 
   // ── Videos ──────────────────────────────────────────────────────────────────

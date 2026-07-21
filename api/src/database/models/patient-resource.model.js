@@ -9,6 +9,12 @@ const RESOURCE_CATEGORIES = ['celiac-disease', 'diet-basics', 'safe-foods', 'lif
 // ── Patient Resource (Article) ─────────────────────────────────────────────────
 const patientResourceSchema = new Schema(
   {
+    type: {
+      type: String,
+      enum: ['article', 'document', 'video'],
+      default: 'article',
+      index: true,
+    },
     title: {
       type: String,
       required: [true, 'Title is required'],
@@ -23,7 +29,15 @@ const patientResourceSchema = new Schema(
     },
     body: {
       type: String,
-      required: [true, 'Body content is required'],
+      default: '',
+    },
+    fileUrl: {
+      type: String,
+      default: null,
+    },
+    videoUrl: {
+      type: String,
+      default: null,
     },
     category: {
       type: String,
@@ -41,7 +55,7 @@ const patientResourceSchema = new Schema(
     },
     readMinutes: {
       type: Number,
-      required: true,
+      default: 5,
       min: [1, 'readMinutes must be at least 1'],
     },
     isFeatured: {
@@ -63,6 +77,14 @@ const patientResourceSchema = new Schema(
       default: true,
       index: true,
     },
+    viewsCount: {
+      type: Number,
+      default: 0,
+    },
+    clicksCount: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
@@ -75,6 +97,7 @@ const patientResourceSchema = new Schema(
 // ── Video Session ──────────────────────────────────────────────────────────────
 const resourceVideoSchema = new Schema(
   {
+    type: { type: String, default: 'video', index: true },
     title: { type: String, required: true, trim: true },
     presenter: { type: String, trim: true, default: '' },
     thumbnailUrl: { type: String, required: true },
@@ -86,6 +109,8 @@ const resourceVideoSchema = new Schema(
       index: true,
     },
     isPublished: { type: Boolean, default: true, index: true },
+    viewsCount: { type: Number, default: 0 },
+    clicksCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,

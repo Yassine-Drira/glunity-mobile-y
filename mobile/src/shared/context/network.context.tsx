@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
 
 interface NetworkContextValue {
@@ -27,7 +26,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    const unsubscribe = NetInfo.addEventListener((state) => {
+    const NetInfo = require('@react-native-community/netinfo');
+    const unsubscribe = NetInfo.addEventListener((state: any) => {
       setIsOnline(state.isConnected !== false);
     });
 

@@ -130,6 +130,11 @@ const patientResourcesService = {
     }
     return item;
   },
+
+  async recordClick(id) {
+    const updated = await repository.incrementClick(id);
+    return updated;
+  },
 };
 
 module.exports = patientResourcesService;

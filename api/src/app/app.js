@@ -123,8 +123,12 @@ app.get('/health', (_req, res) =>
 );
 
 // ── API Routes ────────────────────────────────────────────────────────────────
+const adminRoutes = require('./modules/admin/admin.routes');
+
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/users', usersRoutes);
+
 app.use('/api/recipes', recipesRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/locations', locationsRoutes);

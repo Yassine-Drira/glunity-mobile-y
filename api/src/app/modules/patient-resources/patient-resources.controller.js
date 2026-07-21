@@ -25,6 +25,12 @@ const patientResourcesController = {
     const item = await service.getById(req.params.id);
     res.status(200).json({ success: true, data: mapper.toArticleResponse(item) });
   }),
+
+  // POST /api/patient-resources/:id/click
+  recordClick: asyncHandler(async (req, res) => {
+    const updated = await service.recordClick(req.params.id);
+    res.status(200).json({ success: true, data: updated });
+  }),
 };
 
 module.exports = patientResourcesController;

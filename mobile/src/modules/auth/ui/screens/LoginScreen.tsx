@@ -164,11 +164,11 @@ export default function LoginScreen({ navigation, route }: Props) {
 
   const styles = React.useMemo(() => StyleSheet.create({
     safe:  { flex: 1, backgroundColor: T.bg },
-    flex:  { flex: 1, marginBottom: 125 },
+    flex:  { flex: 1 },
     scroll: {
       flexGrow: 1,
       paddingHorizontal: 24,
-      paddingBottom: 24,
+      paddingBottom: 160,
       paddingTop: 12,
     },
 
@@ -396,7 +396,6 @@ export default function LoginScreen({ navigation, route }: Props) {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          scrollEnabled={false}
         >
           {/* Header */}
           <View style={styles.header}>
