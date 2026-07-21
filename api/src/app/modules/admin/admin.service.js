@@ -80,9 +80,9 @@ class AdminService {
       User.countDocuments({ profileType: 'pro_health' }),
       User.countDocuments({ profileType: 'pro_commerce', 'storeInfo.isVerified': true }),
       User.countDocuments({ profileType: 'pro_commerce', $or: [{ 'storeInfo.isVerified': false }, { 'storeInfo.isVerified': { $exists: false } }, { isSellerVerified: false }] }),
-      Product.countDocuments({ $or: [{ status: 'pending' }, { isApproved: false }] }).catch(() => 0),
+      Product.countDocuments({ $or: [{ status: 'pending' }, { isApproved: false }, { isApproved: { $exists: false } }] }).catch(() => 0),
       Event.countDocuments({ $or: [{ status: 'pending' }, { isApproved: false }] }).catch(() => 0),
-      Recipe.countDocuments({ $or: [{ status: 'pending' }, { isApproved: false }] }).catch(() => 0),
+      Recipe.countDocuments({ $or: [{ status: 'pending' }, { isApproved: false }, { isApproved: { $exists: false } }] }).catch(() => 0),
       Reel.countDocuments({ status: { $in: ['processing', 'pending'] } }).catch(() => 0),
       Product.countDocuments({ $or: [{ status: 'approved' }, { isApproved: true }] }).catch(() => 0),
       Event.countDocuments({ $or: [{ status: 'active' }, { isApproved: true }] }).catch(() => 0),
@@ -469,7 +469,7 @@ class AdminService {
     const queries = [];
     
     if (type === 'all' || type === 'products') {
-      queries.push(Product.find({ $or: [{ status: 'pending' }, { isApproved: false }] }).lean().then(docs => docs.map(d => ({
+      queries.push(Product.find({ $or: [{ status: 'pending' }, { isApproved: false }, { isApproved: { $exists: false } }] }).lean().then(docs => docs.map(d => ({
         id: d._id.toString(), title: d.name || 'Produit Sans Titre', type: 'product', authorOrSeller: d.brand || 'Inconnu', date: d.createdAt, price: d.price ? `${d.price} €` : undefined
       }))));
     }
@@ -479,7 +479,7 @@ class AdminService {
       }))));
     }
     if (type === 'all' || type === 'recipes') {
-      queries.push(Recipe.find({ $or: [{ status: 'pending' }, { isApproved: false }] }).lean().then(docs => docs.map(d => ({
+      queries.push(Recipe.find({ $or: [{ status: 'pending' }, { isApproved: false }, { isApproved: { $exists: false } }] }).lean().then(docs => docs.map(d => ({
         id: d._id.toString(), title: d.title || 'Recette', type: 'recipe', authorOrSeller: d.authorName || 'Inconnu', date: d.createdAt
       }))));
     }
