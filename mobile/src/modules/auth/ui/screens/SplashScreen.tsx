@@ -127,7 +127,7 @@ export default function SplashScreen({ navigation }: Props) {
         {/* Seamless circular container for Logo matching image background */}
         <View style={styles.logoContainer}>
           <Image
-            source={require('../../../../../assets/Logo/image 1.png')}
+            source={require('../../../../../assets/Logo/official_logo.png')}
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -196,10 +196,10 @@ const styles = StyleSheet.create({
     marginTop: -height * 0.08, // Elevated higher on the y-axis, centered horizontally
   },
   logoContainer: {
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: '#FAF8F5', // Matches the logo image background color exactly
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: '#FFFFFF', // Pure white badge background for official logo
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
@@ -220,9 +220,8 @@ const styles = StyleSheet.create({
     }),
   },
   logoImage: {
-    width: '90%',
-    height: '90%',
-    backgroundColor: '#FAF8F5', // Ensures zero boundary mismatch
+    width: '85%',
+    height: '85%',
   },
   subtitle: {
     fontWeight: '600',

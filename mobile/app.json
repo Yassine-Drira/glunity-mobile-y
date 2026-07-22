@@ -4,6 +4,15 @@
     "slug": "glunity-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#8BC34A"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "plugins": [
       "expo-secure-store",
       "expo-font",
@@ -20,6 +29,10 @@
     ],
     "android": {
       "package": "com.islemhammami.glunitymobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#8BC34A"
+      },
       "intentFilters": [
         {
           "action": "VIEW",

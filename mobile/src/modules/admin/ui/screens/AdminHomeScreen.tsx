@@ -24,9 +24,11 @@ import { DauWauMau } from '../components/DauWauMau';
 import { RegistrationInsights } from '../components/RegistrationInsights';
 import { AdminSettingsModal } from '../components/AdminSettingsModal';
 
+import { useNavigation } from '@react-navigation/native';
 import { useLanguage } from '../../../../shared/context/language.context';
 
 export function AdminHomeScreen({ navigation }: any) {
+  const rootNavigation = useNavigation<any>();
   const { width } = useWindowDimensions();
   const { theme: T, isDark, setDark } = useTheme();
   const { user, logout } = useAuth();
@@ -337,6 +339,10 @@ export function AdminHomeScreen({ navigation }: any) {
         isDark={isDark}
         setDark={setDark}
         logout={logout}
+        onNavigateUserSpace={() => {
+          setSettingsModalVisible(false);
+          rootNavigation.navigate('Home');
+        }}
         user={user}
       />
 

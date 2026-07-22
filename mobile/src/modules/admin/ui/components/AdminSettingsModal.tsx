@@ -11,6 +11,7 @@ interface AdminSettingsModalProps {
   isDark: boolean;
   setDark: (val: boolean) => void;
   logout: () => void;
+  onNavigateUserSpace?: () => void;
   user?: any;
 }
 
@@ -20,6 +21,7 @@ export function AdminSettingsModal({
   isDark,
   setDark,
   logout,
+  onNavigateUserSpace,
   user,
 }: AdminSettingsModalProps) {
   const { theme: T } = useTheme();
@@ -30,8 +32,9 @@ export function AdminSettingsModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable
+      <View style={styles.backdrop}>
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
+        <View
           style={[
             styles.menuCard,
             {
@@ -39,7 +42,6 @@ export function AdminSettingsModal({
               borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
             },
           ]}
-          onPress={(e) => e.stopPropagation()}
         >
           {/* Menu Header */}
           <View style={styles.cardHeader}>
@@ -60,6 +62,53 @@ export function AdminSettingsModal({
               <Feather name="x" size={16} color={T.textMuted} />
             </TouchableOpacity>
           </View>
+
+          <View style={styles.divider} />
+
+          {/* Mode Application Switcher */}
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: isDark ? 'rgba(139, 195, 74, 0.14)' : 'rgba(139, 195, 74, 0.08)',
+              borderWidth: 1.5,
+              borderColor: 'rgba(139, 195, 74, 0.35)',
+              borderRadius: 14,
+              paddingVertical: 10,
+              paddingHorizontal: 12,
+              marginVertical: 4,
+            }}
+            activeOpacity={0.8}
+            onPress={() => {
+              onClose();
+              if (onNavigateUserSpace) {
+                onNavigateUserSpace();
+              }
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: primaryGreen,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Feather name="smartphone" size={16} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontFamily: Font.bold, fontWeight: '700', color: T.text }}>
+                  {t('Mode Application', 'Mode Application')}
+                </Text>
+                <Text style={{ fontSize: 10, fontFamily: Font.regular, color: T.textMuted }}>
+                  {t('Voir l\'application côté utilisateur', 'Voir l\'application côté utilisateur')}
+                </Text>
+              </View>
+            </View>
+            <Feather name="chevron-right" size={16} color={primaryGreen} />
+          </TouchableOpacity>
 
           <View style={styles.divider} />
 
@@ -150,8 +199,8 @@ export function AdminSettingsModal({
             <Feather name="log-out" size={16} color={Colors.primaryRed} />
             <Text style={styles.logoutText}>Déconnexion Administrateur</Text>
           </TouchableOpacity>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

@@ -32,6 +32,8 @@ function toLocationDto(doc) {
       average: Number(doc.rating?.average || 0),
       count: Number(doc.rating?.count || 0),
     },
+    createdBy: doc.createdBy ? String(doc.createdBy) : undefined,
+    establishmentId: doc.establishmentId ? String(doc.establishmentId) : undefined,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };

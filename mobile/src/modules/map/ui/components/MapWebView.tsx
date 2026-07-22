@@ -89,22 +89,84 @@ function buildHtml(greenColor: string, icons: Record<string, string>): string {
     var layer=L.layerGroup().addTo(map);
     /* Use provided PNG icons for markers. icons is an object mapping category->url */
     function iconFor(c){
-      var url = (icons && icons[c]) || (icons && icons['other']) || '';
-      // send back a small diagnostics message when an icon is requested (helps native debugging)
-      try{ if(window.ReactNativeWebView&&window.ReactNativeWebView.postMessage){window.ReactNativeWebView.postMessage(JSON.stringify({type:'iconRequest',payload:{category:c,url:url}}));} }catch(e){}
-      return '<img src="'+url+'" style="width:56px;height:56px;object-fit:contain;display:block;background:transparent;border-radius:0;"/>';
+      var normCat = (c || 'other').toString().toLowerCase().trim();
+      var url = '';
+      if (normCat.includes('restaurant')) {
+        url = (icons && icons['restaurant']) || '';
+      } else if (normCat.includes('bakery') || normCat.includes('boulangerie') || normCat.includes('supermarket') || normCat.includes('supermarché') || normCat.includes('grocery')) {
+        url = (icons && icons['bakery']) || (icons && icons['supermarket']) || '';
+      } else if (normCat.includes('health') || normCat.includes('santé')) {
+        url = (icons && icons['health store']) || '';
+      } else if (normCat.includes('bio') || normCat.includes('coffee') || normCat.includes('café')) {
+        url = (icons && icons['bio store']) || '';
+      } else if (normCat.includes('pharmacy') || normCat.includes('pharmacie')) {
+        url = (icons && icons['pharmacy']) || '';
+      } else {
+        url = (icons && icons[normCat]) || (icons && icons['other']) || '';
+      }
+      return '<img src="'+url+'" style="width:52px;height:52px;object-fit:contain;display:block;background:transparent;border-radius:0;"/>';
     }
     function send(t,p){var m=JSON.stringify({type:t,payload:p});if(window.ReactNativeWebView&&window.ReactNativeWebView.postMessage){window.ReactNativeWebView.postMessage(m);}else if(window.parent&&window.parent!==window){window.parent.postMessage(m,'*');}}
-    function separate(items){var g={};items.forEach(function(it){var k=Math.round(it.lat*100000)+'|'+Math.round(it.lng*100000);(g[k]=g[k]||[]).push(it);});var out=[];Object.keys(g).forEach(function(k){var gr=g[k];if(gr.length===1){out.push(gr[0]);return;}gr.forEach(function(it,i){var a=(i/gr.length)*Math.PI*2,r=0.00014*(1+Math.floor(i/2));out.push(Object.assign({},it,{lat:it.lat+Math.cos(a)*r,lng:it.lng+Math.sin(a)*r}));});});return out;}
-    function render(items){layer.clearLayers();if(!items||!items.length)return;separate(items).forEach(function(loc){var cat=loc.category||'other';var cls='gl-pin cat-'+cat+(loc.isFocus?' focus':'');var html='<div class="'+cls+'"><div class="pin-badge">'+iconFor(cat)+'</div><div class="pin-tail"></div></div>';var icon=L.divIcon({html:html,className:'',iconSize:[48,56],iconAnchor:[24,56]});var tags='';if(loc.glutenFree)tags+='<span class="gl-tag gl-gf">GF Friendly</span>';if(loc.certified)tags+='<span class="gl-tag gl-cert">Certified</span>';var imgHtml='';if(loc.images&&loc.images.length>0&&loc.images[0].url){imgHtml='<div style="margin-bottom:8px;border-radius:10px;overflow:hidden;height:90px;width:180px;"><img src="'+loc.images[0].url+'" style="width:100%;height:100%;object-fit:cover;" /></div>';}var popup=imgHtml+'<div class="gl-name">'+(loc.name||'')+'</div>'+(loc.address?'<div class="gl-addr">'+loc.address+'</div>':'')+(tags?'<div class="gl-tags">'+tags+'</div>':'');var m=L.marker([loc.lat,loc.lng],{icon:icon}).bindPopup(popup);m.on('click',function(ev){L.DomEvent.stopPropagation(ev);try{m.openPopup();}catch(e){}send('select',{id:loc.id});});layer.addLayer(m);});}
+    function separate(items){
+      var g={};
+      items.forEach(function(it){
+        var lat = Number(it.lat);
+        var lng = Number(it.lng);
+        if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
+        it.lat = lat;
+        it.lng = lng;
+        var k=Math.round(lat*100000)+'|'+Math.round(lng*100000);
+        (g[k]=g[k]||[]).push(it);
+      });
+      var out=[];
+      Object.keys(g).forEach(function(k){
+        var gr=g[k];
+        if(gr.length===1){out.push(gr[0]);return;}
+        gr.forEach(function(it,i){
+          var a=(i/gr.length)*Math.PI*2,r=0.00014*(1+Math.floor(i/2));
+          out.push(Object.assign({},it,{lat:it.lat+Math.cos(a)*r,lng:it.lng+Math.sin(a)*r}));
+        });
+      });
+      return out;
+    }
+    function render(items){
+      layer.clearLayers();
+      if(!items||!items.length)return;
+      separate(items).forEach(function(loc){
+        var lat = Number(loc.lat);
+        var lng = Number(loc.lng);
+        if (isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) return;
+        var cat=loc.category||'other';
+        var cls='gl-pin cat-'+cat+(loc.isFocus?' focus':'');
+        var html='<div class="'+cls+'"><div class="pin-badge">'+iconFor(cat)+'</div><div class="pin-tail"></div></div>';
+        var icon=L.divIcon({html:html,className:'',iconSize:[48,56],iconAnchor:[24,56]});
+        var tags='';
+        if(loc.glutenFree)tags+='<span class="gl-tag gl-gf">GF Friendly</span>';
+        if(loc.certified)tags+='<span class="gl-tag gl-cert">Certified</span>';
+        var imgHtml='';
+        if(loc.images&&loc.images.length>0&&loc.images[0].url){
+          imgHtml='<div style="margin-bottom:8px;border-radius:10px;overflow:hidden;height:90px;width:180px;"><img src="'+loc.images[0].url+'" style="width:100%;height:100%;object-fit:cover;" /></div>';
+        }
+        var popup=imgHtml+'<div class="gl-name">'+(loc.name||'')+'</div>'+(loc.address?'<div class="gl-addr">'+loc.address+'</div>':'')+(tags?'<div class="gl-tags">'+tags+'</div>':'');
+        var m=L.marker([lat,lng],{icon:icon}).bindPopup(popup);
+        m.on('click',function(ev){
+          L.DomEvent.stopPropagation(ev);
+          try{m.openPopup();}catch(e){}
+          send('select',{id:loc.id});
+        });
+        layer.addLayer(m);
+      });
+    }
     var userMarker=null,userCircle=null;
     function updateUserLocation(lat,lng){
-      if(!lat||!lng){
+      var nLat = Number(lat);
+      var nLng = Number(lng);
+      if(!nLat || !nLng || isNaN(nLat) || isNaN(nLng) || !isFinite(nLat) || !isFinite(nLng)){
         if(userMarker){map.removeLayer(userMarker);userMarker=null;}
         if(userCircle){map.removeLayer(userCircle);userCircle=null;}
         return;
       }
-      var pos=[lat,lng];
+      var pos=[nLat,nLng];
       if(userMarker){
         userMarker.setLatLng(pos);
       }else{
@@ -149,20 +211,25 @@ export const MapWebView = forwardRef<MapWebViewHandle, MapWebViewProps>(
       return '';
     };
 
-    const restaurantUri = getAssetUri(require('../../../../../assets/Pin/pin (1).png'));
-    const bakeryUri     = getAssetUri(require('../../../../../assets/Pin/pin (2).png'));
-    const otherUri      = getAssetUri(require('../../../../../assets/Pin/pin (5).png'));
-    const pharmacyUri   = getAssetUri(require('../../../../../assets/Pin/pin (6).png'));
-    const shopUri       = getAssetUri(require('../../../../../assets/Pin/pin (7).png'));
+    const restaurantUri      = getAssetUri(require('../../../../../assets/Pin/restaurant.png'));
+    const bakeryUri          = getAssetUri(require('../../../../../assets/Pin/bakery-or-grocery.png'));
+    const glutenFreeStoreUri = getAssetUri(require('../../../../../assets/Pin/gluten-free-store.png'));
+    const pharmacyUri        = getAssetUri(require('../../../../../assets/Pin/pharmacy.png'));
+    const coffeeUri          = getAssetUri(require('../../../../../assets/Pin/coffe.png'));
 
     const icons = useMemo(() => ({
       restaurant: restaurantUri,
       bakery: bakeryUri,
-      grocery: shopUri,
+      supermarket: bakeryUri,
+      grocery: bakeryUri,
+      'health store': glutenFreeStoreUri,
+      'healthstore': glutenFreeStoreUri,
+      'bio store': coffeeUri,
+      'biostore': coffeeUri,
       pharmacy: pharmacyUri,
-      other: otherUri,
-      cafe: restaurantUri,
-    }), [restaurantUri, bakeryUri, otherUri, pharmacyUri, shopUri]);
+      other: glutenFreeStoreUri,
+      cafe: coffeeUri,
+    }), [restaurantUri, bakeryUri, glutenFreeStoreUri, pharmacyUri, coffeeUri]);
 
     const html = useMemo(() => buildHtml(T.green, icons), [T.green, icons]);
     const webRef = useRef<WebView | null>(null);

@@ -24,9 +24,11 @@ async function connectDB() {
     try {
       const patientResourcesService = require('../modules/patient-resources/patient-resources.service');
       const channelsService = require('../modules/channels/channels.service');
+      const establishmentController = require('../modules/establishment/establishment.controller');
       await Promise.all([
         patientResourcesService.seedResourcesIfNeeded(),
         channelsService.seedChannelsIfNeeded(),
+        establishmentController.migrateLegacySellerEstablishments(),
       ]);
       logger.info('Database seeding checks completed successfully.');
     } catch (seedErr) {

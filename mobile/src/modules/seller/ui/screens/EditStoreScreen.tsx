@@ -26,6 +26,7 @@ import { useLanguage } from '@/shared/context/language.context';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import type { UpdateProfileDto } from '@/modules/auth/api/auth.api';
 import { MapWebView } from '@/modules/map/ui/components/MapWebView';
+import { upsertEstablishmentApi, EstablishmentCategory } from '../../api/establishment.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'EditStore'>;
 
@@ -347,28 +348,19 @@ export default function EditStoreScreen({ navigation, route }: Props) {
   const { language, setLanguage, t, isRTL } = useLanguage();
   const isSeller = user?.profileType === 'pro_commerce';
 
-  // Support changing the page language via route params
-  useEffect(() => {
-    const l = route.params?.lang;
-    if (l) {
-      const cleanLang = String(l).toLowerCase();
-      if (cleanLang === 'fr' && language !== 'fr') {
-        setLanguage('fr');
-      } else if ((cleanLang === 'ar' || cleanLang === 'arab') && language !== 'ar') {
-        setLanguage('ar');
-      } else if ((cleanLang === 'en' || cleanLang === 'eng') && language !== 'en') {
-        setLanguage('en');
-      }
-    }
-  }, [route.params?.lang, language]);
-
+  const paramStore = route?.params?.store;
+  const establishmentId = route?.params?.establishmentId || paramStore?._id;
   const storeInfo = user?.storeInfo || {};
-  const [storeName, setStoreName] = useState(storeInfo.storeName ?? '');
-  const [description, setDescription] = useState(storeInfo.description ?? '');
-  const [address, setAddress] = useState(storeInfo.address ?? '');
-  const [operatingHours, setOperatingHours] = useState(storeInfo.operatingHours ?? '');
-  const [phone, setPhone] = useState(storeInfo.phone ?? '');
-  const [imageUrl, setImageUrl] = useState(storeInfo.imageUrl ?? '');
+
+  const [storeName, setStoreName] = useState(paramStore?.name ?? storeInfo.storeName ?? '');
+  const [description, setDescription] = useState(paramStore?.description ?? storeInfo.description ?? '');
+  const [address, setAddress] = useState(paramStore?.address ?? storeInfo.address ?? '');
+  const [operatingHours, setOperatingHours] = useState(storeInfo.operatingHours ?? '08:00 - 19:00');
+  const [phone, setPhone] = useState(paramStore?.phone ?? storeInfo.phone ?? '');
+  const [imageUrl, setImageUrl] = useState(paramStore?.coverImageUrl ?? paramStore?.logoUrl ?? storeInfo.imageUrl ?? '');
+  const [category, setCategory] = useState<EstablishmentCategory>(paramStore?.category ?? 'Supermarket');
+  const [openTime, setOpenTime] = useState(paramStore?.openTime ?? '08:00');
+  const [closeTime, setCloseTime] = useState(paramStore?.closeTime ?? '19:00');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -376,29 +368,37 @@ export default function EditStoreScreen({ navigation, route }: Props) {
 
   // Map Picker State
   const [showMapPicker, setShowMapPicker] = useState(false);
-  const [pickedLocation, setPickedLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [pickedLocation, setPickedLocation] = useState<{lat: number, lng: number} | null>(
+    paramStore?.coordinates?.latitude && paramStore?.coordinates?.longitude
+      ? { lat: paramStore.coordinates.latitude, lng: paramStore.coordinates.longitude }
+      : null
+  );
 
   async function pickImage() {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
-      Alert.alert(t("Permission Denied ❌"), t("You must allow photo library access to upload a cover photo."));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.7,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets?.[0]) {
-      const asset = result.assets[0];
-      if (asset.base64) {
-        setImageUrl(`data:image/jpeg;base64,${asset.base64}`);
-      } else {
-        setImageUrl(asset.uri);
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permissionResult.granted === false) {
+        Alert.alert(t("Permission Denied ⚠️"), t("You must allow photo library access to upload a cover photo."));
+        return;
       }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        if (asset.base64) {
+          setImageUrl(`data:image/jpeg;base64,${asset.base64}`);
+        } else if (asset.uri) {
+          setImageUrl(asset.uri);
+        }
+      }
+    } catch (err: any) {
+      // quiet fallback
     }
   }
 
@@ -450,9 +450,25 @@ export default function EditStoreScreen({ navigation, route }: Props) {
         }
       };
       await updateProfile(dto);
+
+      // Save or update establishment in database for map markers and multi-store listing
+      await upsertEstablishmentApi({
+        id: establishmentId,
+        name: storeName.trim() || user?.fullName || 'Magasin Sans Gluten',
+        category,
+        description: description.trim(),
+        address: address.trim(),
+        phone: phone.trim(),
+        openTime,
+        closeTime,
+        latitude: pickedLocation?.lat ?? paramStore?.coordinates?.latitude ?? 36.8065,
+        longitude: pickedLocation?.lng ?? paramStore?.coordinates?.longitude ?? 10.1815,
+        coverImageUrl: imageUrl.trim(),
+      });
+
       openSuccess();
-    } catch {
-      setError(t('Failed to save store info. Please try again.'));
+    } catch (err: any) {
+      setError(err?.message || t('Failed to save store info. Please try again.'));
     } finally {
       setSaving(false);
     }
@@ -602,6 +618,60 @@ export default function EditStoreScreen({ navigation, route }: Props) {
             placeholder="Or paste a direct image URL..." 
             hint="You can either upload an image from your device or paste a web URL link"
           />
+
+          {/* Category Selector */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{
+              fontSize: 11, fontWeight: '700', fontFamily: 'Poppins_700Bold',
+              color: T.textMuted, marginBottom: 8, letterSpacing: 0.8,
+              textTransform: 'uppercase', textAlign: isRTL ? 'right' : 'left',
+            }}>
+              {t('Catégorie du magasin', 'Catégorie du magasin')}
+            </Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+              {[
+                { key: 'Supermarket', label: t('Supermarché', 'Supermarché'), icon: 'cart-outline' },
+                { key: 'Bakery', label: t('Boulangerie', 'Boulangerie'), icon: 'bread-slice-outline' },
+                { key: 'Restaurant', label: t('Restaurant', 'Restaurant'), icon: 'silverware-fork-knife' },
+                { key: 'Health Store', label: t('Magasin Santé', 'Magasin Santé'), icon: 'heart-pulse' },
+                { key: 'Bio Store', label: t('Magasin Bio', 'Magasin Bio'), icon: 'leaf' },
+                { key: 'Pharmacy', label: t('Pharmacie', 'Pharmacie'), icon: 'medical-bag' },
+              ].map((item) => {
+                const selected = category === item.key;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    activeOpacity={0.8}
+                    onPress={() => setCategory(item.key as EstablishmentCategory)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      paddingHorizontal: 14,
+                      paddingVertical: 9,
+                      borderRadius: 12,
+                      backgroundColor: selected ? T.green : T.surface,
+                      borderWidth: 1,
+                      borderColor: selected ? T.green : T.border,
+                    }}
+                  >
+                    <MaterialCommunityIcons name={item.icon as any} size={15} color={selected ? '#FFFFFF' : T.text} />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '600',
+                        fontFamily: 'Poppins_600SemiBold',
+                        color: selected ? '#FFFFFF' : T.text,
+                      }}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
 
           {/* ── Working Hours — Premium redesign ─────────────────────── */}
           <View style={{ marginBottom: 20 }}>

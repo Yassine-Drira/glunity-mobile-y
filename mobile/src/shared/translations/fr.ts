@@ -282,6 +282,7 @@ const fr = {
   'You actively manage your gluten-free lifestyle and inspire others.': 'Vous gérez activement votre mode de vie sans gluten et inspirez les autres.',
   'Daily Action': 'Action Quotidienne',
   'Daily Streak Active!': 'Série Quotidienne Active !',
+  'Daily Check-In Completed! 🔥': 'Validation quotidienne effectuée ! 🔥',
   'Claim Daily Points': 'Récupérer vos Points Quotidiens',
   'Streak:': 'Série :',
   days: 'jours',
@@ -792,6 +793,12 @@ const fr = {
   'Empowering the gluten-free community 🏆': 'Soutenir la communauté sans gluten 🏆',
   'Pro User': 'Utilisateur Pro',
   'Anonymous': 'Anonyme',
+  'My stores & establishments': 'Mes Magasins & Établissements',
+  'Customer orders & Sales': 'Commandes clients & Ventes',
+  'Mes Magasins & Établissements': 'Mes Magasins & Établissements',
+  'Commandes clients & Ventes': 'Commandes clients & Ventes',
+  'Consulter mes commandes passées': 'Consulter mes commandes passées',
+  'Gérer & Éditer le magasin': 'Gérer & Éditer le magasin',
 };
 
 export default fr;

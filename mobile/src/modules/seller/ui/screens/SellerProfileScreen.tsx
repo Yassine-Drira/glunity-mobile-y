@@ -12,6 +12,7 @@ import {
   Platform,
   useWindowDimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Radius } from '@/shared/utils/theme';
 import { Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
@@ -62,7 +63,16 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const screenWidth = Math.min(windowWidth, 600);
 
   const targetSellerId = route?.params?.sellerId;
-  const isOwnProfile = !targetSellerId || targetSellerId === user?._id;
+  const storeParam = route?.params?.store;
+  const effectiveSellerId = targetSellerId || (storeParam?.createdBy ? (typeof storeParam.createdBy === 'string' ? storeParam.createdBy : storeParam.createdBy._id) : undefined) || (storeParam?.owner ? (typeof storeParam.owner === 'string' ? storeParam.owner : storeParam.owner._id) : undefined);
+
+  // A profile is strictly own profile ONLY if effectiveSellerId matches user._id, OR if no target seller was requested AND route params didn't pass a store
+  const isOwnProfile = Boolean(
+    user?._id && (
+      (effectiveSellerId && String(effectiveSellerId) === String(user._id)) ||
+      (!targetSellerId && !storeParam)
+    )
+  );
 
   const [sellerDetails, setSellerDetails] = useState<AuthUser | null>(null);
   const [sellerLoading, setSellerLoading] = useState(false);
@@ -74,13 +84,17 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
   const [messagingLoading, setMessagingLoading] = useState(false);
 
   const handleMessageSeller = async () => {
-    if (messagingLoading || !targetSellerId) return;
+    const sellerId = effectiveSellerId;
+    if (messagingLoading || !sellerId) {
+      Alert.alert(t('Information', 'Information'), t('Impossible de contacter ce vendeur directement.', 'Impossible de contacter ce vendeur directement.'));
+      return;
+    }
     try {
       setMessagingLoading(true);
       
       const response = await http.post(
         `${API_BASE_URL}/channels/direct`,
-        { userId: targetSellerId }
+        { userId: sellerId }
       );
       
       if (response.data?.success && response.data?.data) {
@@ -931,13 +945,13 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           </View>
         ) : (
           <View style={s.actionGrid}>
-            {/* Edit Info Button */}
-            <TouchableOpacity
-              style={[s.actionButton, s.whiteButton]}
-              activeOpacity={0.7}
-              id="action-edit-info"
-              onPress={() => navigation.navigate('EditStore')}
-            >
+              {/* Edit Info Button */}
+              <TouchableOpacity
+                style={[s.actionButton, s.whiteButton]}
+                activeOpacity={0.7}
+                id="action-edit-info"
+                onPress={() => navigation.navigate('EditStore', { establishmentId: route?.params?.establishmentId, store: route?.params?.store })}
+              >
               <View style={s.actionIconContainer}>
                 <Feather name="edit-2" size={20} color={T.text} />
               </View>
@@ -983,7 +997,7 @@ export default function SellerProfileScreen({ navigation, route }: Props) {
           <Text style={s.sectionTitle}>{t('Bakery Menu')}</Text>
           <TouchableOpacity 
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('ProductsMarket', { sellerId: currentSeller?._id })}
+            onPress={() => navigation.navigate('ProductsMarket', { sellerId: effectiveSellerId || currentSeller?._id })}
             id="seller-menu-see-all"
           >
             <Text style={s.seeAllText}>{t('See all')}</Text>

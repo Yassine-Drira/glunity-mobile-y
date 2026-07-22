@@ -26,6 +26,7 @@ import { ReelsService, Reel } from '@/modules/reels/services/reels.service';
 import { TokenStore } from '@/core/storage/secure-store';
 import { Video, ResizeMode } from 'expo-av';
 import { Platform } from 'react-native';
+import { getMyEstablishmentsApi, Establishment } from '../../api/establishment.api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'SellerProProfile'>;
 
@@ -1079,6 +1080,30 @@ export default function SellerProProfileScreen({ navigation }: Props) {
 
         {/* ── Seller actions ── */}
         <View style={[s.menuStack, { marginTop: 20 }]}>
+          <TouchableOpacity style={s.menuRow} onPress={() => navigation.navigate('MyEstablishments')} id="pro-profile-edit-store-btn">
+            <View style={s.menuLeft}>
+              <View style={s.menuIconCircle}><Feather name="map-pin" size={17} color={T.red} /></View>
+              <Text style={s.menuLabel}>{t('My stores & establishments')}</Text>
+            </View>
+            <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={17} color={T.textMuted} />
+          </TouchableOpacity>
+          <View style={s.menuDivider} />
+          <TouchableOpacity style={s.menuRow} onPress={() => navigation.navigate('UserOrders')} id="pro-profile-orders-btn">
+            <View style={s.menuLeft}>
+              <View style={s.menuIconCircle}><Feather name="package" size={17} color={T.red} /></View>
+              <Text style={s.menuLabel}>{t('Customer orders & Sales')}</Text>
+            </View>
+            <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={17} color={T.textMuted} />
+          </TouchableOpacity>
+          <View style={s.menuDivider} />
+          <TouchableOpacity style={s.menuRow} onPress={() => navigation.navigate('CommunityChat')} id="pro-profile-messages-btn">
+            <View style={s.menuLeft}>
+              <View style={s.menuIconCircle}><Feather name="message-square" size={17} color={T.red} /></View>
+              <Text style={s.menuLabel}>{t('Client Messages & Community Inbox', 'Messages clients & Messagerie')}</Text>
+            </View>
+            <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={17} color={T.textMuted} />
+          </TouchableOpacity>
+          <View style={s.menuDivider} />
           <TouchableOpacity style={s.menuRow} onPress={() => navigation.navigate('ProductsMarket', { sellerId: user?._id })} id="pro-profile-products-btn">
             <View style={s.menuLeft}>
               <View style={s.menuIconCircle}><Feather name="shopping-bag" size={17} color={T.red} /></View>

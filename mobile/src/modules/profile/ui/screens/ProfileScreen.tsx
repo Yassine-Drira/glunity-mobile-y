@@ -101,6 +101,32 @@ export default function ProfileScreen({ navigation, route }: Props) {
   const targetUserId = route?.params?.userId;
   const isOwnProfile = !targetUserId || targetUserId === currentUser?._id;
 
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.profileType === 'admin';
+  const [isAdminModalOpen, setIsAdminModalOpen] = React.useState(false);
+  const [adminPassword, setAdminPassword] = React.useState('');
+  const [verifyingPassword, setVerifyingPassword] = React.useState(false);
+  const [passwordError, setPasswordError] = React.useState<string | null>(null);
+
+  const handleVerifyAdminPassword = async () => {
+    if (!adminPassword) {
+      setPasswordError(t('Veuillez saisir votre mot de passe.', 'Veuillez saisir votre mot de passe.'));
+      return;
+    }
+    try {
+      setVerifyingPassword(true);
+      setPasswordError(null);
+      await http.post('/auth/verify-password', { password: adminPassword });
+      setIsAdminModalOpen(false);
+      setAdminPassword('');
+      navigation.navigate('AdminSpace');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || t('Mot de passe incorrect.', 'Mot de passe incorrect.');
+      setPasswordError(msg);
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
+
   const [profileUser, setProfileUser] = React.useState<any>(null);
   const [loadingUser, setLoadingUser] = React.useState(false);
 
@@ -1431,6 +1457,51 @@ export default function ProfileScreen({ navigation, route }: Props) {
 
         {activeProfileTab === 'achievements' ? (
           <>
+            {/* Admin Workspace Return Banner (Visible only for admins) */}
+            {isAdmin && isOwnProfile && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  backgroundColor: T.surface,
+                  borderWidth: 1.5,
+                  borderColor: `${T.green}60`,
+                  borderRadius: 16,
+                  padding: 14,
+                  marginBottom: 16,
+                  gap: 12,
+                  boxShadow: '0px 2px 8px rgba(139, 195, 74, 0.15)',
+                  elevation: 3,
+                }}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setPasswordError(null);
+                  setAdminPassword('');
+                  setIsAdminModalOpen(true);
+                }}
+              >
+                <View style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 16,
+                  backgroundColor: T.green,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <MaterialCommunityIcons name="shield-crown" size={24} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', fontFamily: F.bold, color: T.text, textAlign: isRTL ? 'right' : 'left' }}>
+                    {t('Espace Administration', 'Espace Administration')}
+                  </Text>
+                  <Text style={{ fontSize: 11, fontFamily: F.regular, color: T.textMuted, textAlign: isRTL ? 'right' : 'left' }}>
+                    {t('Repasser en mode administrateur (Sécurisé)', 'Repasser en mode administrateur (Sécurisé)')}
+                  </Text>
+                </View>
+                <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={18} color={T.green} />
+              </TouchableOpacity>
+            )}
+
             <View style={s.sectionWrap}>
               <Text style={s.sectionLabel}>{t('Your Role')}</Text>
               <View style={s.card}>
@@ -1688,6 +1759,22 @@ export default function ProfileScreen({ navigation, route }: Props) {
 
         {isOwnProfile && (
           <View style={s.menuStack}>
+            <TouchableOpacity
+              style={s.menuRowCard}
+              onPress={() => navigation.navigate('UserOrders')}
+              id="profile-orders-btn"
+            >
+              <View style={s.menuLeft}>
+                <View style={s.menuIconCircle}>
+                  <Feather name="shopping-bag" size={18} color={T.green} />
+                </View>
+                <Text style={s.menuLabel}>{t('Mes commandes passées', 'Mes commandes passées')}</Text>
+              </View>
+              <Feather name={isRTL ? "chevron-left" : "chevron-right"} size={18} color={T.textMuted} />
+            </TouchableOpacity>
+
+            <View style={s.menuDivider} />
+
             <TouchableOpacity
               style={s.menuRowCard}
               onPress={() => navigation.navigate('Settings')}
@@ -2014,6 +2101,124 @@ export default function ProfileScreen({ navigation, route }: Props) {
           </View>
         </Modal>
       )}
+
+      {/* Admin Password Security Modal */}
+      <Modal
+        visible={isAdminModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsAdminModalOpen(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={{
+            backgroundColor: T.surface,
+            borderRadius: 20,
+            padding: 20,
+            width: '90%',
+            maxWidth: 400,
+            alignItems: 'center',
+            borderWidth: 1.5,
+            borderColor: T.border,
+          }}>
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: `${T.green}20`,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 12,
+            }}>
+              <Feather name="lock" size={24} color={T.green} />
+            </View>
+
+            <Text style={{ fontSize: 16, fontWeight: '700', fontFamily: F.bold, color: T.text, marginBottom: 4, textAlign: 'center' }}>
+              {t('Vérification de sécurité Admin', 'Vérification de sécurité Admin')}
+            </Text>
+            <Text style={{ fontSize: 12, fontFamily: F.regular, color: T.textMuted, marginBottom: 16, textAlign: 'center' }}>
+              {t('Veuillez saisir votre mot de passe pour accéder à l\'espace d\'administration.', 'Veuillez saisir votre mot de passe pour accéder à l\'espace d\'administration.')}
+            </Text>
+
+            {passwordError && (
+              <View style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderRadius: 10,
+                padding: 10,
+                width: '100%',
+                marginBottom: 12,
+              }}>
+                <Text style={{ color: '#EF4444', fontSize: 12, textAlign: 'center', fontFamily: F.medium }}>
+                  {passwordError}
+                </Text>
+              </View>
+            )}
+
+            <TextInput
+              style={{
+                width: '100%',
+                backgroundColor: T.surfaceAlt,
+                borderWidth: 1,
+                borderColor: passwordError ? '#EF4444' : T.border,
+                borderRadius: 12,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                fontSize: 14,
+                color: T.text,
+                marginBottom: 18,
+                fontFamily: F.regular,
+              }}
+              secureTextEntry
+              placeholder={t('Saisissez votre mot de passe', 'Saisissez votre mot de passe')}
+              placeholderTextColor={T.textMuted}
+              value={adminPassword}
+              onChangeText={(txt) => {
+                setAdminPassword(txt);
+                if (passwordError) setPasswordError(null);
+              }}
+              onSubmitEditing={handleVerifyAdminPassword}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10, width: '100%' }}>
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  backgroundColor: T.surfaceAlt,
+                  alignItems: 'center',
+                }}
+                onPress={() => setIsAdminModalOpen(false)}
+                disabled={verifyingPassword}
+              >
+                <Text style={{ color: T.text, fontSize: 14, fontWeight: '600', fontFamily: F.semibold }}>
+                  {t('Annuler', 'Annuler')}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  backgroundColor: T.green,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onPress={handleVerifyAdminPassword}
+                disabled={verifyingPassword}
+              >
+                {verifyingPassword ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '700', fontFamily: F.bold }}>
+                    {t('Confirmer', 'Confirmer')}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </AppScaffold>
   );
 }

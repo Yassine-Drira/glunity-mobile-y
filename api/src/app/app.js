@@ -124,6 +124,8 @@ app.get('/health', (_req, res) =>
 
 // ── API Routes ────────────────────────────────────────────────────────────────
 const adminRoutes = require('./modules/admin/admin.routes');
+const orderRoutes = require('./modules/orders/order.routes');
+const establishmentRoutes = require('./modules/establishment/establishment.routes');
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminRoutes);
@@ -142,6 +144,8 @@ app.use('/api/conversations', channelsRoutes);
 app.use('/api/patient-resources', patientResourcesRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/reels', reelsRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/establishments', establishmentRoutes);
 
 // ── Reel Preview (Open Graph / social share) ──────────────────────────────────
 // Public route: GET /reel/:id → returns server-rendered HTML with OG meta tags.

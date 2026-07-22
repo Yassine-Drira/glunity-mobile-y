@@ -17,7 +17,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import http from '@/core/network/http.client';
+import { API_BASE_URL } from '@/core/config/api.config';
 import { AppScaffold } from '@/shared/components/AppScaffold';
 import { FilterPill } from '../components/FilterPill';
 import { PlaceCard } from '../components/PlaceCard';
@@ -64,11 +66,13 @@ export default function MapScreen({
   const { isRTL, t } = useLanguage();
   const insets = useSafeAreaInsets();
   const mapRef = useRef<MapWebViewHandle>(null);
+  const navigation = useNavigation<any>();
 
   const [filters, setFilters]       = useState<LocationFilters>({ category: 'all' });
   const [showFilters, setShowFilters] = useState(false);
   const [showContactFor, setShowContactFor] = useState<MapLocation | null>(null);
   const [copied, setCopied] = useState(false);
+  const [messagingLoading, setMessagingLoading] = useState(false);
   const [items, setItems]           = useState<MapLocation[]>([]);
   const [selectedId, setSelected]   = useState<string | null>(null);
   const [isLoading, setLoading]     = useState(true);
@@ -77,6 +81,57 @@ export default function MapScreen({
   const [locatingUser, setLocatingUser] = useState(false);
 
   const route = useRoute<any>();
+
+  const handleConsultShop = () => {
+    if (!showContactFor) return;
+    const sellerId = showContactFor.createdBy || (showContactFor as any).owner;
+    setShowContactFor(null);
+    navigation.navigate('SellerProfile', {
+      sellerId: typeof sellerId === 'string' ? sellerId : sellerId?._id,
+      store: showContactFor
+    });
+  };
+
+  const handleSendDM = async () => {
+    if (!showContactFor || messagingLoading) return;
+    let sellerId = showContactFor.createdBy || (showContactFor as any).owner;
+
+    if (!sellerId && showContactFor.id) {
+      try {
+        setMessagingLoading(true);
+        const { data } = await http.get(`${API_BASE_URL}/establishments/${showContactFor.id}`);
+        if (data?.data?.owner) {
+          sellerId = typeof data.data.owner === 'string' ? data.data.owner : data.data.owner._id;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (!sellerId) {
+      alert(t('Impossible de contacter le vendeur directement.', 'Impossible de contacter le vendeur directement.'));
+      setMessagingLoading(false);
+      return;
+    }
+
+    try {
+      setMessagingLoading(true);
+      const targetUserId = typeof sellerId === 'string' ? sellerId : sellerId._id;
+      const response = await http.post(`${API_BASE_URL}/channels/direct`, { userId: targetUserId });
+      if (response.data?.success && response.data?.data) {
+        const channel = response.data.data;
+        setShowContactFor(null);
+        navigation.navigate('CommunityChat', {
+          channelId: channel.id,
+          initialChannel: channel
+        });
+      }
+    } catch (error) {
+      console.error('Error opening direct message:', error);
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
   const initialLat = route.params?.latitude;
   const initialLng = route.params?.longitude;
   const initialTitle = route.params?.title || 'Selected Event';
@@ -502,15 +557,95 @@ export default function MapScreen({
         {/* ── Contact sheet modal ────────────────────────────────────────── */}
         <Modal visible={!!showContactFor} animationType="slide" transparent onRequestClose={() => setShowContactFor(null)}>
           <Pressable style={styles.modalBackdrop} onPress={() => setShowContactFor(null)}>
-            <Pressable style={styles.contactSheet} onPress={() => {}}>
-              <View style={styles.sheetHandle} />
-              <Text style={styles.sheetTitle}>{t('Get in Touch')}</Text>
-              <Text style={styles.contactMerchantName}>{t(showContactFor?.name || '')}</Text>
+              <Pressable style={styles.contactSheet} onPress={() => {}}>
+                <View style={styles.sheetHandle} />
+                <Text style={styles.sheetTitle}>{t('Get in Touch', 'Prendre Contact')}</Text>
+                <Text style={styles.contactMerchantName}>{t(showContactFor?.name || '')}</Text>
 
-              <View style={styles.contactPhoneBox}>
-                <Feather name="phone" size={20} color={T.green} />
-                <Text style={styles.contactPhoneNumber}>{showContactFor?.phone || t('No phone number listed')}</Text>
-              </View>
+                {/* Action 1: Consult Shop */}
+                <TouchableOpacity
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    backgroundColor: T.surface,
+                    borderWidth: 1.5,
+                    borderColor: T.border,
+                    borderRadius: 16,
+                    padding: 14,
+                    marginTop: 12,
+                    marginBottom: 10,
+                    gap: 12,
+                  }}
+                  activeOpacity={0.8}
+                  onPress={handleConsultShop}
+                >
+                  <View style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    backgroundColor: `${T.green}18`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Feather name="shopping-bag" size={20} color={T.green} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, textAlign: isRTL ? 'right' : 'left' }}>
+                      {t('Consulter la boutique', 'Consulter la boutique')}
+                    </Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Poppins_400Regular', color: T.textMuted, textAlign: isRTL ? 'right' : 'left' }}>
+                      {t('Voir produits disponibles & avis', 'Voir produits disponibles & avis')}
+                    </Text>
+                  </View>
+                  <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={18} color={T.textMuted} />
+                </TouchableOpacity>
+
+                {/* Action 2: Send Message DM */}
+                <TouchableOpacity
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    backgroundColor: T.surface,
+                    borderWidth: 1.5,
+                    borderColor: T.border,
+                    borderRadius: 16,
+                    padding: 14,
+                    marginBottom: 14,
+                    gap: 12,
+                  }}
+                  activeOpacity={0.8}
+                  onPress={handleSendDM}
+                  disabled={messagingLoading}
+                >
+                  <View style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    backgroundColor: `${T.green}18`,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    {messagingLoading ? (
+                      <ActivityIndicator size="small" color={T.green} />
+                    ) : (
+                      <Feather name="message-square" size={20} color={T.green} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', fontFamily: 'Poppins_700Bold', color: T.text, textAlign: isRTL ? 'right' : 'left' }}>
+                      {t('Envoyer un message', 'Envoyer un message')}
+                    </Text>
+                    <Text style={{ fontSize: 11, fontFamily: 'Poppins_400Regular', color: T.textMuted, textAlign: isRTL ? 'right' : 'left' }}>
+                      {t('Discuter directement avec le vendeur (DM)', 'Discuter directement avec le vendeur (DM)')}
+                    </Text>
+                  </View>
+                  <Feather name={isRTL ? 'chevron-left' : 'chevron-right'} size={18} color={T.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.contactPhoneBox}>
+                  <Feather name="phone" size={18} color={T.green} />
+                  <Text style={styles.contactPhoneNumber}>{showContactFor?.phone || t('No phone number listed')}</Text>
+                </View>
 
               {showContactFor?.phone ? (
                 <View style={styles.contactActionsRow}>

@@ -409,9 +409,9 @@ export function AppHeader({
         toastContentWrapper: {
           borderRadius: 20,
           overflow: 'hidden',
-          backgroundColor: isDark ? 'rgba(30,30,30,0.85)' : 'rgba(255,255,255,0.95)',
-          borderWidth: 1,
-          borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+          backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+          borderWidth: 1.5,
+          borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
         },
         toastContent: {
           flexDirection: 'row',
@@ -426,16 +426,16 @@ export function AppHeader({
           justifyContent: 'center',
         },
         toastTitle: {
-          fontSize: 15,
+          fontSize: 14,
           fontFamily: F.bold,
           fontWeight: '700',
-          color: C.text,
+          color: isDark ? '#F9FAFB' : '#111827',
           textAlign: isRTL ? 'right' : 'left',
         },
         toastBody: {
-          fontSize: 13,
+          fontSize: 12,
           fontFamily: F.regular,
-          color: C.textMuted,
+          color: isDark ? '#9CA3AF' : '#4B5563',
           marginTop: 2,
           textAlign: isRTL ? 'right' : 'left',
         },
@@ -460,6 +460,10 @@ export function AppHeader({
     <View style={s.wrap}>
       {activeToast && (() => {
         const tStyle = getToastStyle(activeToast.type);
+        const rawTitle = activeToast.title || '';
+        const cleanTitle = rawTitle.replace(/^in\s+/i, '').replace(/dY[^\s]+/g, '🔥');
+        const rawBody = activeToast.body || '';
+        const cleanBody = rawBody.replace(/dY[^\s]+/g, '🔥');
         return (
           <AnimatedReanimated.View
             entering={reducedMotion ? undefined : SlideInDown.duration(400).springify().damping(18).stiffness(150)}
@@ -474,19 +478,16 @@ export function AppHeader({
               }}
               style={s.toastContentWrapper}
             >
-              {BlurView && (
-                 <BlurView intensity={isDark ? 30 : 60} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
-              )}
               <View style={s.toastContent}>
                 <View style={[s.toastIconBox, { backgroundColor: tStyle.color + (isDark ? '25' : '15') }]}>
                   <Feather name={tStyle.icon as any} size={20} color={tStyle.color} />
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={s.toastTitle} numberOfLines={1}>{t(activeToast.title)}</Text>
-                  <Text style={s.toastBody} numberOfLines={2}>{t(activeToast.body)}</Text>
+                  <Text style={s.toastTitle} numberOfLines={1}>{t(cleanTitle)}</Text>
+                  <Text style={s.toastBody} numberOfLines={2}>{t(cleanBody)}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setActiveToast(null)} style={{ padding: 6, paddingLeft: 12 }}>
-                  <Feather name="x" size={18} color={C.textMuted} />
+                  <Feather name="x" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>

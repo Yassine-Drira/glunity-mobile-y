@@ -743,6 +743,12 @@ const ar = {
   'Empowering the gluten-free community 🏆': 'دعم مجتمع الخالي من الغلوتين 🏆',
   'Pro User': 'حساب احترافي',
   'Anonymous': 'مجهول',
+  'My stores & establishments': 'متاجري ومؤسساتي',
+  'Customer orders & Sales': 'طلبات العملاء والمبيعات',
+  'Mes Magasins & Établissements': 'متاجري ومؤسساتي',
+  'Commandes clients & Ventes': 'طلبات العملاء والمبيعات',
+  'Consulter mes commandes passées': 'الاطلاع على طلبياتي السابقة',
+  'Gérer & Éditer le magasin': 'إدارة وتعديل المتجر',
 };
 
 export default ar;

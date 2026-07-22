@@ -292,8 +292,8 @@ const reelsService = {
 			const updatedReel = await reelsRepository.incrementLikes(reelId, 1);
 
 			// Trigger like notification if not self-action
-			const recipientId = reel.authorId._id || reel.authorId;
-			if (recipientId.toString() !== userId.toString()) {
+			const recipientId = reel.authorId ? (reel.authorId._id || reel.authorId) : null;
+			if (recipientId && recipientId.toString() !== userId.toString()) {
 				const existingNotif = await Notification.findOne({
 					recipientId,
 					actorId: userId,

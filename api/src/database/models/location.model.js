@@ -148,6 +148,12 @@ const locationSchema = new Schema(
       ref: 'User',
       required: false,
     },
+
+    establishmentId: {
+      type: Types.ObjectId,
+      ref: 'Establishment',
+      required: false,
+    },
   },
   {
     timestamps: true,

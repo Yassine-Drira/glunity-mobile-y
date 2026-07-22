@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +22,7 @@ import type { AppStackParamList } from '@/navigation/types';
 import productsApi, { Product } from '@/modules/seller/api/products.api';
 import { useTheme } from '@/shared/context/theme.context';
 import { useLanguage } from '@/shared/context/language.context';
+import { useCart } from '../../context/CartContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const HERO_H = 210;  // fixed contained height matching the screenshot
@@ -293,12 +296,13 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 24,
-      paddingTop: 14,
-      paddingBottom: 40,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: Platform.OS === 'web' ? 24 : 95,
       backgroundColor: T.surface,
       borderTopWidth: 1,
       borderTopColor: T.border,
+      gap: 8,
     },
     priceLabel: {
       fontSize: 11,
@@ -307,28 +311,29 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
       fontFamily: 'Poppins_400Regular',
     },
     priceValue: {
-      fontSize: 22,
+      fontSize: 18,
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       color: T.green,
-      lineHeight: 28,
+      lineHeight: 24,
     },
     viewSellerBtn: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
       backgroundColor: T.green,
       borderRadius: Radius.lg,
-      paddingHorizontal: 22,
-      paddingVertical: 13,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
       shadowColor: T.green,
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.3,
       shadowRadius: 8,
       elevation: 4,
+      flexShrink: 1,
     },
     viewSellerText: {
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '700',
       fontFamily: 'Poppins_700Bold',
       color: '#FFFFFF',
@@ -346,13 +351,47 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
     navigation.navigate(user?.profileType === 'pro_commerce' ? 'SellerProProfile' : 'Profile');
   };
 
+  const { addToCart, itemCount } = useCart();
+  const [quantity, setQuantity] = useState(1);
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    addToCart(
+      {
+        id: product._id,
+        name: product.name,
+        price: product.price,
+        image: imageUri,
+        unit: 'pièce',
+      },
+      quantity
+    );
+    Alert.alert(
+      t('Panier mis à jour', 'Panier mis à jour'),
+      t(`${quantity}x ${product.name} ajouté(s) à votre panier !`, `${quantity}x ${product.name} ajouté(s) à votre panier !`),
+      [
+        { text: t('Continuer', 'Continuer'), style: 'cancel' },
+        { text: t('Voir le panier', 'Voir le panier'), onPress: () => navigation.navigate('Cart') },
+      ]
+    );
+  };
+
   const headerActions = (
     <View style={s.headerActions}>
+      <TouchableOpacity
+        style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]}
+        activeOpacity={0.7}
+        onPress={() => navigation.navigate('Cart')}
+      >
+        <Feather name="shopping-cart" size={18} color={T.text} />
+        {itemCount > 0 && (
+          <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: T.red, borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700' }}>{itemCount > 99 ? '99+' : itemCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
       <TouchableOpacity style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} activeOpacity={0.7} id="detail-search-btn">
         <Feather name="search" size={18} color={T.text} />
-      </TouchableOpacity>
-      <TouchableOpacity style={[s.iconBtn, { backgroundColor: T.surfaceAlt }]} activeOpacity={0.7} id="detail-notif-btn">
-        <Feather name="bell" size={18} color={T.text} />
       </TouchableOpacity>
     </View>
   );
@@ -456,25 +495,43 @@ export default function ProductDetailScreen({ route, navigation }: Props) {
         </View>
       </ScrollView>
 
-      {/* Price + View Seller bar */}
+      {/* Price + Add to Cart Bar */}
       <View style={[s.bottomBar, { backgroundColor: T.surface, borderTopColor: T.border }]}>
-        <View>
-          <Text style={[s.priceLabel, { color: T.textMuted }]}>{t('Price')}</Text>
-          <Text style={[s.priceValue, { color: T.green }]}>{product.price}TND</Text>
+        <View style={{ justifyContent: 'center' }}>
+          <Text style={[s.priceLabel, { color: T.textMuted }]}>{t('Prix')}</Text>
+          <Text style={[s.priceValue, { color: T.green }]}>{product.price} TND</Text>
         </View>
 
-        <TouchableOpacity
-          style={[s.viewSellerBtn, { backgroundColor: T.green, shadowColor: T.green }]}
-          activeOpacity={0.85}
-          onPress={() => {
-            const sellerId = typeof product.sellerId === 'object' ? product.sellerId?._id : product.sellerId;
-            navigation.navigate('SellerProfile', { sellerId });
-          }}
-          id="detail-view-seller-btn"
-        >
-          <Feather name="shopping-bag" size={16} color="#FFFFFF" />
-          <Text style={s.viewSellerText}>{t('View Seller')}</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+          {/* Quantity Stepper */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: T.surfaceAlt, borderRadius: 12, padding: 3, gap: 4, borderWidth: 1, borderColor: T.border }}>
+            <TouchableOpacity
+              style={{ width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surface }}
+              onPress={() => setQuantity((q) => Math.max(1, q - 1))}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Feather name="minus" size={14} color={T.text} />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: T.text, minWidth: 14, textAlign: 'center' }}>{quantity}</Text>
+            <TouchableOpacity
+              style={{ width: 26, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: T.surface }}
+              onPress={() => setQuantity((q) => q + 1)}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Feather name="plus" size={14} color={T.text} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[s.viewSellerBtn, { backgroundColor: T.green, shadowColor: T.green }]}
+            activeOpacity={0.85}
+            onPress={handleAddToCart}
+            id="detail-add-to-cart-btn"
+          >
+            <Feather name="shopping-cart" size={15} color="#FFFFFF" />
+            <Text style={s.viewSellerText}>{t('Ajouter')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </AppScaffold>
   );

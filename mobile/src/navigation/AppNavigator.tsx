@@ -16,13 +16,18 @@ import SettingsScreen    from '../modules/profile/ui/screens/SettingsScreen';
 import PrivacyScreen     from '../modules/profile/ui/screens/PrivacyScreen';
 import EditProfileScreen from '../modules/profile/ui/screens/EditProfileScreen';
 import EditStoreScreen from '../modules/seller/ui/screens/EditStoreScreen';
+import MyEstablishmentsScreen from '../modules/seller/ui/screens/MyEstablishmentsScreen';
 import SellerProfileScreen    from '../modules/seller/ui/screens/SellerProfileScreen';
 import SellerProProfileScreen from '../modules/seller/ui/screens/SellerProProfileScreen';
 import AddProductScreen        from '../modules/seller/ui/screens/AddProductScreen';
 import AddRecipeScreen         from '../modules/seller/ui/screens/AddRecipeScreen';
 import SellerStatsScreen       from '../modules/seller/ui/screens/SellerStatsScreen';
+import ProductDetailScreen from '../modules/products/ui/screens/ProductDetailScreen';
 import ProductsMarketScreen from '../modules/products/ui/screens/ProductsMarketScreen';
-import ProductDetailScreen  from '../modules/products/ui/screens/ProductDetailScreen';
+import CartScreen from '../modules/products/ui/screens/CartScreen';
+import CheckoutScreen from '../modules/products/ui/screens/CheckoutScreen';
+import UserOrdersScreen from '../modules/products/ui/screens/UserOrdersScreen';
+import { CartProvider } from '../modules/products/context/CartContext';
 import MapScreen            from '../modules/map/ui/screens/MapScreen';
 import EventsCalendarScreen from '../modules/events/ui/screens/EventsCalendarScreen';
 import EventDetailScreen from '../modules/events/ui/screens/EventDetailScreen';
@@ -42,6 +47,7 @@ import CaptureScreen from '../modules/reels/ui/screens/CaptureScreen';
 import EditScreen from '../modules/reels/ui/screens/EditScreen';
 import ShareScreen from '../modules/reels/ui/screens/ShareScreen';
 import AddCoverScreen from '../modules/reels/ui/screens/AddCoverScreen';
+import { AdminNavigator } from '../modules/admin/navigation/AdminNavigator';
 
 // ── Deep-link redirect screen ──────────────────────────────────────────────────
 // When the app receives https://myapp.com/reel/:reelId, React Navigation routes
@@ -171,25 +177,35 @@ function HomeScreenContainer() {
 }
 
 export function AppNavigator() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin' || user?.profileType === 'admin';
+
   return (
-    <Stack.Navigator
-      screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
-    >
-      <Stack.Screen name="Home" component={HomeScreenContainer} />
-      <Stack.Screen name="Recipes"         component={RecipesScreen} />
-      <Stack.Screen name="RecipeDetail"    component={RecipeDetailScreen} options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="Profile"         component={ProfileScreen}     options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="Settings"        component={SettingsScreen} />
-      <Stack.Screen name="Privacy"         component={PrivacyScreen}     options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
-      <Stack.Screen name="EditStore"       component={EditStoreScreen} />
-      <Stack.Screen name="SellerProfile"      component={SellerProfileScreen} />
-      <Stack.Screen name="SellerProProfile"   component={SellerProProfileScreen} options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="AddProduct"         component={AddProductScreen} />
-      <Stack.Screen name="AddRecipe"          component={AddRecipeScreen} options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="SellerStats"        component={SellerStatsScreen} />
-      <Stack.Screen name="ProductsMarket"  component={ProductsMarketScreen} options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="ProductDetail"   component={ProductDetailScreen}  options={{ animation: 'slide_from_right' }} />
+    <CartProvider>
+      <Stack.Navigator
+        initialRouteName={isAdmin ? 'AdminSpace' : 'Home'}
+        screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
+      >
+        <Stack.Screen name="AdminSpace"      component={AdminNavigator}    options={{ animation: 'fade' }} />
+        <Stack.Screen name="Home"            component={HomeScreenContainer} />
+        <Stack.Screen name="Recipes"         component={RecipesScreen} />
+        <Stack.Screen name="RecipeDetail"    component={RecipeDetailScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="Profile"         component={ProfileScreen}     options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="Settings"        component={SettingsScreen} />
+        <Stack.Screen name="Privacy"         component={PrivacyScreen}     options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
+        <Stack.Screen name="EditStore"       component={EditStoreScreen} />
+        <Stack.Screen name="MyEstablishments" component={MyEstablishmentsScreen} />
+        <Stack.Screen name="SellerProfile"      component={SellerProfileScreen} />
+        <Stack.Screen name="SellerProProfile"   component={SellerProProfileScreen} options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="AddProduct"         component={AddProductScreen} />
+        <Stack.Screen name="AddRecipe"          component={AddRecipeScreen} options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="SellerStats"        component={SellerStatsScreen} />
+        <Stack.Screen name="ProductsMarket"  component={ProductsMarketScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="ProductDetail"   component={ProductDetailScreen}  options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="Cart"            component={CartScreen}           options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="Checkout"        component={CheckoutScreen}       options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="UserOrders"      component={UserOrdersScreen}     options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="Map">
         {({ navigation }) => {
           const { user } = useAuth();
@@ -245,6 +261,7 @@ export function AppNavigator() {
         options={{ animation: 'slide_from_bottom' }} 
       />
     </Stack.Navigator>
+    </CartProvider>
   );
 }
 

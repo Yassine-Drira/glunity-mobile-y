@@ -18,17 +18,22 @@ export type AppStackParamList = {
   Recipes:         undefined;
   RecipeDetail:    { recipeId?: string; initialRecipe?: any };
   Profile:         { userId?: string } | undefined;
+  AdminSpace:      undefined;
   Settings:        undefined;
   EditProfile:     undefined;
-  EditStore:       { lang?: string } | undefined;
+  EditStore:       { establishmentId?: string; store?: any; lang?: string } | undefined;
+  MyEstablishments: undefined;
   /** Pass sellerId when visiting another seller's profile */
-  SellerProfile:   { sellerId?: string } | undefined;
+  SellerProfile:   { sellerId?: string; establishmentId?: string; store?: any } | undefined;
   SellerProProfile: undefined;
   AddProduct:      { product?: any } | undefined;
   AddRecipe:       { recipe?: any } | undefined;
-  SellerStats:     undefined;
+  SellerStats:     { establishmentId?: string; store?: any } | undefined;
   ProductDetail:   { product?: any; productId?: string };
   ProductsMarket:  { sellerId?: string } | undefined;
+  Cart:            undefined;
+  Checkout:        undefined;
+  UserOrders:      undefined;
   Events:          undefined;
   EventDetail:     { eventId: string };
   AddEvent:        undefined;

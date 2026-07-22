@@ -69,6 +69,11 @@ export function ThemedNavigationContainer({ children, linking }: Props) {
     if (!socket) return;
 
     const handleNotification = (notif: any) => {
+      // ONLY trigger DM/Community chat toast for chat messages with conversationId
+      if (notif.type !== 'chat' && notif.type !== 'message' && !notif.conversationId) {
+        return;
+      }
+
       // Don't show toast if we are already viewing this chat
       if (navigationRef.current?.isReady()) {
         const route = navigationRef.current.getCurrentRoute();
@@ -152,8 +157,8 @@ export function ThemedNavigationContainer({ children, linking }: Props) {
             styles.toastContainer,
             {
               transform: [{ translateY: slideAnim }],
-              backgroundColor: isDark ? 'rgba(30,30,30,0.92)' : 'rgba(255,255,255,0.92)',
-              borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+              backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+              borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
             }
           ]}
         >
@@ -163,15 +168,15 @@ export function ThemedNavigationContainer({ children, linking }: Props) {
             activeOpacity={0.85}
           >
             <Image
-              source={{ uri: activeNotif.senderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeNotif.senderName || 'U')}&background=8BC34A&color=fff` }}
+              source={{ uri: activeNotif.senderAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(activeNotif.senderName || 'Community')}&background=8BC34A&color=fff` }}
               style={styles.toastAvatar}
             />
             <View style={styles.toastTextWrap}>
-              <Text style={[styles.toastTitle, { color: isDark ? '#fff' : '#000' }]} numberOfLines={1}>
-                {activeNotif.senderName} <Text style={{ fontSize: 11, fontWeight: 'normal', color: isDark ? '#ccc' : '#666' }}>in {activeNotif.conversationName}</Text>
+              <Text style={[styles.toastTitle, { color: isDark ? '#F9FAFB' : '#111827' }]} numberOfLines={1}>
+                {activeNotif.senderName || 'Message'} {activeNotif.conversationName ? <Text style={{ fontSize: 11, fontWeight: 'normal', color: isDark ? '#9CA3AF' : '#6B7280' }}>dans {activeNotif.conversationName}</Text> : null}
               </Text>
-              <Text style={[styles.toastSnippet, { color: isDark ? '#bbb' : '#444' }]} numberOfLines={1}>
-                {activeNotif.messagePreview}
+              <Text style={[styles.toastSnippet, { color: isDark ? '#9CA3AF' : '#4B5563' }]} numberOfLines={1}>
+                {activeNotif.messagePreview || ''}
               </Text>
             </View>
           </TouchableOpacity>

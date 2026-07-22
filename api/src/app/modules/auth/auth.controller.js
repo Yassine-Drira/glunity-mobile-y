@@ -55,6 +55,26 @@ const authController = {
     res.status(200).json(authMapper.toAuthResponse(result));
   }),
 
+  /** POST /api/auth/verify-password */
+  verifyPassword: asyncHandler(async (req, res) => {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Mot de passe requis' });
+    }
+    const User = require('../../../database/models/user.model');
+    const { verifyPassword } = require('../../common/utils/password');
+
+    const user = await User.findById(req.user._id).select('+passwordHash');
+    if (!user) throw AppError.notFound('User');
+
+    const isValid = await verifyPassword(password, user.passwordHash || user.password);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Mot de passe incorrect' });
+    }
+
+    res.status(200).json({ success: true, message: 'Mot de passe vérifié avec succès' });
+  }),
+
   /** POST /api/auth/refresh */
   refresh: asyncHandler(async (req, res) => {
     const token  = req.cookies?.[AUTH.COOKIE_NAME] || req.body?.refreshToken;

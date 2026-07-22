@@ -749,6 +749,12 @@ const en = {
   'CANCELLED': 'User Cancelled',
   'REJECTED': 'User Cancelled',
   'Accept Payment': 'Accept Payment',
+  'My stores & establishments': 'My Stores & Establishments',
+  'Customer orders & Sales': 'Customer Orders & Sales',
+  'Mes Magasins & Établissements': 'My Stores & Establishments',
+  'Commandes clients & Ventes': 'Customer Orders & Sales',
+  'Consulter mes commandes passées': 'Consult Past Orders',
+  'Gérer & Éditer le magasin': 'Manage & Edit Store',
 };
 
 export default en;

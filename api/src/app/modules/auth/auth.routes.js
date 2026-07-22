@@ -37,5 +37,6 @@ router.post('/reset-password',        resetPasswordSchema,        validate, auth
 
 // ── Protected routes ───────────────────────────────────────────────────────────
 router.get('/me', authMiddleware, authController.me);
+router.post('/verify-password', authMiddleware, authController.verifyPassword);
 
 module.exports = router;

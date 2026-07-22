@@ -48,11 +48,13 @@ const channelsRepository = {
 	},
 
 	findDirectChannel(user1Id, user2Id) {
+		const u1 = user1Id && user1Id._id ? user1Id._id : user1Id;
+		const u2 = user2Id && user2Id._id ? user2Id._id : user2Id;
 		return Channel.findOne({
-			isPrivate: true,
-			'participants.userId': { $all: [user1Id, user2Id] },
+			$or: [{ type: 'direct' }, { type: 'DM' }],
+			'participants.userId': { $all: [u1, u2] },
 			deletedAt: { $in: [null, undefined] }
-		}).lean();
+		}).sort({ createdAt: 1 }).lean();
 	},
 
 	create(payload) {

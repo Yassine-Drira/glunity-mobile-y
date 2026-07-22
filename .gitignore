@@ -40,9 +40,10 @@ messaging-service/uploads/
 # Scrum Sheet
 scrum-sheet/
 
-# ==========================================
+# Integration workspace
+integration-possibility/
+
 # Repository Hygiene (auto-added)
-# ==========================================
 
 # Scratch & debug scripts
 scratch-*.js
@@ -50,7 +51,6 @@ inspect-*.js
 
 # Compiler/build output dumps
 tsc-check.txt
-*.log
 
 # Transient script run artifacts
 *-report.json
@@ -63,4 +63,3 @@ reupload-results.json
 
 # Installer/temp files
 *.tmp
-

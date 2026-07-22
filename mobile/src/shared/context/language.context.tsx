@@ -5,16 +5,18 @@ import fr from '../translations/fr';
 import ar from '../translations/ar';
 
 export type LanguageCode = 'en' | 'fr' | 'ar';
+export type Language = LanguageCode;
 
 interface LanguageContextType {
   language: LanguageCode;
   setLanguage: (lang: LanguageCode) => Promise<void>;
-  t: (key: string) => string;
+  toggleLanguage: () => Promise<void>;
+  t: (key: string, fallback?: string) => string;
   isRTL: boolean;
 }
 
 // Global hookless bindings for monkey-patched elements (Text, Alert, TextInput)
-export let globalT: (key: string) => string = (key) => key;
+export let globalT: (key: string, fallback?: string) => string = (key, fallback) => fallback || key;
 export let globalIsRTL = false;
 
 const translations: Record<LanguageCode, Record<string, string>> = {
@@ -51,10 +53,15 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const t = (key: string): string => {
-    if (!key) return key;
+  const toggleLanguage = async () => {
+    const nextLang: LanguageCode = language === 'fr' ? 'ar' : language === 'ar' ? 'en' : 'fr';
+    await setLanguage(nextLang);
+  };
+
+  const t = (key: string, fallback?: string): string => {
+    if (!key) return fallback || key;
     const cleanKey = key.trim();
-    return translations[language]?.[cleanKey] || translations[language]?.[key] || translations['fr']?.[cleanKey] || key;
+    return translations[language]?.[cleanKey] || translations[language]?.[key] || translations['fr']?.[cleanKey] || fallback || key;
   };
 
   const isRTL = language === 'ar';
@@ -65,7 +72,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, [language, isRTL]);
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, isRTL }}>
+    <LanguageContext.Provider value={{ language, setLanguage, toggleLanguage, t, isRTL }}>
       {children}
     </LanguageContext.Provider>
   );

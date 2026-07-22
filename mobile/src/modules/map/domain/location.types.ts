@@ -33,6 +33,7 @@ export interface MapLocation {
   lat: number;
   images: LocationImage[];
   rating: LocationRating;
+  createdBy?: any;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -162,17 +163,34 @@ export default function SellerStatsScreen({ navigation }: Props) {
         <View style={{ marginHorizontal: 20, marginTop: 16, marginBottom: 24, borderRadius: 24, overflow: 'hidden', backgroundColor: T.red, shadowColor: T.red, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 20, elevation: 10 }}>
           <View style={{ position: 'absolute', top: -30, right: -20, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.10)' }} />
           <View style={{ position: 'absolute', bottom: -40, right: 60, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.07)' }} />
-          <View style={{ padding: 20 }}>
+          <View style={{ padding: 20, gap: 12 }}>
             <TouchableOpacity onPress={() => navigation.navigate('SellerProfile', { sellerId: user?._id })} activeOpacity={0.85} id="btn-stats-view-profile"
               style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', gap: 10 }}>
               {renderGlassIcon('shopping-bag', 18, '#FFF', 40, 20)}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 14, color: '#FFF' }}>{user?.storeInfo?.storeName || t('My Store')}</Text>
-                <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.78)' }}>{t('View public profile')} →</Text>
+                <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 15, color: '#FFF' }}>{user?.storeInfo?.storeName || t('My Store')}</Text>
+                <Text style={{ fontFamily: 'Poppins_400Regular', fontSize: 11, color: 'rgba(255,255,255,0.78)' }}>{t('Voir le profil public')} →</Text>
               </View>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ fontFamily: 'Poppins_600SemiBold', fontSize: 10, color: '#FFF' }}>{t('View Details')}</Text>
-              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('EditStore')}
+              activeOpacity={0.85}
+              id="btn-stats-edit-store"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(255,255,255,0.22)',
+                borderRadius: 12,
+                paddingVertical: 10,
+                gap: 8,
+              }}
+            >
+              <Feather name="edit-3" size={15} color="#FFFFFF" />
+              <Text style={{ fontFamily: 'Poppins_700Bold', fontSize: 13, color: '#FFFFFF' }}>
+                {t('Gérer & Éditer le magasin', 'Gérer & Éditer le magasin')}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -493,6 +511,9 @@ export default function SellerStatsScreen({ navigation }: Props) {
                     {/* Touch targets overlay: vertical column hot-zones */}
                     {pts.map((pt, idx) => {
                       const colW = (svgW - svgPadLeft - svgPadRight) / (chartValues.length - 1 || 1);
+                      const touchProps = Platform.OS === 'web'
+                        ? { onClick: () => setSelectedPointIdx(idx) }
+                        : { onPress: () => setSelectedPointIdx(idx) };
                       return (
                         <Circle
                           key={`touch-${idx}`}
@@ -500,7 +521,7 @@ export default function SellerStatsScreen({ navigation }: Props) {
                           cy={pt[1]}
                           r={Math.min(24, colW / 1.1)}
                           fill="transparent"
-                          onPress={() => setSelectedPointIdx(idx)}
+                          {...touchProps}
                         />
                       );
                     })}

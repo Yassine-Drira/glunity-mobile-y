@@ -48,6 +48,7 @@ export interface AuthUser {
   _id: string;
   fullName: string;
   email: string;
+  role?: string;
   phone?: string;
   bio?: string;
   storeInfo?: StoreInfo;

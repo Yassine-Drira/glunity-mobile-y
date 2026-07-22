@@ -438,7 +438,7 @@ const usersController = {
     try {
       await notificationsService.create({
         userId: user._id,
-        title: `Daily Check-In Completed! 🔥`,
+        title: 'Daily Check-In Completed! 🔥',
         body: `You checked in today and earned +${totalPointsEarned} XP! Current streak: ${user.streakDays} ${user.streakDays === 1 ? 'day' : 'days'}.`,
         type: 'achievement',
         isRead: false
