@@ -28,7 +28,6 @@ Thumbs.db
 .idea/
 
 # Temporary developer logs & reports
-tatus
 db-check-result.txt
 *.log
 *.txt.resolved
