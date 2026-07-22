@@ -69,9 +69,11 @@ docs/runbooks/
 docs/specs/
 docs/*.pdf
 
-# Ignore all audit files except --@admin_handoff_documentation.md
+# Ignore all audit files except --@admin_handoff_documentation.md and glutenia-integ
 docs/audits/*
 !docs/audits/--@admin_handoff_documentation.md
+!docs/audits/glutenia-integ/
+!docs/audits/glutenia-integ/*
 
 # Ignore intermediate audit notes in architecture
 docs/architecture/messagerie/messaging_module_audit*.md

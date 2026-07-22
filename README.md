@@ -17,6 +17,7 @@ For full, in-depth technical specifications, sequence diagrams, data models, com
 * 📄 **[Engineering Design Doctrine](docs/architecture/engineering-ddoc.md)** — Security standards, performance guidelines, zero JS leakage, and UI principles.
 * 📄 **[Real-Time Messaging Architecture](docs/architecture/messagerie/messaging_system_architecture.md)** — Socket.IO protocol, room strategies, and voice/media pipeline.
 * 📄 **[Admin Handoff Documentation](docs/audits/--@admin_handoff_documentation.md)** — Admin dashboard integration, health survey, and moderation system.
+* 📄 **[Glutenia vs Glunity Comparison](docs/audits/glutenia-integ/COMPREHENSIVE_GLUNITY_VS_GLUTENIA_COMPARISON.md)** — Comprehensive architecture, UI, and feature comparison.
 
 ---
 
