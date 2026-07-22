@@ -16,7 +16,6 @@ For full, in-depth technical specifications, sequence diagrams, data models, com
 * 📄 **[Master Architecture & Module Specification](docs/TECHNICAL_DOCUMENTATION.md)** — Complete module specifications, use cases, Mermaid diagrams, and endpoint reference.
 * 📄 **[Engineering Design Doctrine](docs/architecture/engineering-ddoc.md)** — Security standards, performance guidelines, zero JS leakage, and UI principles.
 * 📄 **[Real-Time Messaging Architecture](docs/architecture/messagerie/messaging_system_architecture.md)** — Socket.IO protocol, room strategies, and voice/media pipeline.
-* 📄 **[Reels Module Architecture](docs/architecture/reels_module_architecture.md)** — Short vertical video scoring algorithm, comments tree, and OG previews.
 * 📄 **[Admin Handoff Documentation](docs/audits/--@admin_handoff_documentation.md)** — Admin dashboard integration, health survey, and moderation system.
 
 ---
